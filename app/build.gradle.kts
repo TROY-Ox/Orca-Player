@@ -107,6 +107,7 @@ licensee {
     allow("LGPL-3.0-or-later")
     allowUrl("https://opensource.org/license/mit") { because("The MIT licence, published under another URL") }
     allowUrl("https://developer.android.com/studio/terms.html") { because("Google Play services Cast SDK, for Chromecast (20.7)") }
+    allowUrl("https://www.gnu.org/licenses/old-licenses/lgpl-2.1.en.html") { because("libVLC for Android, LGPL-2.1-or-later, loaded as a separate library (20.8)") }
     allowUrl("https://www.bouncycastle.org/licence.html") { because("The Bouncy Castle licence is the MIT licence") }
 }
 

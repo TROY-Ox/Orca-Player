@@ -1053,12 +1053,13 @@ private fun ControlsOverlay(
 ) {
     val c = Troy.colors
     val mirror = Troy.state.mirrorTimeline
+    val settingsNow by vm.settings.collectAsStateWithLifecycle()
     val inSlot = { slot: ControlSlot -> layout.filter { it.slot == slot } }
 
     @Composable
     fun Control(cfg: com.troy.orcaplayer.core.model.PlayerControlConfig) {
         if (cfg.control == PlayerControl.CAST) {
-            if (vm.cast.available && vm.settings.value[com.troy.orcaplayer.core.settings.ExtrasSettings.CastEnabled]) {
+            if (vm.cast.available && settingsNow[com.troy.orcaplayer.core.settings.ExtrasSettings.CastEnabled]) {
                 com.troy.orcaplayer.cast.CastButton()
             }
             return
