@@ -456,8 +456,8 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
         // Controls
         AnimatedVisibility(
             controlsVisible && !locked,
-            enter = fadeIn(Troy.motion.spec()),
-            exit = fadeOut(Troy.motion.spec()),
+            enter = fadeIn(Troy.motion.spec<Float>()),
+            exit = fadeOut(Troy.motion.spec<Float>()),
         ) {
             ControlsOverlay(
                 vm = vm,

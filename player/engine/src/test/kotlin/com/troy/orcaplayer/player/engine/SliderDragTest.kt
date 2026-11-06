@@ -21,7 +21,7 @@ class SliderDragTest {
 
     @Test fun rateIsSmoothAndRising() {
         val d = SliderDrag(start = 0f, min = 0f, max = 100f, step = 1f)
-        var last = 0f
+        var last = d.ratePerDp(0f)
         var speed = 0f
         while (speed <= 2000f) {
             val r = d.ratePerDp(speed)

@@ -526,11 +526,12 @@ class PlayerViewModel @Inject constructor(
                         buf
                     } ?: error("Can't open")
                     val chosen = encoding ?: settings.value[PlayerSettings.SubtitleEncoding]
-                    val detected = runCatching { android.icu.text.CharsetDetector().setText(bytes).detect()?.name }.getOrNull()
+                    // Android's ICU has no charset detector; ArabicText checks UTF-8 and falls back to Windows-1256.
+                    val detected: String? = null
                     val text = ArabicText.decode(bytes, chosen, detected)
                     val fileName = name ?: displayName(uri)
                     val timeline = SubtitleParser.parse(text, fileName)
-                    ExternalSubtitle(uri.toString(), fileName, timeline, if (chosen == "auto") detected ?: "auto" else chosen)
+                    ExternalSubtitle(uri.toString(), fileName, timeline, if (chosen != "auto") chosen else if (ArabicText.isValidUtf8(bytes)) "UTF-8" else "windows-1256")
                 }
             }
             result.onSuccess { sub ->

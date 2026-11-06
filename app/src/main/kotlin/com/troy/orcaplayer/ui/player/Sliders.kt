@@ -129,7 +129,7 @@ fun LevelBar(
     val motion = Troy.motion
     // Damping 1.0: the bar eases into place with no overshoot.
     val shown by animateFloatAsState(percent, motion.spec(TroySprings.Move), label = "level")
-    AnimatedVisibility(visible, modifier, enter = fadeIn(motion.spec()), exit = fadeOut(motion.spec())) {
+    AnimatedVisibility(visible, modifier, enter = fadeIn(motion.spec<Float>()), exit = fadeOut(motion.spec<Float>())) {
         Column(
             Modifier.glass(TroyShapes.Panel).padding(vertical = 12.dp, horizontal = 8.dp).semantics { contentDescription = label },
             horizontalAlignment = Alignment.CenterHorizontally,
