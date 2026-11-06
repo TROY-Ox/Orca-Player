@@ -39,11 +39,15 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
 
       - name: Unit tests, lint and licence check
-        run: >
-          ./gradlew --continue
-          test
-          :app:lintStandardDebug :app:lintExtendedDebug
-          :app:checkStandardLicences
+        run: |
+          set -o pipefail
+          ./gradlew --continue test :app:lintStandardDebug :app:lintExtendedDebug :app:checkStandardLicences 2>&1 | tee gradle.log
+
+      - name: Summary of errors
+        if: failure()
+        run: |
+          grep -E '^e: |FAILED|Error: |error: |lint.*errors' gradle.log | sed 's|file:///home/runner/work/[^/]*/[^/]*/||' | sort -u | head -n 150 || true
+          for f in $(find . -path '*/build/reports/lint-results-*.txt'); do echo "== $f"; grep -B1 -A3 'Error:' "$f" | head -n 120; done
 
       - name: Debug APKs
         if: github.event_name == 'workflow_dispatch'

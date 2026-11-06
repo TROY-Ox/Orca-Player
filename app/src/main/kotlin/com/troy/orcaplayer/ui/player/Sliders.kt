@@ -6,7 +6,9 @@ import android.provider.Settings
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -48,6 +50,13 @@ import com.troy.orcaplayer.core.design.util.formatNumber
 import com.troy.orcaplayer.player.engine.SliderConfig
 
 enum class SliderKind { BRIGHTNESS, VOLUME }
+
+/** Fades for overlays: the default spring, or no animation with reduce motion. */
+@Composable
+fun fadeSpec(): FiniteAnimationSpec<Float> {
+    val motion = Troy.motion
+    return if (motion.reduceMotion) snap() else motion.springSpec()
+}
 
 /**
  * Brightness and volume levels for the player. Brightness is the window's own brightness in percent
@@ -129,7 +138,7 @@ fun LevelBar(
     val motion = Troy.motion
     // Damping 1.0: the bar eases into place with no overshoot.
     val shown by animateFloatAsState(percent, motion.spec(TroySprings.Move), label = "level")
-    AnimatedVisibility(visible, modifier, enter = fadeIn(motion.spec<Float>()), exit = fadeOut(motion.spec<Float>())) {
+    AnimatedVisibility(visible, modifier, enter = fadeIn(fadeSpec()), exit = fadeOut(fadeSpec())) {
         Column(
             Modifier.glass(TroyShapes.Panel).padding(vertical = 12.dp, horizontal = 8.dp).semantics { contentDescription = label },
             horizontalAlignment = Alignment.CenterHorizontally,
