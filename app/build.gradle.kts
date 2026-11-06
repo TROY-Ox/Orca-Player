@@ -128,6 +128,7 @@ dependencies {
     implementation(project(":tools"))
     implementation(project(":downloads"))
     implementation(project(":vault"))
+    implementation(project(":sources:network"))
     implementation(libs.androidx.work.runtime)
     implementation(libs.androidx.biometric)
     "extendedImplementation"(project(":sources:cloudstream"))

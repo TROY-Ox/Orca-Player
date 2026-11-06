@@ -10,6 +10,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Lan
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.foundation.layout.Arrangement
@@ -108,6 +109,7 @@ fun LocalScreen(
     onOpenUrlPlayer: () -> Unit = {},
     onOpenDownloads: () -> Unit = {},
     onOpenPrivate: () -> Unit = {},
+    onOpenNetwork: () -> Unit = {},
     vm: LocalViewModel = hiltViewModel(),
 ) {
     val c = Troy.colors
@@ -194,6 +196,7 @@ fun LocalScreen(
                 actions()
                 TroyIconButton(Icons.Filled.Link, stringResource(R.string.url_player_title), onOpenUrlPlayer)
                 TroyIconButton(Icons.Filled.CreateNewFolder, stringResource(R.string.local_add_folder), { runCatching { pickFolder.launch(null) } })
+                if (!kids) TroyIconButton(Icons.Filled.Lan, stringResource(R.string.network_title), onOpenNetwork)
                 if (!kids) TroyIconButton(Icons.Filled.Lock, stringResource(R.string.vault_title), onOpenPrivate)
             }
         }

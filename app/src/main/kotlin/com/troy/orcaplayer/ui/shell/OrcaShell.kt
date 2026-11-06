@@ -301,6 +301,7 @@ private fun OrcaNavHost(nav: NavHostController, start: String) {
                         openSettings, openProfiles, openUrlPlayer,
                         onOpenDownloads = { openDownloads("COMPLETED") },
                         onOpenPrivate = { if (!guard.active) nav.navigate(Routes.PRIVATE_FOLDER) { launchSingleTop = true } },
+                        onOpenNetwork = { if (!guard.active) nav.navigate(Routes.NETWORK_SHARES) { launchSingleTop = true } },
                     )
                     MainTab.TOOLS -> {
                         val layout by appVm.toolsLayout.collectAsStateWithLifecycle()
@@ -359,6 +360,12 @@ private fun OrcaNavHost(nav: NavHostController, start: String) {
         ) { TitleScreen(onBack = back) }
         composable(Routes.LICENCES) { LicencesScreen(onBack = back) }
         composable(Routes.PRIVATE_FOLDER) { com.troy.orcaplayer.ui.local.PrivateFolderScreen(onBack = back) }
+        composable(Routes.NETWORK_SHARES) {
+            com.troy.orcaplayer.ui.network.NetworkSharesScreen(onBack = back, onOpen = { nav.navigate(Routes.share(it)) })
+        }
+        composable(Routes.SHARE_BROWSE, arguments = listOf(navArgument("id") { type = NavType.StringType })) { e ->
+            com.troy.orcaplayer.ui.network.ShareBrowserScreen(id = e.arguments?.getString("id").orEmpty(), onBack = back)
+        }
         composable(Routes.EXTENSIONS) { com.troy.orcaplayer.flavor.Flavor.ExtensionsScreen(onBack = back) }
         composable(Routes.DOWNLOADS, arguments = listOf(navArgument("tab") { type = NavType.StringType; defaultValue = "" })) { e ->
             com.troy.orcaplayer.ui.downloads.DownloadsScreen(

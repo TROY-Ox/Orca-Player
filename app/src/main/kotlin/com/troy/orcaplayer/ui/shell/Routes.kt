@@ -36,9 +36,12 @@ object Routes {
     const val MY_LIST = "my_list"
     const val HOME_ROWS = "home_rows"
     const val PRIVATE_FOLDER = "private_folder"
+    const val NETWORK_SHARES = "network_shares"
+    const val SHARE_BROWSE = "share/{id}"
     const val DOWNLOADS = "downloads?tab={tab}"
 
     fun urlPlayer(url: String? = null) = "url_player?url=" + android.net.Uri.encode(url.orEmpty())
+    fun share(id: String) = "share/" + android.net.Uri.encode(id)
     fun addon(id: String) = "addon/" + android.net.Uri.encode(id)
     fun discover(addonId: String? = null, catalogKey: String? = null) =
         "discover?addon=" + android.net.Uri.encode(addonId.orEmpty()) + "&catalog=" + android.net.Uri.encode(catalogKey.orEmpty())
