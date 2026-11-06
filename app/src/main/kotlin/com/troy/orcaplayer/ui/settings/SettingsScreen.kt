@@ -190,7 +190,6 @@ fun SettingsScreen(onBack: () -> Unit, onOpenLicences: () -> Unit, onOpenDecoder
         }
     }
 
-    val context = androidx.compose.ui.platform.LocalContext.current
     // The download folder is chosen with the system folder picker, not typed (16.2).
     val folderPicker = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri != null) {
