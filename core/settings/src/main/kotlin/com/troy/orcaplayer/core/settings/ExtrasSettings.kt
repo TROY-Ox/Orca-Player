@@ -33,19 +33,19 @@ object ExtrasSettings {
     val VlcFallback = bool("player.vlc_fallback", P, R.string.setting_vlc_fallback, R.string.setting_vlc_fallback_summary, R.string.setting_vlc_keywords, true)
 
     // Media library (20.1)
-    val LibraryEnabled = bool("library.enabled", L, R.string.setting_library, R.string.setting_library_summary, R.string.setting_library_keywords, true)
-    val LibraryAutoScan = bool("library.auto_scan", L, R.string.setting_library_auto_scan, R.string.setting_library_auto_scan_summary, R.string.setting_library_keywords, true)
-    val LibraryOnline = bool("library.online", L, R.string.setting_library_online, R.string.setting_library_online_summary, R.string.setting_tmdb_keywords, true)
+    val LibraryEnabled = bool("media_library.enabled", L, R.string.setting_library, R.string.setting_library_summary, R.string.setting_library_keywords, true)
+    val LibraryAutoScan = bool("media_library.auto_scan", L, R.string.setting_library_auto_scan, R.string.setting_library_auto_scan_summary, R.string.setting_library_keywords, true)
+    val LibraryOnline = bool("media_library.online", L, R.string.setting_library_online, R.string.setting_library_online_summary, R.string.setting_tmdb_keywords, true)
     val TmdbKey = TextSetting(
-        "library.tmdb_key", L, R.string.setting_tmdb_key, R.string.setting_tmdb_key_summary, R.string.setting_tmdb_keywords,
+        "media_library.tmdb_key", L, R.string.setting_tmdb_key, R.string.setting_tmdb_key_summary, R.string.setting_tmdb_keywords,
         secret = true, scope = SettingScope.GLOBAL,
     )
     val LibraryLanguage = choice(
-        "library.language", L, R.string.setting_library_language, R.string.setting_library_language_summary, R.string.setting_tmdb_keywords, "app",
+        "media_library.language", L, R.string.setting_library_language, R.string.setting_library_language_summary, R.string.setting_tmdb_keywords, "app",
         "app" to R.string.library_language_app, "en" to R.string.language_english, "ar" to R.string.language_arabic,
     )
     val LibrarySort = choice(
-        "library.sort", L, R.string.setting_library_sort, null, R.string.setting_library_keywords, "added",
+        "media_library.sort", L, R.string.setting_library_sort, null, R.string.setting_library_keywords, "added",
         "added" to R.string.sort_added, "title" to R.string.sort_title, "year" to R.string.sort_year,
         "rating" to R.string.sort_rating, "watched" to R.string.sort_last_watched,
     )

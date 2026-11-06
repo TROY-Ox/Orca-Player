@@ -53,6 +53,7 @@ private fun ValueSlider(label: String, value: Float, range: ClosedFloatingPointR
     }
 }
 
+@Composable
 private fun signedPercent(v: Float): String {
     val p = (v * 100).roundToInt()
     return (if (p > 0) "+" else "") + formatNumber(p) + "%"
