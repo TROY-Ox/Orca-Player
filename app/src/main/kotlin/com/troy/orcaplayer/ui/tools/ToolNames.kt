@@ -3,6 +3,10 @@ package com.troy.orcaplayer.ui.tools
 import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AudioFile
+import androidx.compose.material.icons.filled.BluetoothAudio
+import androidx.compose.material.icons.filled.Headphones
+import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.filled.Tonality
 import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.Compress
 import androidx.compose.material.icons.filled.FastForward
@@ -42,6 +46,10 @@ fun ToolId.nameRes(): Int = when (this) {
     ToolId.QUIET_MODE -> R.string.tool_quiet_mode
     ToolId.PER_VIDEO -> R.string.tool_per_video
     ToolId.DOWNLOAD -> R.string.tool_download
+    ToolId.AUDIO_ONLY -> R.string.tool_audio_only
+    ToolId.FILTERS -> R.string.tool_filters
+    ToolId.AUDIO_DELAY -> R.string.tool_audio_delay
+    ToolId.FLOATING_WINDOW -> R.string.tool_floating_window
     ToolId.SKIP_MARKS -> R.string.tool_skip_marks
     ToolId.DECODER_CHECK -> R.string.dc_title
     ToolId.URL_PLAYER -> R.string.tool_url_player
@@ -64,6 +72,10 @@ fun ToolId.summaryRes(): Int = when (this) {
     ToolId.QUIET_MODE -> R.string.tool_quiet_mode_summary
     ToolId.PER_VIDEO -> R.string.tool_per_video_summary
     ToolId.DOWNLOAD -> R.string.tool_download_summary
+    ToolId.AUDIO_ONLY -> R.string.tool_audio_only_summary
+    ToolId.FILTERS -> R.string.tool_filters_summary
+    ToolId.AUDIO_DELAY -> R.string.tool_audio_delay_summary
+    ToolId.FLOATING_WINDOW -> R.string.tool_floating_window_summary
     ToolId.SKIP_MARKS -> R.string.tool_skip_marks_summary
     ToolId.DECODER_CHECK -> R.string.dc_summary
     ToolId.URL_PLAYER -> R.string.tool_url_player_summary
@@ -85,6 +97,10 @@ fun ToolId.icon(): ImageVector = when (this) {
     ToolId.QUIET_MODE -> Icons.AutoMirrored.Filled.VolumeDown
     ToolId.PER_VIDEO -> Icons.Filled.Tune
     ToolId.DOWNLOAD -> Icons.Filled.Download
+    ToolId.AUDIO_ONLY -> Icons.Filled.Headphones
+    ToolId.FILTERS -> Icons.Filled.Tonality
+    ToolId.AUDIO_DELAY -> Icons.Filled.BluetoothAudio
+    ToolId.FLOATING_WINDOW -> Icons.Filled.OpenInNew
     ToolId.SKIP_MARKS -> Icons.Filled.FastForward
     ToolId.DECODER_CHECK -> Icons.Filled.Memory
     ToolId.URL_PLAYER -> Icons.Filled.Link

@@ -138,6 +138,23 @@ class SettingsRepository(context: Context) {
         }
     }
 
+    fun filterStore(profileId: String): Flow<com.troy.orcaplayer.core.model.FilterStore> =
+        layout(profileId, "video.filters", com.troy.orcaplayer.core.model.FilterStore.serializer(), com.troy.orcaplayer.core.model.FilterStore())
+
+    suspend fun updateFilterStore(profileId: String, change: (com.troy.orcaplayer.core.model.FilterStore) -> com.troy.orcaplayer.core.model.FilterStore) =
+        updateBlob(profileId, "video.filters", com.troy.orcaplayer.core.model.FilterStore.serializer(), com.troy.orcaplayer.core.model.FilterStore(), change)
+
+    /** Any JSON value stored for a profile, such as library or sync state. */
+    fun <T> blob(profileId: String, key: String, serializer: KSerializer<T>, default: T): Flow<T> = layout(profileId, key, serializer, default)
+
+    suspend fun <T> updateBlob(profileId: String, key: String, serializer: KSerializer<T>, default: T, change: (T) -> T) {
+        val k = stringPreferencesKey("p/$profileId/$key")
+        store.edit { prefs ->
+            val now = prefs[k]?.let { runCatching { json.decodeFromString(serializer, it) }.getOrNull() } ?: default
+            prefs[k] = json.encodeToString(serializer, change(now))
+        }
+    }
+
     private fun <T> layout(profileId: String, key: String, serializer: KSerializer<T>, default: T): Flow<T> =
         store.data.map { prefs ->
             prefs[stringPreferencesKey("p/$profileId/$key")]

@@ -48,7 +48,7 @@ import com.troy.orcaplayer.player.engine.DecoderMode
 import java.util.Locale
 import com.troy.orcaplayer.core.settings.R as SR
 
-enum class PlayerPanel { NONE, SPEED, TRACKS, SUBTITLES, TOOLS, QUEUE, AUDIO, ONLINE_SUBTITLES }
+enum class PlayerPanel { NONE, SPEED, TRACKS, SUBTITLES, TOOLS, QUEUE, AUDIO, ONLINE_SUBTITLES, FILTERS, AUDIO_DELAY }
 
 enum class AspectMode(val ratio: Float?) {
     FIT(null), FILL(null), STRETCH(null), ORIGINAL(null), R16_9(16f / 9f), R4_3(4f / 3f), R21_9(21f / 9f);

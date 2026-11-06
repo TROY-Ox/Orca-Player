@@ -120,6 +120,11 @@ interface PlayerHost {
     val orientationLock: String
     val isPhone: Boolean
     fun rotate()
+    /** Opens the floating window over other apps and leaves the full-screen player (20.5). */
+    fun floatingWindow() = Unit
+    val canFloat: Boolean get() = false
+    /** True while the video plays on a Cast device (20.7). */
+    val casting: Boolean get() = false
 }
 
 @OptIn(UnstableApi::class)
@@ -160,8 +165,16 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
     val marking by vm.binge.marking.collectAsStateWithLifecycle()
     val limitReached by vm.binge.limitReached.collectAsStateWithLifecycle()
     val profile by vm.profile.collectAsStateWithLifecycle()
+    val audioOnly by vm.audioOnly.collectAsStateWithLifecycle()
+    val filter by vm.picture.filter.collectAsStateWithLifecycle()
+    val filterStore by vm.picture.store.collectAsStateWithLifecycle()
+    val filterPerVideo by vm.picture.perVideo.collectAsStateWithLifecycle()
+    val filtersActive by vm.picture.active.collectAsStateWithLifecycle()
+    val audioDevice by vm.picture.audioDevice.collectAsStateWithLifecycle()
+    val audioDelay by vm.picture.audioDelayMs.collectAsStateWithLifecycle()
     val kids = profile?.isKids == true
     var parentGate by remember { mutableStateOf(false) }
+    var askOverlay by remember { mutableStateOf(false) }
     val surfaceRef = remember { VideoSurfaceRef() }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -519,6 +532,17 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
                 VideoSurface(player, surfaceRef, Modifier.fillMaxSize())
             }
         }
+        if (audioOnly && !isPip) {
+            AudioOnlyView(
+                title = ui.title,
+                subtitle = vm.currentItem()?.subtitle,
+                poster = vm.currentItem()?.poster,
+                index = ui.index,
+                count = ui.count,
+                onQueue = { panel = PlayerPanel.QUEUE },
+                onExit = { vm.setAudioOnly(false) },
+            )
+        }
         if (levels.dimAlpha > 0f) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = levels.dimAlpha)))
         if (night) {
             val dim = (settings[ToolSettings.NightDim].toIntOrNull() ?: 35) / 100f
@@ -796,6 +820,8 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
                             canSave = vm.saveDecision().let { it == SaveDecision.ALLOWED || it == SaveDecision.NEEDS_REMINDER },
                             canMark = vm.binge.canMark,
                             hasMarks = vm.binge.hasMarks,
+                            audioOnly = audioOnly,
+                            canFloat = host.canFloat,
                         ),
                         object : ToolsPanelActions {
                             override fun openTool(tool: ToolId) = launchTool(tool)
@@ -831,6 +857,13 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
                             override fun backgroundPlay(on: Boolean) = vm.setBackgroundPlay(on)
                             override fun infoOverlay(on: Boolean) = vm.setSetting(AV.InfoOverlay, on)
                             override fun pip() { panel = PlayerPanel.NONE; host.enterPip() }
+                            override fun audioOnly(on: Boolean) { vm.setAudioOnly(on); if (on) panel = PlayerPanel.NONE }
+                            override fun filters() { panel = PlayerPanel.FILTERS }
+                            override fun audioDelay() { panel = PlayerPanel.AUDIO_DELAY }
+                            override fun floatingWindow() {
+                                panel = PlayerPanel.NONE
+                                if (com.troy.orcaplayer.ui.mini.FloatingPlayerService.canDraw(context)) host.floatingWindow() else askOverlay = true
+                            }
                         },
                     )
                     PlayerPanel.AUDIO -> EqualizerPanel(
@@ -865,6 +898,23 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
                         onSearch = vm::searchOnlineSubtitles,
                         onPick = { vm.pickOnline(it); panel = PlayerPanel.NONE },
                     )
+                    PlayerPanel.FILTERS -> FiltersPanel(
+                        filter = filter,
+                        store = filterStore,
+                        perVideo = filterPerVideo,
+                        active = filtersActive,
+                        casting = host.casting,
+                        a = object : FilterActions {
+                            override fun set(f: com.troy.orcaplayer.core.model.VideoFilter) = vm.picture.set(f)
+                            override fun reset() = vm.picture.reset()
+                            override fun perVideo(on: Boolean) = vm.picture.setPerVideo(on)
+                            override fun skipHdr(on: Boolean) { vm.picture.setSkipHdr(on) }
+                            override fun applyPreset(p: com.troy.orcaplayer.core.model.FilterPreset) = vm.picture.applyPreset(p)
+                            override fun savePreset(name: String) { vm.picture.savePreset(name) }
+                            override fun deletePreset(name: String) { vm.picture.deletePreset(name) }
+                        },
+                    )
+                    PlayerPanel.AUDIO_DELAY -> AudioDelayPanel(audioDevice, audioDelay, host.casting, vm.picture::setAudioDelay)
                     PlayerPanel.NONE -> Unit
                 }
             }
@@ -938,6 +988,19 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
                 profilesVm,
                 onDismiss = { parentGate = false },
                 onUnlocked = { parentGate = false; vm.binge.overrideLimit(); vm.togglePlay() },
+            )
+        }
+        // The floating window needs "display over other apps": say why before asking (20.5).
+        if (askOverlay) {
+            com.troy.orcaplayer.ui.common.ConfirmDialog(
+                title = stringResource(R.string.floating_permission_title),
+                message = stringResource(R.string.floating_permission_message),
+                confirm = stringResource(R.string.floating_permission_open),
+                onConfirm = {
+                    askOverlay = false
+                    runCatching { context.startActivity(com.troy.orcaplayer.ui.mini.FloatingPlayerService.permissionIntent(context)) }
+                },
+                onDismiss = { askOverlay = false },
             )
         }
     }

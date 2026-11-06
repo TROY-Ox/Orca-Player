@@ -133,6 +133,7 @@ private fun MainShell(navLayout: NavLayout, isTv: Boolean, appVm: AppViewModel) 
     val values by appVm.settings.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val profilesVm: ProfilesViewModel = hiltViewModel()
+    val miniVm: com.troy.orcaplayer.ui.mini.MiniPlayerViewModel = hiltViewModel()
     var gateThen by remember { mutableStateOf<(() -> Unit)?>(null) }
     val guard = remember(kids) { KidsGuard(kids) { after -> if (kids) gateThen = after else after() } }
 
@@ -157,11 +158,15 @@ private fun MainShell(navLayout: NavLayout, isTv: Boolean, appVm: AppViewModel) 
                 when (style) {
                     NavStyle.BOTTOM -> Column(Modifier.fillMaxSize()) {
                         Box(Modifier.weight(1f)) { OrcaNavHost(nav, tabs.first().route) }
+                        com.troy.orcaplayer.ui.mini.MiniPlayerBar(miniVm)
                         if (onTabRoute) OrcaBottomBar(tabs, route, onSelect)
                     }
                     NavStyle.RAIL, NavStyle.TV_RAIL -> Row(Modifier.fillMaxSize()) {
                         if (onTabRoute) OrcaRail(tabs, route, onSelect, tv = style == NavStyle.TV_RAIL)
-                        Box(Modifier.weight(1f)) { OrcaNavHost(nav, tabs.first().route) }
+                        Column(Modifier.weight(1f)) {
+                            Box(Modifier.weight(1f)) { OrcaNavHost(nav, tabs.first().route) }
+                            com.troy.orcaplayer.ui.mini.MiniPlayerBar(miniVm)
+                        }
                     }
                 }
                 ClipboardOffer(

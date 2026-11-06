@@ -122,6 +122,9 @@ data class ToolsPanelState(
     /** Skip marks can be set: the item is an episode of a series. */
     val canMark: Boolean = false,
     val hasMarks: Boolean = false,
+    val audioOnly: Boolean = false,
+    /** The floating window can open (phones and tablets, when turned on in Settings). */
+    val canFloat: Boolean = false,
 )
 
 /** What the Tools panel can do. */
@@ -147,6 +150,10 @@ interface ToolsPanelActions {
     fun backgroundPlay(on: Boolean)
     fun infoOverlay(on: Boolean)
     fun pip()
+    fun audioOnly(on: Boolean) = Unit
+    fun filters() = Unit
+    fun audioDelay() = Unit
+    fun floatingWindow() = Unit
 }
 
 /** The player's Tools panel: the tools in the user's order (Settings, Tools), then player options. */
@@ -162,6 +169,10 @@ fun ToolsPanel(s: ToolsPanelState, a: ToolsPanelActions) {
                 ToolId.SCREENSHOT -> ToolRow(tool, enabled = true, onClick = a::screenshot)
                 ToolId.EQUALIZER -> ToolRow(tool, enabled = true, onClick = a::equalizer)
                 ToolId.DOWNLOAD -> ToolRow(tool, enabled = s.canSave) { a.openTool(tool) }
+                ToolId.AUDIO_ONLY -> ToggleRow(stringResource(R.string.tool_audio_only), stringResource(R.string.tool_audio_only_summary), s.audioOnly, a::audioOnly)
+                ToolId.FILTERS -> ToolRow(tool, enabled = true, onClick = a::filters)
+                ToolId.AUDIO_DELAY -> ToolRow(tool, enabled = true, onClick = a::audioDelay)
+                ToolId.FLOATING_WINDOW -> if (s.canFloat) ToolRow(tool, enabled = true, onClick = a::floatingWindow)
                 ToolId.SKIP_MARKS -> {
                     SectionLabel(stringResource(R.string.tool_skip_marks))
                     Text(

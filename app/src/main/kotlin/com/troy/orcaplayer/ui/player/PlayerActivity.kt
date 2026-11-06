@@ -94,6 +94,9 @@ class PlayerActivity : AppCompatActivity(), PlayerHost {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // The full player takes over from the mini player and the floating window.
+        com.troy.orcaplayer.ui.mini.MiniPlayerState.hide()
+        com.troy.orcaplayer.ui.mini.FloatingPlayerService.stop(this)
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
@@ -148,7 +151,7 @@ class PlayerActivity : AppCompatActivity(), PlayerHost {
                 launch {
                     combine(vm.ui, vm.settings, vm.locked) { ui, s, locked -> Triple(ui, s, locked) }.collect { (ui, s, locked) ->
                         lockBack.isEnabled = locked && s[PlayerSettings.LockBlocksKeys]
-                        if (ui.playing) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                        if (ui.playing && !vm.audioOnly.value) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                         else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                         applyOrientation(ui, s)
                         updatePip(ui, s)
@@ -357,7 +360,29 @@ class PlayerActivity : AppCompatActivity(), PlayerHost {
 
     // Lifecycle
 
-    private fun backgroundPlay() = vm.settings.value[PlayerSettings.BackgroundPlay]
+    /** Audio-only mode, the mini player and the floating window keep playing after the screen goes. */
+    private fun backgroundPlay() = vm.settings.value[PlayerSettings.BackgroundPlay] || vm.audioOnly.value || minimized || floating
+
+    /** Set when leaving shrinks the video into the in-app mini player (20.5). */
+    private var minimized = false
+    private var floating = false
+
+    private fun miniAllowed(): Boolean {
+        val v = vm.settings.value
+        return vm.options.inApp && v[com.troy.orcaplayer.core.settings.ExtrasSettings.MiniPlayer] &&
+            vm.engine.queue.isNotEmpty() && vm.profile.value?.isKids != true && !vm.ui.value.ended && !vm.binge.limitReached.value
+    }
+
+    override val canFloat: Boolean
+        get() = !appVm.signals.value.isTv && vm.settings.value[com.troy.orcaplayer.core.settings.ExtrasSettings.FloatingWindow] && vm.profile.value?.isKids != true
+
+    override fun floatingWindow() {
+        if (!com.troy.orcaplayer.ui.mini.FloatingPlayerService.canDraw(this)) return
+        floating = true
+        vm.saveNow()
+        com.troy.orcaplayer.ui.mini.FloatingPlayerService.start(this)
+        super.finish()
+    }
 
     override fun onStop() {
         super.onStop()
@@ -367,6 +392,11 @@ class PlayerActivity : AppCompatActivity(), PlayerHost {
 
     override fun finish() {
         if (vm.options.returnResult) setResult(RESULT_OK, vm.finalResult())
+        if (!floating && miniAllowed()) {
+            minimized = true
+            vm.saveNow()
+            com.troy.orcaplayer.ui.mini.MiniPlayerState.show()
+        }
         super.finish()
     }
 

@@ -147,6 +147,10 @@ enum class ToolId(
     PER_VIDEO(false, true),
     SKIP_MARKS(false, true),
     DOWNLOAD(false, true),
+    AUDIO_ONLY(false, true),
+    FILTERS(false, true),
+    AUDIO_DELAY(false, true),
+    FLOATING_WINDOW(false, true),
     DECODER_CHECK(true, false),
     URL_PLAYER(true, false),
 }

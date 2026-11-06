@@ -156,6 +156,15 @@ class PlayerViewModel @Inject constructor(
         ex.onNightChanged = { on -> sound.setNightCompressor(on && settings.value[ToolSettings.NightCompressor]) }
     }
 
+    /** Picture filters and audio delay (20.6, 10.6). */
+    val picture = PlayerPicture(viewModelScope, engine, settingsRepo, profiles.currentProfileId, extras)
+
+    /** Audio-only mode (20.3): the video track is off and the screen shows a music-style view. */
+    val audioOnly: StateFlow<Boolean> = engine.audioOnly
+
+    /** Sound keeps playing with the screen off or the app in the background while this is on. */
+    fun setAudioOnly(on: Boolean) = engine.setAudioOnly(on)
+
     /** Per-video values for the screen (aspect, zoom, brightness), with a counter so each start applies once. */
     private val _applied = MutableStateFlow(0 to MediaPrefs())
     val applied: StateFlow<Pair<Int, MediaPrefs>> = _applied.asStateFlow()
@@ -344,7 +353,7 @@ class PlayerViewModel @Inject constructor(
     /** Handles the launch intent (or a new one). Returns false through [events] when there's nothing to play. */
     fun start(intent: Intent) {
         viewModelScope.launch {
-            val fromApp = PlayerLaunch.take(intent)
+            val fromApp = PlayerLaunch.take(intent)?.let { (r, o) -> r to o.copy(inApp = true) }
             val request = fromApp ?: if (intent.action == Intent.ACTION_VIEW || intent.action == Intent.ACTION_SEND) {
                 withContext(Dispatchers.IO) { runCatching { ExternalIntents.parse(intent, context.contentResolver) }.getOrNull() }
             } else {
@@ -355,6 +364,7 @@ class PlayerViewModel @Inject constructor(
                 // Reopened from the notification or after the screen was recreated: keep playing.
                 engine.queue.isNotEmpty() && (intent.action == PlaybackService.ACTION_OPEN_PLAYER || started || intent.action == null) -> {
                     started = true
+                    if (intent.action == PlaybackService.ACTION_OPEN_PLAYER) options = options.copy(inApp = true)
                     handledIndex = engine.player.currentMediaItemIndex
                     refresh()
                 }
@@ -371,6 +381,9 @@ class PlayerViewModel @Inject constructor(
         val v = settingsRepo.values(request.profileId).first()
         val first = request.items[request.startIndex]
         val prefs = extras.onMediaStarted(first)
+        picture.onMediaStarted(prefs)
+        // A new queue starts with the picture, unless it was opened as audio (20.3).
+        engine.setAudioOnly(opts.audioOnly)
         engine.setDecoderMode(opts.decoderMode ?: DecoderMode.fromKey(prefs.decoder ?: v[PlayerSettings.Decoder]))
         extras.applySchedule()
         explicitStart = first.startPositionMs?.let { request.startIndex to it }
@@ -455,6 +468,7 @@ class PlayerViewModel @Inject constructor(
             val v = settings.value
             sound.onMediaStarted(item)
             val prefs = extras.onMediaStarted(item)
+            picture.onMediaStarted(prefs)
             prefs.subtitleDelayMs?.let { _subtitleDelayMs.value = it }
             applyTrackPrefs(p, prefs)
             prefs.speed?.let { engine.setSpeed(it) }
