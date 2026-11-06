@@ -190,15 +190,35 @@ fun SettingsScreen(onBack: () -> Unit, onOpenLicences: () -> Unit, onOpenDecoder
         }
     }
 
+    val context = androidx.compose.ui.platform.LocalContext.current
+    // The download folder is chosen with the system folder picker, not typed (16.2).
+    val folderPicker = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+                )
+            }
+            vm.set(com.troy.orcaplayer.core.settings.DownloadSettings.Folder, uri.toString())
+            onChoice(com.troy.orcaplayer.core.settings.DownloadSettings.Place, com.troy.orcaplayer.core.settings.DownloadSettings.PLACE_FOLDER)
+        }
+    }
     when (val def = dialogKey?.let(Settings::byKey)) {
         is ChoiceSetting -> ChoiceDialog(def, values[def], onDismiss = { dialogKey = null }, onPick = { onChoice(def, it); dialogKey = null })
         is ColorSetting -> ColorDialog(values[def] ?: def.default ?: 0xFF14B8A6, onDismiss = { dialogKey = null }) {
             vm.set(def, it)
             dialogKey = null
         }
-        is TextSetting -> TextDialog(def, values[def], onDismiss = { dialogKey = null }) {
-            vm.set(def, it)
-            dialogKey = null
+        is TextSetting -> if (def === com.troy.orcaplayer.core.settings.DownloadSettings.Folder) {
+            androidx.compose.runtime.LaunchedEffect(def) {
+                dialogKey = null
+                runCatching { folderPicker.launch(null) }
+            }
+        } else {
+            TextDialog(def, values[def], onDismiss = { dialogKey = null }) {
+                vm.set(def, it)
+                dialogKey = null
+            }
         }
         else -> Unit
     }
@@ -261,6 +281,8 @@ private fun SettingRow(
             val shown = when {
                 value.isEmpty() -> stringResource(SR.string.text_setting_empty)
                 def.secret -> stringResource(SR.string.text_setting_hidden)
+                def === com.troy.orcaplayer.core.settings.DownloadSettings.Folder ->
+                    android.net.Uri.decode(value).substringAfterLast(':').substringAfterLast('/').ifEmpty { value }
                 else -> value.lineSequence().first().take(60)
             }
             RowShell(

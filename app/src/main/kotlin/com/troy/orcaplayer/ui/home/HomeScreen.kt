@@ -46,6 +46,7 @@ fun HomeScreen(
     onOpenCatalog: (addonId: String, catalogKey: String) -> Unit,
     onOpenUrlPlayer: () -> Unit,
     onOpenAddons: () -> Unit,
+    onOpenDownloads: () -> Unit = {},
     vm: HomeViewModel = hiltViewModel(),
 ) {
     val c = Troy.colors
@@ -73,6 +74,7 @@ fun HomeScreen(
                     }
                 }
             }
+            item(key = "downloads") { DownloadsRow(onOpenDownloads) }
             if (!hasAddons) {
                 item(key = "empty") {
                     EmptyState(

@@ -460,6 +460,8 @@ class PlayerViewModel @Inject constructor(
 
     // Resume saving
 
+    private val watchedSent = mutableSetOf<String>()
+
     fun saveNow() {
         val p = attached ?: return
         val item = engine.itemAt(p.currentMediaItemIndex) ?: return
@@ -470,6 +472,10 @@ class PlayerViewModel @Inject constructor(
         val stored = if (position >= duration * threshold) duration else position
         lastSaveAt = System.currentTimeMillis()
         val profileId = profiles.currentProfileId.value
+        // Watched to the end: smart downloads may delete it and fetch the next episode (16.6).
+        if (stored == duration && item.source.kind != com.troy.orcaplayer.core.model.SourceKind.LOCAL && watchedSent.add(item.key.id)) {
+            runCatching { com.troy.orcaplayer.downloads.Downloads.onWatched(context, item.key.id) }
+        }
         io.launch {
             runCatching {
                 resume.save(

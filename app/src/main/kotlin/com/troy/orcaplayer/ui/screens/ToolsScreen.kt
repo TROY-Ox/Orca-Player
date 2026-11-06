@@ -3,7 +3,6 @@ package com.troy.orcaplayer.ui.screens
 import android.content.Intent
 import android.net.Uri
 import android.provider.OpenableColumns
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -69,6 +68,7 @@ fun ToolsScreen(
     onOpenJobs: () -> Unit,
     onCustomize: () -> Unit,
     onOpenUrlPlayer: () -> Unit,
+    onOpenDownloads: () -> Unit = {},
 ) {
     val c = Troy.colors
     val context = LocalContext.current
@@ -95,7 +95,7 @@ fun ToolsScreen(
         when (tool) {
             ToolId.DECODER_CHECK -> onOpenDecoderCheck()
             ToolId.URL_PLAYER -> onOpenUrlPlayer()
-            ToolId.DOWNLOAD -> Toast.makeText(context, R.string.tool_download_later, Toast.LENGTH_SHORT).show()
+            ToolId.DOWNLOAD -> onOpenDownloads()
             ToolId.SUBTITLE_EDITOR -> { pendingTool = tool; picker.launch(arrayOf("application/x-subrip", "text/*", "application/octet-stream", "*/*")) }
             ToolId.AUDIO_EXTRACTOR, ToolId.MEDIA_INFO -> { pendingTool = tool; picker.launch(arrayOf("video/*", "audio/*")) }
             ToolId.CLIP_CUTTER, ToolId.CONVERTER, ToolId.COMPRESSOR -> { pendingTool = tool; picker.launch(arrayOf("video/*")) }
@@ -130,7 +130,7 @@ fun ToolsScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        Icon(tool.icon(), contentDescription = null, tint = if (tool == ToolId.DOWNLOAD) c.text3 else c.accent, modifier = Modifier.size(28.dp))
+                        Icon(tool.icon(), contentDescription = null, tint = c.accent, modifier = Modifier.size(28.dp))
                         Column(Modifier.weight(1f)) {
                             Text(stringResource(tool.nameRes()), style = Troy.type.title, color = c.text)
                             Text(stringResource(tool.summaryRes()), style = Troy.type.bodySmall, color = c.text2)

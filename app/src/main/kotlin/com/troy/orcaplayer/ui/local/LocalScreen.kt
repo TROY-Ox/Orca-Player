@@ -93,11 +93,12 @@ import com.troy.orcaplayer.ui.shell.BackTopBar
 import com.troy.orcaplayer.ui.shell.MainTopBar
 import kotlinx.coroutines.launch
 import com.troy.orcaplayer.core.settings.R as SR
+import androidx.compose.material.icons.filled.Download
 
 /** Local tab: folders or all videos, as a list or grid, with sort, filter and search (section 6). */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun LocalScreen(onOpenSettings: () -> Unit, onOpenProfiles: () -> Unit, onOpenUrlPlayer: () -> Unit = {}, vm: LocalViewModel = hiltViewModel()) {
+fun LocalScreen(onOpenSettings: () -> Unit, onOpenProfiles: () -> Unit, onOpenUrlPlayer: () -> Unit = {}, onOpenDownloads: () -> Unit = {}, vm: LocalViewModel = hiltViewModel()) {
     val c = Troy.colors
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -130,6 +131,7 @@ fun LocalScreen(onOpenSettings: () -> Unit, onOpenProfiles: () -> Unit, onOpenUr
         val filtered = all?.let { LocalSorting.filter(it, filter, query) }
         val folderName = folderId?.let { id -> all?.firstOrNull { it.folderId == id }?.folderName }
         val actions: @Composable () -> Unit = {
+            TroyIconButton(Icons.Filled.Download, stringResource(R.string.downloads_title), onOpenDownloads)
             TroyIconButton(Icons.Filled.Search, stringResource(R.string.local_search), { searching = !searching; if (!searching) query = "" })
             TroyIconButton(
                 if (grid) Icons.AutoMirrored.Filled.ViewList else Icons.Filled.GridView,
