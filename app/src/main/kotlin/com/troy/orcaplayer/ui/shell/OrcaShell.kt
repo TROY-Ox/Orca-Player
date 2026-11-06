@@ -1,5 +1,12 @@
 package com.troy.orcaplayer.ui.shell
 
+import androidx.activity.ComponentActivity
+import androidx.compose.ui.platform.LocalContext
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.troy.orcaplayer.AppViewModel
+import com.troy.orcaplayer.ui.tools.JobsScreen
+import com.troy.orcaplayer.ui.tools.ToolsCustomizeScreen
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.spring
@@ -93,6 +100,7 @@ private fun OrcaNavHost(nav: NavHostController, start: String) {
     val openSettings = { nav.navigate(Routes.SETTINGS) { launchSingleTop = true } }
     val openProfiles = { nav.navigate(Routes.PROFILES) { launchSingleTop = true } }
     val back: () -> Unit = { nav.popBackStack() }
+    val appVm: AppViewModel = hiltViewModel(LocalContext.current as ComponentActivity)
 
     NavHost(
         navController = nav,
@@ -106,7 +114,15 @@ private fun OrcaNavHost(nav: NavHostController, start: String) {
             composable(tab.spec().route) {
                 when (tab) {
                     MainTab.LOCAL -> LocalScreen(openSettings, openProfiles)
-                    MainTab.TOOLS -> ToolsScreen(openSettings, openProfiles, onOpenDecoderCheck = { nav.navigate(Routes.DECODER_CHECK) { launchSingleTop = true } })
+                    MainTab.TOOLS -> {
+                        val layout by appVm.toolsLayout.collectAsStateWithLifecycle()
+                        ToolsScreen(
+                            layout, openSettings, openProfiles,
+                            onOpenDecoderCheck = { nav.navigate(Routes.DECODER_CHECK) { launchSingleTop = true } },
+                            onOpenJobs = { nav.navigate(Routes.JOBS) { launchSingleTop = true } },
+                            onCustomize = { nav.navigate(Routes.TOOLS_CUSTOMIZE) { launchSingleTop = true } },
+                        )
+                    }
                     else -> TabPlaceholder(tab, openSettings, openProfiles)
                 }
             }
@@ -119,6 +135,11 @@ private fun OrcaNavHost(nav: NavHostController, start: String) {
             )
         }
         composable(Routes.DECODER_CHECK) { DecoderCheckScreen(onBack = back) }
+        composable(Routes.JOBS) { JobsScreen(onBack = back) }
+        composable(Routes.TOOLS_CUSTOMIZE) {
+            val layout by appVm.toolsLayout.collectAsStateWithLifecycle()
+            ToolsCustomizeScreen(layout, appVm::setToolsLayout, onBack = back)
+        }
         composable(Routes.PROFILES) { ProfilesScreen(onBack = back) }
         composable(Routes.LICENCES) { LicencesScreen(onBack = back) }
     }

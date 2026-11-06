@@ -65,7 +65,7 @@ fun aspectLabel(mode: AspectMode): String = stringResource(
 )
 
 @Composable
-private fun PanelColumn(title: String, content: @Composable () -> Unit) {
+internal fun PanelColumn(title: String, content: @Composable () -> Unit) {
     Column(
         Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -278,74 +278,6 @@ fun TracksPanel(
 
 const val FPS_23_TO_25 = 25.0 / 23.976
 const val FPS_25_TO_23 = 23.976 / 25.0
-
-/** Decoder switcher, orientation lock and background play. More tools arrive in Phase 4. */
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-fun ToolsPanel(
-    decoder: DecoderMode,
-    onDecoder: (DecoderMode) -> Unit,
-    orientationLock: String,
-    onOrientationLock: (String) -> Unit,
-    showOrientation: Boolean,
-    backgroundPlay: Boolean,
-    onBackgroundPlay: (Boolean) -> Unit,
-    onPip: (() -> Unit)?,
-    onEqualizer: () -> Unit,
-    boostPercent: Int?,
-    onResetBoost: () -> Unit,
-    quietRecording: Boolean,
-    onQuietRecording: (Boolean) -> Unit,
-    infoOverlay: Boolean,
-    onInfoOverlay: (Boolean) -> Unit,
-) {
-    val c = Troy.colors
-    PanelColumn(stringResource(R.string.player_tools)) {
-        TroyButton(stringResource(R.string.eq_title), onEqualizer, kind = ButtonKind.SECONDARY)
-        if (boostPercent != null) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    stringResource(R.string.eq_boost) + ": " + formatNumber(boostPercent) + "%",
-                    style = Troy.type.body, color = c.text, modifier = Modifier.weight(1f),
-                )
-                if (boostPercent != 100) TroyButton(stringResource(R.string.eq_reset_boost), onResetBoost, kind = ButtonKind.GHOST)
-            }
-        }
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(stringResource(SR.string.setting_quiet_recording), style = Troy.type.body, color = c.text)
-                Text(stringResource(R.string.player_experimental), style = Troy.type.bodySmall, color = c.text3)
-            }
-            TroyToggle(quietRecording, onQuietRecording)
-        }
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(SR.string.setting_info_overlay), style = Troy.type.body, color = c.text, modifier = Modifier.weight(1f))
-            TroyToggle(infoOverlay, onInfoOverlay)
-        }
-        SectionLabel(stringResource(SR.string.setting_decoder))
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            TroyChip("HW+", decoder == DecoderMode.HW_PLUS, { onDecoder(DecoderMode.HW_PLUS) })
-            TroyChip("HW", decoder == DecoderMode.HW, { onDecoder(DecoderMode.HW) })
-            TroyChip("SW", decoder == DecoderMode.SW, { onDecoder(DecoderMode.SW) })
-        }
-        Text(stringResource(SR.string.setting_decoder_summary), style = Troy.type.bodySmall, color = c.text2)
-        if (showOrientation) {
-            SectionLabel(stringResource(R.string.player_orientation_lock))
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                TroyChip(stringResource(SR.string.orientation_video), orientationLock == "auto", { onOrientationLock("auto") })
-                TroyChip(stringResource(SR.string.orientation_landscape), orientationLock == "landscape", { onOrientationLock("landscape") })
-                TroyChip(stringResource(SR.string.orientation_portrait), orientationLock == "portrait", { onOrientationLock("portrait") })
-                TroyChip(stringResource(SR.string.orientation_system), orientationLock == "system", { onOrientationLock("system") })
-            }
-        }
-        Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(SR.string.setting_background), style = Troy.type.body, color = c.text, modifier = Modifier.weight(1f))
-            TroyToggle(backgroundPlay, onBackgroundPlay)
-        }
-        if (onPip != null) TroyButton(stringResource(R.string.player_pip), onPip, kind = ButtonKind.SECONDARY)
-        Text(stringResource(R.string.player_more_tools_later), style = Troy.type.bodySmall, color = c.text3)
-    }
-}
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable

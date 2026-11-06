@@ -125,13 +125,43 @@ data class GestureMap(val map: Map<Gesture, GestureAction>) {
 }
 
 @Serializable
-enum class ToolId {
-    EQUALIZER, CLIP_CUTTER, SUBTITLE_EDITOR, CONVERTER, COMPRESSOR, AUDIO_EXTRACTOR, MEDIA_INFO, DECODER_CHECK, URL_PLAYER,
+enum class ToolId(
+    /** Works on a file from the Tools tab, without playing it. */
+    val inTab: Boolean,
+    /** Shown in the player's Tools panel. */
+    val inPanel: Boolean,
+) {
+    CLIP_CUTTER(true, true),
+    SCREENSHOT(false, true),
+    SUBTITLE_EDITOR(true, true),
+    AUDIO_EXTRACTOR(true, true),
+    CONVERTER(true, true),
+    COMPRESSOR(true, true),
+    MEDIA_INFO(true, true),
+    EQUALIZER(false, true),
+    AB_REPEAT(false, true),
+    SLEEP_TIMER(false, true),
+    NIGHT_MODE(false, true),
+    VOLUME_BOOST(false, true),
+    QUIET_MODE(false, true),
+    PER_VIDEO(false, true),
+    DOWNLOAD(false, true),
+    DECODER_CHECK(true, false),
+    URL_PLAYER(true, false),
 }
 
+/**
+ * Which tools appear, and in what order: [tools] for the Tools tab, [panel] for the player's Tools
+ * panel. A tool missing from a list is hidden there.
+ */
 @Serializable
-data class ToolsLayout(val tools: List<ToolId>) {
+data class ToolsLayout(
+    val tools: List<ToolId> = DefaultTab,
+    val panel: List<ToolId> = DefaultPanel,
+) {
     companion object {
-        val Default = ToolsLayout(ToolId.entries.toList())
+        val DefaultTab = ToolId.entries.filter { it.inTab }
+        val DefaultPanel = ToolId.entries.filter { it.inPanel }
+        val Default = ToolsLayout(DefaultTab, DefaultPanel)
     }
 }

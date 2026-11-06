@@ -57,6 +57,19 @@ class SoundController(
     private var saveJob: Job? = null
     private var loaded = false
 
+    private val _nightCompressor = MutableStateFlow(false)
+
+    /** Night mode evens out loud sounds without changing the saved sound. */
+    fun setNightCompressor(on: Boolean) {
+        _nightCompressor.value = on
+    }
+
+    private fun nightFx(fx: AudioFx, night: Boolean): AudioFx = when {
+        !night -> fx
+        fx.enabled -> fx.copy(compressor = maxOf(fx.compressor, NIGHT_COMPRESSOR))
+        else -> AudioFx(compressor = NIGHT_COMPRESSOR, boostPercent = fx.boostPercent)
+    }
+
     init {
         scope.launch {
             profileId.flatMapLatest { repo.audioStore(it) }.collect { s ->
@@ -68,7 +81,7 @@ class SoundController(
             }
         }
         scope.launch {
-            combine(_fx, settings) { fx, v -> fx to v }.collect { (fx, v) ->
+            combine(_fx, settings, _nightCompressor) { fx, v, night -> Triple(nightFx(fx, night), v, night) }.collect { (fx, v, _) ->
                 val spatial = v[AV.SpatialAudio]
                 engine.setOutputPrefs(passthrough = v[AV.Passthrough], spatial = spatial)
                 engine.setAudioConfig(
@@ -191,6 +204,8 @@ class SoundController(
     }
 
     companion object {
+        const val NIGHT_COMPRESSOR = 0.7f
+
         fun folderOf(item: PlayItem): String? {
             val path = (item.key as? MediaKey.LocalFile)?.path
             if (!path.isNullOrEmpty() && path.contains('/')) return "dir:" + path.substringBeforeLast('/')

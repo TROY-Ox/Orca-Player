@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="job_channel">Tool jobs</string>
+    <string name="job_running">Working on a file</string>
+    <string name="job_cancel">Cancel</string>
+</resources>

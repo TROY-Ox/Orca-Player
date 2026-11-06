@@ -14,6 +14,7 @@ import com.troy.orcaplayer.core.model.GestureMap
 import com.troy.orcaplayer.core.model.HomeLayout
 import com.troy.orcaplayer.core.model.NavLayout
 import com.troy.orcaplayer.core.model.PlayerLayout
+import com.troy.orcaplayer.core.model.MediaPrefsStore
 import com.troy.orcaplayer.core.model.ToolsLayout
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -124,6 +125,16 @@ class SettingsRepository(context: Context) {
         store.edit { prefs ->
             val now = prefs[key]?.let { runCatching { json.decodeFromString(AudioStore.serializer(), it) }.getOrNull() } ?: AudioStore()
             prefs[key] = json.encodeToString(AudioStore.serializer(), change(now))
+        }
+    }
+
+    fun mediaPrefs(profileId: String): Flow<MediaPrefsStore> = layout(profileId, "media.prefs", MediaPrefsStore.serializer(), MediaPrefsStore())
+
+    suspend fun updateMediaPrefs(profileId: String, change: (MediaPrefsStore) -> MediaPrefsStore) {
+        val key = stringPreferencesKey("p/$profileId/media.prefs")
+        store.edit { prefs ->
+            val now = prefs[key]?.let { runCatching { json.decodeFromString(MediaPrefsStore.serializer(), it) }.getOrNull() } ?: MediaPrefsStore()
+            prefs[key] = json.encodeToString(MediaPrefsStore.serializer(), change(now))
         }
     }
 

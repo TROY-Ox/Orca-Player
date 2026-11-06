@@ -273,4 +273,55 @@
     <string name="setting_info_overlay">Video info overlay</string>
     <string name="setting_info_overlay_summary">Shows resolution, codec, bitrate, HDR, decoder, dropped frames, buffer and audio output while playing</string>
     <string name="setting_info_keywords">info stats statistics codec bitrate dropped frames overlay debug</string>
+    <!-- Phase 4: tools -->
+    <string name="settings_section_tools">Tools</string>
+    <string name="setting_tools_side">Tools panel side</string>
+    <string name="setting_tools_side_summary">Which edge of the player the Tools panel slides in from</string>
+    <string name="setting_tools_keywords">tools panel side sheet left right edge</string>
+    <string name="side_end">End (right in English)</string>
+    <string name="side_start">Start (left in English)</string>
+    <string name="setting_per_video">Remember settings for each video</string>
+    <string name="setting_per_video_summary">Subtitle delay, speed, aspect, zoom, brightness, decoder and A-B repeat are saved with the video you change them on</string>
+    <string name="setting_per_video_keywords">per video remember resume subtitle delay speed aspect zoom brightness folder</string>
+    <string name="setting_screenshot_format">Screenshot format</string>
+    <string name="setting_screenshot_format_summary">PNG keeps every pixel; JPG files are smaller</string>
+    <string name="setting_screenshot_keywords">screenshot capture frame picture image png jpg</string>
+    <string name="format_png">PNG</string>
+    <string name="format_jpg">JPG</string>
+    <string name="setting_screenshot_subtitles">Include subtitles in screenshots</string>
+    <string name="setting_screenshot_subtitles_summary">Draws the subtitle on screen into the saved picture</string>
+    <string name="setting_clip_mode">Default clip mode</string>
+    <string name="setting_clip_mode_summary">Fast copies from the nearest keyframe, Smart re-encodes only the first moments, Precise re-encodes everything</string>
+    <string name="setting_clip_keywords">clip cut trim cutter keyframe fast smart precise</string>
+    <string name="clip_mode_fast_name">Fast</string>
+    <string name="clip_mode_smart_name">Smart</string>
+    <string name="clip_mode_precise_name">Precise</string>
+    <string name="setting_sleep_fade">Fade out before the sleep timer stops</string>
+    <string name="setting_sleep_fade_summary">Lowers the volume smoothly over the last 10 seconds</string>
+    <string name="setting_sleep_keywords">sleep timer bedtime stop fade</string>
+    <string name="setting_night_dim">Night mode dimming</string>
+    <string name="setting_night_dim_summary">How much darker the picture gets in night mode</string>
+    <string name="setting_night_keywords">night mode dark dim warm bedtime compressor schedule</string>
+    <string name="percent_20" formatted="false">20%</string>
+    <string name="percent_35" formatted="false">35%</string>
+    <string name="percent_50" formatted="false">50%</string>
+    <string name="setting_night_warm">Warm colours in night mode</string>
+    <string name="setting_night_warm_summary">Adds a soft warm tint that is easier on the eyes at night</string>
+    <string name="setting_night_compressor">Even out loud sounds in night mode</string>
+    <string name="setting_night_compressor_summary">Turns on the compressor so explosions are quieter and voices clearer</string>
+    <string name="setting_night_schedule">Turn on night mode by the clock</string>
+    <string name="setting_night_schedule_summary">Starts playback in night mode between the hours below</string>
+    <string name="setting_night_start">Night starts at</string>
+    <string name="setting_night_end">Night ends at</string>
+    <string name="hour_20">20:00</string>
+    <string name="hour_21">21:00</string>
+    <string name="hour_22">22:00</string>
+    <string name="hour_23">23:00</string>
+    <string name="hour_0">00:00</string>
+    <string name="hour_5">05:00</string>
+    <string name="hour_6">06:00</string>
+    <string name="hour_7">07:00</string>
+    <string name="hour_8">08:00</string>
+    <string name="setting_save_reminder">Saving reminder accepted</string>
+    <string name="setting_save_reminder_summary">Turn off to see the reminder again before saving from a link or an add-on</string>
 </resources>
