@@ -49,6 +49,7 @@ class OrcaApp : Application() {
         com.troy.orcaplayer.flavor.Flavor.init(this, addons)
         JobsRepository.init(this)
         Downloads.bridge = planner
+        registerSchemes()
         appScope.launch {
             profiles.ensureDefaultProfile(getString(R.string.profiles_default_name))
         }
@@ -108,6 +109,15 @@ class OrcaApp : Application() {
                 else -> SmartDelete.ASK
             },
             smartKeep = v[DownloadSettings.SmartKeep].toIntOrNull() ?: 2,
+        )
+    }
+
+    /** The private folder plays through its own decrypting source, never the stream cache (20.4). */
+    @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+    private fun registerSchemes() {
+        com.troy.orcaplayer.player.engine.CustomSchemes.register(
+            com.troy.orcaplayer.vault.Vault.SCHEME,
+            com.troy.orcaplayer.vault.VaultDataSource.Factory(com.troy.orcaplayer.vault.Vault.get(this)),
         )
     }
 }

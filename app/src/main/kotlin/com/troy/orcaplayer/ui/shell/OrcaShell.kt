@@ -297,7 +297,11 @@ private fun OrcaNavHost(nav: NavHostController, start: String) {
                         },
                     )
                     MainTab.SEARCH -> SearchScreen(openSettings, openProfiles, openTitle)
-                    MainTab.LOCAL -> LocalScreen(openSettings, openProfiles, openUrlPlayer, onOpenDownloads = { openDownloads("COMPLETED") })
+                    MainTab.LOCAL -> LocalScreen(
+                        openSettings, openProfiles, openUrlPlayer,
+                        onOpenDownloads = { openDownloads("COMPLETED") },
+                        onOpenPrivate = { if (!guard.active) nav.navigate(Routes.PRIVATE_FOLDER) { launchSingleTop = true } },
+                    )
                     MainTab.TOOLS -> {
                         val layout by appVm.toolsLayout.collectAsStateWithLifecycle()
                         ToolsScreen(
@@ -354,6 +358,7 @@ private fun OrcaNavHost(nav: NavHostController, start: String) {
             ),
         ) { TitleScreen(onBack = back) }
         composable(Routes.LICENCES) { LicencesScreen(onBack = back) }
+        composable(Routes.PRIVATE_FOLDER) { com.troy.orcaplayer.ui.local.PrivateFolderScreen(onBack = back) }
         composable(Routes.EXTENSIONS) { com.troy.orcaplayer.flavor.Flavor.ExtensionsScreen(onBack = back) }
         composable(Routes.DOWNLOADS, arguments = listOf(navArgument("tab") { type = NavType.StringType; defaultValue = "" })) { e ->
             com.troy.orcaplayer.ui.downloads.DownloadsScreen(

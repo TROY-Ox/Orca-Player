@@ -144,7 +144,7 @@ class PlaybackEngine private constructor(context: Context) {
         val resolving = ResolvingDataSource.Factory(offline) { spec: DataSpec -> withStreamHeaders(spec) }
         val extractors = DefaultExtractorsFactory()
             .setConstantBitrateSeekingEnabled(true)
-        val sources = DefaultMediaSourceFactory(resolving, extractors)
+        val sources = DefaultMediaSourceFactory(SchemeRoutingDataSource.Factory(resolving), extractors)
         val selector = DefaultTrackSelector(app)
         // With spatial audio on, multichannel tracks are kept when the device can spatialize them.
         selector.setParameters(selector.buildUponParameters().setConstrainAudioChannelCountToDeviceCapabilities(true))

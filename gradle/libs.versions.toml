@@ -24,10 +24,23 @@ junit = "4.13.2"
 media3 = "1.10.1"
 coil = "3.3.0"
 work = "2.10.1"
+tink = "1.24.0"
+smbj = "0.14.0"
+sshj = "0.40.0"
+commonsNet = "3.11.1"
+libvlc = "3.7.7"
+playServicesCast = "22.1.0"
 androidxTestExt = "1.2.1"
 androidxTestRunner = "1.6.2"
 
 [libraries]
+tink-android = { module = "com.google.crypto.tink:tink-android", version.ref = "tink" }
+smbj = { module = "com.hierynomus:smbj", version.ref = "smbj" }
+sshj = { module = "com.hierynomus:sshj", version.ref = "sshj" }
+commons-net = { module = "commons-net:commons-net", version.ref = "commonsNet" }
+libvlc = { module = "org.videolan.android:libvlc-all", version.ref = "libvlc" }
+media3-cast = { module = "androidx.media3:media3-cast", version.ref = "media3" }
+play-services-cast = { module = "com.google.android.gms:play-services-cast-framework", version.ref = "playServicesCast" }
 androidx-work-runtime = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
 coil-network = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coil" }

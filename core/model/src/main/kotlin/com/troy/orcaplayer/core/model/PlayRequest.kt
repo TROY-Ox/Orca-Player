@@ -48,7 +48,7 @@ data class PlayItem(
     val titleType: String? = null,
 ) {
     init {
-        require(UriSchemes.isAllowed(uri)) { "Scheme not allowed: $uri" }
+        require(UriSchemes.isAllowed(uri) || (source.kind in UriSchemes.ownSources && UriSchemes.isOwn(uri))) { "Scheme not allowed: $uri" }
     }
 }
 
@@ -83,6 +83,12 @@ object UriSchemes {
     }
 
     fun isAllowed(uri: String): Boolean = schemeOf(uri) in allowed
+
+    /** Network shares and the private folder (20.2, 20.4). Only the app's own sources may use them, never addons or links. */
+    val own = setOf("smb", "sftp", "ftp", "ftps", "orcavault")
+    val ownSources = setOf(SourceKind.LOCAL, SourceKind.NETWORK_SHARE)
+
+    fun isOwn(uri: String): Boolean = schemeOf(uri) in own
 
     /** True for plain http links, which get an "insecure connection" badge. */
     fun isInsecure(uri: String): Boolean = schemeOf(uri) == "http"

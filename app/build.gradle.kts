@@ -127,6 +127,7 @@ dependencies {
     implementation(project(":player:subtitles"))
     implementation(project(":tools"))
     implementation(project(":downloads"))
+    implementation(project(":vault"))
     implementation(libs.androidx.work.runtime)
     implementation(libs.androidx.biometric)
     "extendedImplementation"(project(":sources:cloudstream"))

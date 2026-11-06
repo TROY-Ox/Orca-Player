@@ -35,6 +35,7 @@ object Routes {
     const val TITLE = "title/{type}/{id}?play={play}"
     const val MY_LIST = "my_list"
     const val HOME_ROWS = "home_rows"
+    const val PRIVATE_FOLDER = "private_folder"
     const val DOWNLOADS = "downloads?tab={tab}"
 
     fun urlPlayer(url: String? = null) = "url_player?url=" + android.net.Uri.encode(url.orEmpty())

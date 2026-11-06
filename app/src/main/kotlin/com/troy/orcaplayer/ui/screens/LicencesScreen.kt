@@ -43,6 +43,7 @@ private val standardLicences = listOf(
     LibraryLicence("AndroidX, Jetpack Compose, Room, DataStore, Navigation", "Apache-2.0"),
     LibraryLicence("Kotlin, kotlinx.coroutines, kotlinx.serialization", "Apache-2.0"),
     LibraryLicence("Dagger and Hilt", "Apache-2.0"),
+    LibraryLicence("Tink (Google)", "Apache-2.0"),
     LibraryLicence("Material icons", "Apache-2.0"),
     LibraryLicence("Roboto Mono", "OFL-1.1", "licences/OFL-1.1.txt"),
     LibraryLicence("Noto Sans Arabic", "OFL-1.1", "licences/OFL-1.1.txt"),
