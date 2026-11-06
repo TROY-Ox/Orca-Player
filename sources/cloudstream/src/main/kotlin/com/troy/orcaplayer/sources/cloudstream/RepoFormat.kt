@@ -46,10 +46,10 @@ object RepoFormat {
 
     val json = Json { ignoreUnknownKeys = true; isLenient = true; coerceInputValues = true; explicitNulls = false }
 
-    fun parseRepo(text: String): RepoManifest = json.decodeFromString(RepoManifest.serializer(), text.trim().removePrefix("﻿"))
+    fun parseRepo(text: String): RepoManifest = json.decodeFromString(RepoManifest.serializer(), text.trim().removePrefix("\uFEFF"))
 
     fun parsePlugins(text: String): List<PluginEntry> =
-        json.decodeFromString(kotlinx.serialization.builtins.ListSerializer(PluginEntry.serializer()), text.trim().removePrefix("﻿"))
+        json.decodeFromString(kotlinx.serialization.builtins.ListSerializer(PluginEntry.serializer()), text.trim().removePrefix("\uFEFF"))
             .filter { it.url.isNotBlank() && it.internalName.isNotBlank() }
 
     /**
