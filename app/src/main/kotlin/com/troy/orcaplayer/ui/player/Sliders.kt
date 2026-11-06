@@ -48,6 +48,7 @@ import com.troy.orcaplayer.core.design.theme.Troy
 import com.troy.orcaplayer.core.design.theme.TroyShapes
 import com.troy.orcaplayer.core.design.util.formatNumber
 import com.troy.orcaplayer.player.engine.SliderConfig
+import kotlin.math.roundToInt
 
 enum class SliderKind { BRIGHTNESS, VOLUME }
 
@@ -84,7 +85,51 @@ class SliderLevels(
     /** True while a finger is on a slider. */
     var activeKind: SliderKind? by androidx.compose.runtime.mutableStateOf(null)
 
-    val volumePercent: Float get() = volume * 100f / maxVolume
+    /** Highest volume in percent: 100, or the maximum boost while extra volume is on. */
+    var boostMax by mutableIntStateOf(100)
+
+    /** Software boost in percent (100 = none), the part of the slider above 100%. */
+    var boost by mutableIntStateOf(100)
+        private set
+
+    /** Called when the slider moves the boost; the player hands it to the audio chain. */
+    var onBoost: (Int) -> Unit = {}
+
+    fun showBoost(percent: Int) {
+        boost = percent.coerceIn(100, boostMax.coerceAtLeast(100))
+    }
+
+    /** Volume steps of the whole slider: the system steps, then 5% steps of boost. */
+    val combinedMax: Int get() = maxVolume + ((boostMax - 100) / 5).coerceAtLeast(0)
+
+    val combinedIndex: Int get() = if (boost > 100 && volume >= maxVolume) maxVolume + (boost - 100) / 5 else volume
+
+    val volumePercent: Float get() = if (boost > 100) boost.toFloat() else volume * 100f / maxVolume
+
+    fun setCombinedIndex(index: Int) {
+        val i = index.coerceIn(0, combinedMax)
+        if (i > maxVolume) {
+            if (volume != maxVolume) setVolumeIndex(maxVolume)
+            val b = 100 + (i - maxVolume) * 5
+            if (b != boost) {
+                boost = b
+                onBoost(b)
+            }
+            volumeShownAt = System.currentTimeMillis()
+        } else {
+            if (boost != 100) {
+                boost = 100
+                onBoost(100)
+            }
+            setVolumeIndex(i)
+        }
+    }
+
+    /** Sets the slider from a percentage of 0..[boostMax]. */
+    fun setVolumePercent(percent: Float) {
+        if (percent > 100f && boostMax > 100) setCombinedIndex(maxVolume + ((percent - 100f) / 5f).roundToInt())
+        else setCombinedIndex((percent.coerceAtMost(100f) / 100f * maxVolume).roundToInt())
+    }
 
     /** The extra dim layer for brightness below 0%. */
     val dimAlpha: Float get() = if (brightness < 0f) (-brightness / 50f * 0.7f).coerceIn(0f, 0.7f) else 0f
@@ -101,7 +146,7 @@ class SliderLevels(
         runCatching { audio.setStreamVolume(AudioManager.STREAM_MUSIC, v, 0) }
     }
 
-    fun volumeStep(direction: Int) = setVolumeIndex(volume + direction)
+    fun volumeStep(direction: Int) = setCombinedIndex(combinedIndex + direction)
 
     fun setBrightnessPercent(percent: Float) {
         brightness = percent.coerceIn(MIN_BRIGHTNESS, 100f)
@@ -132,6 +177,8 @@ fun LevelBar(
     label: String,
     onSet: (Float) -> Unit,
     modifier: Modifier = Modifier,
+    maxPercent: Float = 100f,
+    boostLabel: String? = null,
 ) {
     val c = Troy.colors
     val t = Troy.type
@@ -144,7 +191,9 @@ fun LevelBar(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(formatNumber(percent.toInt()) + "%", style = t.label, color = c.text)
+            val boostTint = boostColor()
+            if (percent > 100f && boostLabel != null) Text(boostLabel, style = t.label, color = boostTint)
+            Text(formatNumber(percent.toInt()) + "%", style = t.label, color = if (percent > 100f) boostTint else c.text)
             val barHeight = 160.dp
             Box(
                 Modifier
@@ -153,22 +202,27 @@ fun LevelBar(
                     .clip(RoundedCornerShape(4.dp))
                     .background(c.controlFill)
                     .pointerInput(kind) {
-                        detectTapGestures { pos -> onSet((1f - pos.y / size.height) * 100f) }
+                        detectTapGestures { pos -> onSet((1f - pos.y / size.height) * maxPercent) }
                     }
                     .pointerInput(kind) {
                         detectVerticalDragGestures { change, _ ->
-                            onSet((1f - change.position.y / size.height) * 100f)
+                            onSet((1f - change.position.y / size.height) * maxPercent)
                         }
                     },
                 contentAlignment = Alignment.BottomCenter,
             ) {
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .fillMaxHeight((shown.coerceIn(0f, 100f) / 100f))
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(c.accent),
-                )
+                // Up to 100% in the accent colour; the boost above it in the boost colour.
+                val top = maxPercent.coerceAtLeast(100f)
+                val base = shown.coerceIn(0f, 100f) / top
+                val over = (shown.coerceIn(100f, top) - 100f) / top
+                if (over > 0f) Box(Modifier.fillMaxWidth().fillMaxHeight(base + over).clip(RoundedCornerShape(4.dp)).background(boostTint))
+                if (base > 0f) Box(Modifier.fillMaxWidth().fillMaxHeight(base).clip(RoundedCornerShape(4.dp)).background(c.accent))
+                if (top > 100f) {
+                    // A mark at 100%.
+                    Box(Modifier.fillMaxWidth().fillMaxHeight(100f / top), contentAlignment = Alignment.TopCenter) {
+                        Box(Modifier.fillMaxWidth().height(2.dp).background(c.text))
+                    }
+                }
             }
             val icon = when (kind) {
                 SliderKind.BRIGHTNESS -> if (percent < 30f) Icons.Filled.BrightnessLow else Icons.Filled.BrightnessMedium

@@ -14,7 +14,9 @@ import android.content.res.Configuration
 import android.graphics.Rect
 import android.graphics.drawable.Icon
 import android.media.AudioManager
+import android.hardware.display.DisplayManager
 import android.os.Build
+import android.view.Display
 import android.os.Bundle
 import android.util.Rational
 import android.view.KeyEvent
@@ -43,7 +45,12 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.troy.orcaplayer.AppViewModel
 import com.troy.orcaplayer.R
 import com.troy.orcaplayer.core.design.theme.OrcaTheme
+import com.troy.orcaplayer.core.settings.AudioVideoSettings
 import com.troy.orcaplayer.core.settings.PlayerSettings
+import com.troy.orcaplayer.player.engine.DisplayModeInfo
+import com.troy.orcaplayer.player.engine.FrameRateMatch
+import com.troy.orcaplayer.player.engine.ToneMapMethod
+import com.troy.orcaplayer.player.engine.VideoCaps
 import com.troy.orcaplayer.core.settings.SettingsValues
 import com.troy.orcaplayer.player.engine.PlaybackService
 import com.troy.orcaplayer.system.SystemSignals
@@ -51,6 +58,8 @@ import com.troy.orcaplayer.themeState
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 /**
@@ -100,6 +109,7 @@ class PlayerActivity : AppCompatActivity(), PlayerHost {
         levels = SliderLevels(getSystemService(AudioManager::class.java), contentResolver) { value ->
             window.attributes = window.attributes.apply { screenBrightness = value }
         }
+        levels.onBoost = { vm.sound.setBoost(it) }
         onBackPressedDispatcher.addCallback(this, lockBack)
         ContextCompat.registerReceiver(this, pipReceiver, IntentFilter(ACTION_PIP), ContextCompat.RECEIVER_NOT_EXPORTED)
 
@@ -116,11 +126,22 @@ class PlayerActivity : AppCompatActivity(), PlayerHost {
                             PlayerEvent.Finish -> finish()
                             is PlayerEvent.Message -> Toast.makeText(
                                 this@PlayerActivity,
-                                if (e.text == PlayerViewModel.MSG_NO_CUES) R.string.player_no_cues else R.string.player_load_failed,
-                                Toast.LENGTH_SHORT,
+                                when (e.text) {
+                                    PlayerViewModel.MSG_NO_CUES -> R.string.player_no_cues
+                                    PlayerViewModel.MSG_DECODED_EFFECTS -> R.string.player_decoded_effects
+                                    PlayerViewModel.MSG_DECODED_SPEED -> R.string.player_decoded_speed
+                                    PlayerViewModel.MSG_DV5 -> R.string.player_dv5_warning
+                                    else -> R.string.player_load_failed
+                                },
+                                if (e.text == PlayerViewModel.MSG_DV5) Toast.LENGTH_LONG else Toast.LENGTH_SHORT,
                             ).show()
                         }
                     }
+                }
+                launch {
+                    // Video quality: tone mapping and frame-rate matching follow Settings and the video.
+                    combine(vm.settings, vm.stats.map { it.video?.frameRate ?: -1f }.distinctUntilChanged()) { s, fps -> s to fps }
+                        .collect { (s, fps) -> applyVideoSettings(s, fps) }
                 }
                 launch {
                     combine(vm.ui, vm.settings, vm.locked) { ui, s, locked -> Triple(ui, s, locked) }.collect { (ui, s, locked) ->
@@ -164,6 +185,45 @@ class PlayerActivity : AppCompatActivity(), PlayerHost {
             hideSystemBars()
             levels.syncVolume()
         }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun currentDisplay(): Display? = if (Build.VERSION.SDK_INT >= 30) display else windowManager.defaultDisplay
+
+    private var modeBeforeMatch: Int? = null
+
+    private fun applyVideoSettings(s: SettingsValues, fps: Float) {
+        val d = currentDisplay()
+        val frameRate = s[AudioVideoSettings.FrameRateMatch]
+        vm.engine.setFrameRateStrategy(seamlessOnly = frameRate != "off")
+        vm.engine.setToneMapping(
+            ToneMapMethod.fromKey(s[AudioVideoSettings.ToneMapping]),
+            (s[AudioVideoSettings.ToneBrightness].toIntOrNull() ?: 0) / 100f,
+            VideoCaps.displayIsHdr(d),
+        )
+        // "Always" may switch the display mode, as TVs do; respect the TV's own "match content frame rate".
+        val allowed = frameRate == "always" && fps > 0f && d != null && systemAllowsModeSwitch()
+        val target = if (allowed) {
+            val modes = d!!.supportedModes.map { DisplayModeInfo(it.modeId, it.physicalWidth, it.physicalHeight, it.refreshRate) }
+            val cur = d.mode.let { DisplayModeInfo(it.modeId, it.physicalWidth, it.physicalHeight, it.refreshRate) }
+            FrameRateMatch.pick(fps, modes, cur)?.id
+        } else {
+            null
+        }
+        val attrs = window.attributes
+        if (target != null && attrs.preferredDisplayModeId != target) {
+            if (modeBeforeMatch == null) modeBeforeMatch = attrs.preferredDisplayModeId
+            window.attributes = attrs.apply { preferredDisplayModeId = target }
+        } else if (target == null && modeBeforeMatch != null && (frameRate != "always" || fps <= 0f)) {
+            window.attributes = attrs.apply { preferredDisplayModeId = modeBeforeMatch ?: 0 }
+            modeBeforeMatch = null
+        }
+    }
+
+    private fun systemAllowsModeSwitch(): Boolean {
+        if (Build.VERSION.SDK_INT < 31) return true
+        val dm = getSystemService(DisplayManager::class.java) ?: return true
+        return dm.matchContentFrameRateUserPreference != DisplayManager.MATCH_CONTENT_FRAMERATE_NEVER
     }
 
     private fun skipMs() = (vm.settings.value[PlayerSettings.SkipSeconds].toIntOrNull() ?: 10) * 1000L

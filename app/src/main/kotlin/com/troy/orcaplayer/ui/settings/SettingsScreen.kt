@@ -85,7 +85,7 @@ import com.troy.orcaplayer.core.settings.SettingsValues
 import com.troy.orcaplayer.ui.shell.BackTopBar
 
 @Composable
-fun SettingsScreen(onBack: () -> Unit, onOpenLicences: () -> Unit, vm: SettingsViewModel = hiltViewModel()) {
+fun SettingsScreen(onBack: () -> Unit, onOpenLicences: () -> Unit, onOpenDecoderCheck: () -> Unit, vm: SettingsViewModel = hiltViewModel()) {
     val values by vm.values.collectAsStateWithLifecycle()
     var query by rememberSaveable { mutableStateOf("") }
     var dialogKey by rememberSaveable { mutableStateOf<String?>(null) }
@@ -163,6 +163,9 @@ fun SettingsScreen(onBack: () -> Unit, onOpenLicences: () -> Unit, vm: SettingsV
                             SettingsCard {
                                 defs.forEach { def ->
                                     SettingRow(def, values, onBool = { d, v -> vm.set(d, v) }, onOpen = { dialogKey = it.key })
+                                }
+                                if (section == SettingsSection.VIDEO) {
+                                    NavRow(stringResource(R.string.dc_title), stringResource(R.string.dc_summary), onOpenDecoderCheck)
                                 }
                             }
                         }

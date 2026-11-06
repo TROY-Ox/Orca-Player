@@ -88,12 +88,12 @@
     <string name="resume_off">Never</string>
     <string name="setting_watched">Mark as watched after</string>
     <string name="setting_watched_summary">Videos watched past this point start from the beginning next time</string>
-    <string name="percent_1">1%</string>
-    <string name="percent_2">2%</string>
-    <string name="percent_5">5%</string>
-    <string name="percent_80">80%</string>
-    <string name="percent_90">90%</string>
-    <string name="percent_95">95%</string>
+    <string name="percent_1" formatted="false">1%</string>
+    <string name="percent_2" formatted="false">2%</string>
+    <string name="percent_5" formatted="false">5%</string>
+    <string name="percent_80" formatted="false">80%</string>
+    <string name="percent_90" formatted="false">90%</string>
+    <string name="percent_95" formatted="false">95%</string>
     <string name="setting_auto_next">Play next in folder</string>
     <string name="setting_auto_next_summary">When a video ends, the next one in the queue starts</string>
     <string name="setting_queue_keywords">queue next folder playlist autoplay</string>
@@ -212,4 +212,65 @@
     <string name="filter_audio">Audio</string>
     <string name="filter_all">Everything</string>
     <string name="setting_library_keywords">local files folders sort grid list</string>
+    <string name="settings_section_audio">Audio</string>
+    <string name="settings_section_video">Video quality</string>
+    <string name="setting_eq_mode">Equalizer mode</string>
+    <string name="setting_eq_mode_summary">Simple shows presets and boost; Advanced shows every band and effect. The last choice is remembered.</string>
+    <string name="setting_eq_keywords">equalizer eq preset bands bass treble meter sound</string>
+    <string name="eq_mode_simple">Simple</string>
+    <string name="eq_mode_advanced">Advanced</string>
+    <string name="setting_extra_volume">Enable extra volume</string>
+    <string name="setting_extra_volume_summary" formatted="false">Lets the volume slider go past 100% with software gain and a limiter</string>
+    <string name="setting_boost_keywords">boost loud louder amplify gain limiter volume</string>
+    <string name="setting_max_boost">Maximum boost</string>
+    <string name="setting_max_boost_summary" formatted="false">Highest volume above 100%</string>
+    <string name="percent_150" formatted="false">150%</string>
+    <string name="percent_200" formatted="false">200%</string>
+    <string name="percent_300" formatted="false">300%</string>
+    <string name="setting_limiter">Limiter strength</string>
+    <string name="setting_limiter_summary">How firmly loud peaks are held back so they don’t distort</string>
+    <string name="limiter_soft">Soft</string>
+    <string name="limiter_medium">Medium</string>
+    <string name="limiter_strong">Strong</string>
+    <string name="setting_boost_warning" formatted="false">Warn above 150%</string>
+    <string name="setting_boost_warning_summary">A one-time reminder that very high boost can damage speakers and hearing</string>
+    <string name="setting_normalize">Normalisation</string>
+    <string name="setting_normalize_summary">Levels quiet and loud videos to a similar loudness</string>
+    <string name="setting_normalize_keywords">normalise normalize loudness level quiet compressor</string>
+    <string name="setting_quiet_recording">Quiet-recording mode</string>
+    <string name="setting_quiet_recording_summary">For old cartoons and recordings: normalisation, noise reduction and a hiss filter. Experimental</string>
+    <string name="setting_eq_auto_apply">Apply saved sound per video and folder</string>
+    <string name="setting_eq_auto_apply_summary">Uses the equalizer you saved for a video or its folder when it plays</string>
+    <string name="setting_level_meter">Level meter</string>
+    <string name="setting_level_meter_summary">A small live meter on the equalizer while playing</string>
+    <string name="setting_passthrough">Passthrough (HDMI and optical)</string>
+    <string name="setting_passthrough_summary">Sends Dolby Digital, Dolby Digital Plus, Atmos, DTS and TrueHD to your receiver as a bitstream. Only at 1× with effects off</string>
+    <string name="setting_passthrough_keywords">passthrough bitstream dolby atmos dts truehd receiver soundbar hdmi optical</string>
+    <string name="setting_spatial">Spatial audio</string>
+    <string name="setting_spatial_summary">On supported phones and headphones (Android 13+), plays multichannel sound for the system spatializer, with head tracking where available</string>
+    <string name="setting_spatial_keywords">spatial surround 3d head tracking atmos headphones</string>
+    <string name="setting_frame_rate">Match frame rate</string>
+    <string name="setting_frame_rate_summary">Switches the screen refresh rate to suit the video, so movies play without judder</string>
+    <string name="setting_frame_rate_keywords">frame rate refresh hz judder 24 fps match content</string>
+    <string name="frame_rate_always">Always</string>
+    <string name="frame_rate_seamless">Only when seamless</string>
+    <string name="frame_rate_off">Off</string>
+    <string name="setting_dv_warning">Dolby Vision warning</string>
+    <string name="setting_dv_warning_summary">Warns when a Dolby Vision profile 5 video will show wrong colours on this device</string>
+    <string name="setting_hdr_keywords">hdr hdr10 hlg dolby vision tone mapping washed out colours</string>
+    <string name="setting_tone_mapping">Tone mapping</string>
+    <string name="setting_tone_mapping_summary">Advanced. How HDR video is shown on screens without HDR. Use the app’s methods only if colours look washed out</string>
+    <string name="tone_system">System (recommended)</string>
+    <string name="tone_reinhard">App: Reinhard</string>
+    <string name="tone_filmic">App: Filmic</string>
+    <string name="setting_tone_brightness">Tone mapping brightness</string>
+    <string name="setting_tone_brightness_summary">Brightness adjustment for the app’s tone mapping</string>
+    <string name="brightness_minus_20">−20</string>
+    <string name="brightness_minus_10">−10</string>
+    <string name="brightness_0">0</string>
+    <string name="brightness_plus_10">+10</string>
+    <string name="brightness_plus_20">+20</string>
+    <string name="setting_info_overlay">Video info overlay</string>
+    <string name="setting_info_overlay_summary">Shows resolution, codec, bitrate, HDR, decoder, dropped frames, buffer and audio output while playing</string>
+    <string name="setting_info_keywords">info stats statistics codec bitrate dropped frames overlay debug</string>
 </resources>

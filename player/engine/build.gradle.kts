@@ -20,6 +20,8 @@ dependencies {
     api(project(":core:model"))
     api(libs.media3.exoplayer)
     api(libs.media3.session)
+    api(project(":player:audio"))
+    implementation(libs.media3.effect)
     implementation(libs.media3.exoplayer.hls)
     implementation(libs.media3.exoplayer.dash)
     implementation(libs.kotlinx.coroutines.android)

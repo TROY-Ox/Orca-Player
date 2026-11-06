@@ -8,6 +8,8 @@ enum class SettingsSection(@StringRes val titleRes: Int) {
     PLAYER(R.string.settings_section_player),
     GESTURES(R.string.settings_section_gestures),
     SUBTITLES(R.string.settings_section_subtitles),
+    AUDIO(R.string.settings_section_audio),
+    VIDEO(R.string.settings_section_video),
     LIBRARY(R.string.settings_section_library),
     ACCESSIBILITY(R.string.settings_section_accessibility),
     LANGUAGE(R.string.settings_section_language),
@@ -211,6 +213,7 @@ object Settings {
     val all: List<SettingDef<*>> = listOf(
         Accent, CustomAccent, ThemeMode, FrostedGlass,
         *PlayerSettings.all.toTypedArray(),
+        *AudioVideoSettings.all.toTypedArray(),
         ReduceMotion, HighContrast, SolidPanels,
         Language, Digits, MirrorTimeline,
         SavingEnabled,

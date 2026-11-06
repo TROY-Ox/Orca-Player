@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.troy.orcaplayer.core.model.AudioStore
 import com.troy.orcaplayer.core.model.GestureMap
 import com.troy.orcaplayer.core.model.HomeLayout
 import com.troy.orcaplayer.core.model.NavLayout
@@ -92,6 +93,8 @@ class SettingsRepository(context: Context) {
 
     suspend fun resetSection(profileId: String, section: SettingsSection) {
         store.edit { prefs -> Settings.inSection(section).forEach { prefs.remove(storageKey(profileId, it)) } }
+        // The audio reset also returns the equalizer to flat; saved presets are kept.
+        if (section == SettingsSection.AUDIO) updateAudioStore(profileId) { it.copy(current = com.troy.orcaplayer.core.model.AudioFx()) }
     }
 
     suspend fun resetAll(profileId: String) {
@@ -111,6 +114,18 @@ class SettingsRepository(context: Context) {
     suspend fun setPlayerLayout(profileId: String, value: PlayerLayout) = setLayout(profileId, "layout.player", PlayerLayout.serializer(), value)
     suspend fun setGestureMap(profileId: String, value: GestureMap) = setLayout(profileId, "layout.gestures", GestureMap.serializer(), value)
     suspend fun setToolsLayout(profileId: String, value: ToolsLayout) = setLayout(profileId, "layout.tools", ToolsLayout.serializer(), value)
+
+    // Equalizer values, presets and per-video or per-folder choices.
+
+    fun audioStore(profileId: String): Flow<AudioStore> = layout(profileId, "audio.store", AudioStore.serializer(), AudioStore())
+
+    suspend fun updateAudioStore(profileId: String, change: (AudioStore) -> AudioStore) {
+        val key = stringPreferencesKey("p/$profileId/audio.store")
+        store.edit { prefs ->
+            val now = prefs[key]?.let { runCatching { json.decodeFromString(AudioStore.serializer(), it) }.getOrNull() } ?: AudioStore()
+            prefs[key] = json.encodeToString(AudioStore.serializer(), change(now))
+        }
+    }
 
     private fun <T> layout(profileId: String, key: String, serializer: KSerializer<T>, default: T): Flow<T> =
         store.data.map { prefs ->
