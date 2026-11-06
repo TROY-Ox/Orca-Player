@@ -33,6 +33,9 @@ interface ResumeDao {
     @Query("SELECT * FROM resume_positions WHERE profileId = :profileId ORDER BY updatedAt DESC LIMIT :limit")
     fun observeRecent(profileId: String, limit: Int): Flow<List<ResumePositionEntity>>
 
+    @Query("SELECT * FROM resume_positions WHERE profileId = :profileId")
+    fun observeAll(profileId: String): Flow<List<ResumePositionEntity>>
+
     @Upsert
     suspend fun upsert(position: ResumePositionEntity)
 

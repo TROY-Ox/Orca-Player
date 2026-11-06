@@ -24,6 +24,7 @@ import com.troy.orcaplayer.core.design.motion.TroySprings
 import com.troy.orcaplayer.core.design.theme.Troy
 import com.troy.orcaplayer.core.model.MainTab
 import com.troy.orcaplayer.core.model.NavLayout
+import com.troy.orcaplayer.ui.local.LocalScreen
 import com.troy.orcaplayer.ui.screens.LicencesScreen
 import com.troy.orcaplayer.ui.screens.ProfilesScreen
 import com.troy.orcaplayer.ui.screens.TabPlaceholder
@@ -93,7 +94,9 @@ private fun OrcaNavHost(nav: NavHostController, start: String) {
         popExitTransition = { exit },
     ) {
         MainTab.entries.forEach { tab ->
-            composable(tab.spec().route) { TabPlaceholder(tab, openSettings, openProfiles) }
+            composable(tab.spec().route) {
+                if (tab == MainTab.LOCAL) LocalScreen(openSettings, openProfiles) else TabPlaceholder(tab, openSettings, openProfiles)
+            }
         }
         composable(Routes.SETTINGS) { SettingsScreen(onBack = back, onOpenLicences = { nav.navigate(Routes.LICENCES) }) }
         composable(Routes.PROFILES) { ProfilesScreen(onBack = back) }

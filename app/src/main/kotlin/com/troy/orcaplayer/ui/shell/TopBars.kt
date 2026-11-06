@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -48,7 +49,12 @@ private fun topInsets(): WindowInsets = WindowInsets.safeDrawing.only(WindowInse
 
 /** Top bar of every main tab. Settings and the profile switcher open from the avatar, so they are always reachable. */
 @Composable
-fun MainTopBar(title: String, onOpenSettings: () -> Unit, onOpenProfiles: () -> Unit) {
+fun MainTopBar(
+    title: String,
+    onOpenSettings: () -> Unit,
+    onOpenProfiles: () -> Unit,
+    actions: @Composable RowScope.() -> Unit = {},
+) {
     val c = Troy.colors
     var menu by rememberSaveable { mutableStateOf(false) }
     Row(
@@ -63,6 +69,7 @@ fun MainTopBar(title: String, onOpenSettings: () -> Unit, onOpenProfiles: () -> 
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f).semantics { heading() },
         )
+        actions()
         Box {
             val source = remember { MutableInteractionSource() }
             Box(

@@ -1,5 +1,6 @@
 # ORCA Player: checks every pull request and every push to main.
-# Pushes to main also refresh the "Latest debug build" pre-release with fresh APKs.
+# APKs are built only when the workflow is started by hand (Actions > CI > Run workflow):
+# the owner asked for one build at the end, after all phases, not one per phase.
 name: CI
 
 on:
@@ -37,17 +38,23 @@ jobs:
       - name: Set up Gradle (also validates the Gradle wrapper)
         uses: gradle/actions/setup-gradle@v6
 
-      - name: Unit tests, lint, licence check and debug APKs
+      - name: Unit tests, lint and licence check
         run: >
           ./gradlew --continue
           test
           :app:lintStandardDebug :app:lintExtendedDebug
           :app:checkStandardLicences
+
+      - name: Debug APKs
+        if: github.event_name == 'workflow_dispatch'
+        run: >
+          ./gradlew
           :app:assembleStandardDebug :app:assembleExtendedDebug
           -Porca.versionCode=${{ github.run_number }}
           -Porca.versionName=0.0.0-ci.${{ github.run_number }}
 
       - name: 16 KB page size check
+        if: github.event_name == 'workflow_dispatch'
         run: >
           bash scripts/check-16kb.sh
           app/build/outputs/apk/standard/debug/*.apk
@@ -65,7 +72,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Publish latest debug build
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

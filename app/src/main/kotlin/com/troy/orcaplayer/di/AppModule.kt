@@ -5,6 +5,9 @@ import com.troy.orcaplayer.core.data.OrcaDatabase
 import com.troy.orcaplayer.core.data.ProfileRepository
 import com.troy.orcaplayer.core.data.ResumeRepository
 import com.troy.orcaplayer.core.settings.SettingsRepository
+import com.troy.orcaplayer.player.engine.PlaybackEngine
+import com.troy.orcaplayer.sources.local.LocalMediaRepository
+import com.troy.orcaplayer.sources.local.Thumbnails
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -30,4 +33,16 @@ object AppModule {
     @Provides
     @Singleton
     fun settings(@ApplicationContext context: Context): SettingsRepository = SettingsRepository(context)
+
+    @Provides
+    @Singleton
+    fun engine(@ApplicationContext context: Context): PlaybackEngine = PlaybackEngine.get(context)
+
+    @Provides
+    @Singleton
+    fun localMedia(@ApplicationContext context: Context): LocalMediaRepository = LocalMediaRepository(context)
+
+    @Provides
+    @Singleton
+    fun thumbnails(@ApplicationContext context: Context): Thumbnails = Thumbnails(context)
 }

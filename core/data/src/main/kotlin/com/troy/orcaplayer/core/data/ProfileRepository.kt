@@ -32,6 +32,9 @@ class ResumeRepository(private val db: OrcaDatabase) {
 
     fun recent(profileId: String) = db.resume().observeRecent(profileId, 30)
 
+    /** Every saved position of a profile, for progress bars and "new" marks in lists. */
+    fun all(profileId: String) = db.resume().observeAll(profileId)
+
     suspend fun save(position: ResumePositionEntity) = db.resume().upsert(position)
 
     suspend fun clear(profileId: String, mediaKey: String) = db.resume().delete(profileId, mediaKey)

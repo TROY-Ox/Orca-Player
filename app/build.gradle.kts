@@ -121,6 +121,9 @@ dependencies {
     implementation(project(":core:settings"))
     implementation(project(":core:data"))
     implementation(project(":sources:api"))
+    implementation(project(":sources:local"))
+    implementation(project(":player:engine"))
+    implementation(project(":player:subtitles"))
     "extendedImplementation"(project(":sources:cloudstream"))
 
     implementation(libs.androidx.core.ktx)
@@ -132,6 +135,7 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.media3.ui.compose)
 
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
