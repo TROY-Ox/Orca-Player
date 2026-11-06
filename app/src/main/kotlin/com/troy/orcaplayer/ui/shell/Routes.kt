@@ -25,6 +25,7 @@ object Routes {
     const val SETTINGS = "settings"
     const val PROFILES = "profiles"
     const val LICENCES = "licences"
+    const val DECODER_CHECK = "decoder_check"
 }
 
 data class TabSpec(val tab: MainTab, val route: String, @StringRes val label: Int, val icon: ImageVector, val selectedIcon: ImageVector)

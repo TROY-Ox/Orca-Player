@@ -43,7 +43,7 @@ import com.troy.orcaplayer.player.engine.DecoderMode
 import java.util.Locale
 import com.troy.orcaplayer.core.settings.R as SR
 
-enum class PlayerPanel { NONE, SPEED, TRACKS, SUBTITLES, TOOLS, QUEUE }
+enum class PlayerPanel { NONE, SPEED, TRACKS, SUBTITLES, TOOLS, QUEUE, AUDIO }
 
 enum class AspectMode(val ratio: Float?) {
     FIT(null), FILL(null), STRETCH(null), ORIGINAL(null), R16_9(16f / 9f), R4_3(4f / 3f), R21_9(21f / 9f);
@@ -291,9 +291,37 @@ fun ToolsPanel(
     backgroundPlay: Boolean,
     onBackgroundPlay: (Boolean) -> Unit,
     onPip: (() -> Unit)?,
+    onEqualizer: () -> Unit,
+    boostPercent: Int?,
+    onResetBoost: () -> Unit,
+    quietRecording: Boolean,
+    onQuietRecording: (Boolean) -> Unit,
+    infoOverlay: Boolean,
+    onInfoOverlay: (Boolean) -> Unit,
 ) {
     val c = Troy.colors
     PanelColumn(stringResource(R.string.player_tools)) {
+        TroyButton(stringResource(R.string.eq_title), onEqualizer, kind = ButtonKind.SECONDARY)
+        if (boostPercent != null) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    stringResource(R.string.eq_boost) + ": " + formatNumber(boostPercent) + "%",
+                    style = Troy.type.body, color = c.text, modifier = Modifier.weight(1f),
+                )
+                if (boostPercent != 100) TroyButton(stringResource(R.string.eq_reset_boost), onResetBoost, kind = ButtonKind.GHOST)
+            }
+        }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(SR.string.setting_quiet_recording), style = Troy.type.body, color = c.text)
+                Text(stringResource(R.string.player_experimental), style = Troy.type.bodySmall, color = c.text3)
+            }
+            TroyToggle(quietRecording, onQuietRecording)
+        }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(SR.string.setting_info_overlay), style = Troy.type.body, color = c.text, modifier = Modifier.weight(1f))
+            TroyToggle(infoOverlay, onInfoOverlay)
+        }
         SectionLabel(stringResource(SR.string.setting_decoder))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             TroyChip("HW+", decoder == DecoderMode.HW_PLUS, { onDecoder(DecoderMode.HW_PLUS) })

@@ -88,6 +88,8 @@ import com.troy.orcaplayer.core.design.util.formatNumber
 import com.troy.orcaplayer.core.model.ControlSlot
 import com.troy.orcaplayer.core.model.PlayerControl
 import com.troy.orcaplayer.core.settings.PlayerSettings
+import com.troy.orcaplayer.core.settings.AudioVideoSettings as AV
+import com.troy.orcaplayer.player.engine.AudioOutputMode
 import com.troy.orcaplayer.player.engine.DecoderMode
 import com.troy.orcaplayer.player.engine.SliderConfig
 import com.troy.orcaplayer.player.engine.SliderDrag
@@ -125,6 +127,25 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
     val pill by vm.resumePill.collectAsStateWithLifecycle()
     val decoder by vm.decoderMode.collectAsStateWithLifecycle()
     val locked by vm.locked.collectAsStateWithLifecycle()
+    val fx by vm.sound.fx.collectAsStateWithLifecycle()
+    val audioStore by vm.sound.store.collectAsStateWithLifecycle()
+    val fxOrigin by vm.sound.origin.collectAsStateWithLifecycle()
+    val stats by vm.stats.collectAsStateWithLifecycle()
+    var boostWarnAt by remember { mutableLongStateOf(0L) }
+
+    // Volume boost on the slider: up to the maximum while extra volume is on.
+    val extraVolume = settings[AV.ExtraVolume]
+    val maxBoost = vm.sound.maxBoost(settings)
+    LaunchedEffect(extraVolume, maxBoost, fx.boostPercent) {
+        levels.boostMax = if (extraVolume) maxBoost else 100
+        levels.showBoost(if (extraVolume) fx.boostPercent else 100)
+    }
+    LaunchedEffect(levels) {
+        levels.onBoost = { b ->
+            vm.sound.setBoost(b)
+            if (vm.sound.shouldWarnBoost(b)) boostWarnAt = System.currentTimeMillis()
+        }
+    }
 
     var controlsVisible by rememberSaveable { mutableStateOf(true) }
     var lastInteraction by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -253,7 +274,7 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
                     SliderKind.BRIGHTNESS -> SliderDrag(levels.brightness, SliderLevels.MIN_BRIGHTNESS, 100f, p.brightnessStep, p.config)
                     SliderKind.VOLUME -> {
                         levels.syncVolume()
-                        SliderDrag(levels.volume.toFloat(), 0f, levels.maxVolume.toFloat(), 1f, p.config.copy(slowStepDp = 14f))
+                        SliderDrag(levels.combinedIndex.toFloat(), 0f, levels.combinedMax.toFloat(), 1f, p.config.copy(slowStepDp = 14f))
                     }
                 }
             }
@@ -263,7 +284,7 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
                 val v = d.move(upDp, dtMs)
                 when (kind) {
                     SliderKind.BRIGHTNESS -> if (v != levels.brightness) levels.setBrightnessPercent(v)
-                    SliderKind.VOLUME -> if (v.roundToInt() != levels.volume) levels.setVolumeIndex(v.roundToInt())
+                    SliderKind.VOLUME -> if (v.roundToInt() != levels.combinedIndex) levels.setCombinedIndex(v.roundToInt())
                     null -> Unit
                 }
                 if (d.tick && state.value.sliders.haptics) view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
@@ -423,6 +444,22 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
             )
         }
 
+        if (now - boostWarnAt < 5000) {
+            TroyAlert(
+                stringResource(R.string.player_boost_warning),
+                AlertKind.WARN,
+                Modifier.align(Alignment.TopCenter).windowInsetsPadding(WindowInsets.safeDrawing).padding(top = 56.dp, start = 24.dp, end = 24.dp)
+                    .widthIn(max = 480.dp).glass(TroyShapes.Panel).padding(12.dp),
+            )
+        }
+        if (settings[AV.InfoOverlay]) {
+            VideoInfoOverlay(
+                stats,
+                bufferMs = (ui.bufferedMs - ui.positionMs).coerceAtLeast(0),
+                modifier = Modifier.align(Alignment.TopStart).windowInsetsPadding(WindowInsets.safeDrawing).padding(top = 64.dp, start = 16.dp),
+            )
+        }
+
         // Brightness and volume bars
         val sliderVisible: (SliderKind, Long) -> Boolean = { k, shownAt ->
             when (sliderPrefs.display) {
@@ -447,8 +484,10 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
                     levels.volumePercent,
                     !locked && sliderVisible(SliderKind.VOLUME, levels.volumeShownAt),
                     stringResource(R.string.player_volume),
-                    { levels.setVolumeIndex((it / 100f * levels.maxVolume).roundToInt()) },
+                    { levels.setVolumePercent(it) },
                     Modifier.align(if (brightnessStart) Alignment.CenterEnd else Alignment.CenterStart),
+                    maxPercent = levels.boostMax.toFloat(),
+                    boostLabel = stringResource(R.string.player_boost_label),
                 )
             }
         }
@@ -526,7 +565,13 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
                     .pointerInput(Unit) { detectTapGestures { panel = PlayerPanel.NONE } },
             )
             val panelModifier = if (wide) {
-                Modifier.align(Alignment.CenterEnd).fillMaxHeight().widthIn(max = if (panel == PlayerPanel.TRACKS || panel == PlayerPanel.SUBTITLES) 640.dp else 380.dp)
+                Modifier.align(Alignment.CenterEnd).fillMaxHeight().widthIn(
+                    max = when (panel) {
+                        PlayerPanel.TRACKS, PlayerPanel.SUBTITLES -> 640.dp
+                        PlayerPanel.AUDIO -> 460.dp
+                        else -> 380.dp
+                    },
+                )
             } else {
                 Modifier.align(Alignment.BottomCenter).fillMaxWidth().heightIn(max = (LocalConfiguration.current.screenHeightDp * 0.65f).dp)
             }
@@ -557,6 +602,30 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
                         backgroundPlay = settings[PlayerSettings.BackgroundPlay],
                         onBackgroundPlay = vm::setBackgroundPlay,
                         onPip = if (host.canPip) ({ panel = PlayerPanel.NONE; host.enterPip() }) else null,
+                        onEqualizer = { panel = PlayerPanel.AUDIO },
+                        boostPercent = if (extraVolume) fx.boostPercent else null,
+                        onResetBoost = { vm.sound.setBoost(100) },
+                        quietRecording = settings[AV.QuietRecording],
+                        onQuietRecording = { vm.setSetting(AV.QuietRecording, it) },
+                        infoOverlay = settings[AV.InfoOverlay],
+                        onInfoOverlay = { vm.setSetting(AV.InfoOverlay, it) },
+                    )
+                    PlayerPanel.AUDIO -> EqualizerPanel(
+                        fx = fx,
+                        custom = audioStore.custom,
+                        ctx = EqContext(
+                            advanced = settings[AV.EqMode] == "advanced",
+                            extraVolume = extraVolume,
+                            maxBoost = maxBoost,
+                            passthroughActive = stats.audioOutput == AudioOutputMode.PASSTHROUGH,
+                            showMeter = settings[AV.LevelMeter],
+                            virtualizerBlocked = vm.sound.virtualizerBlocked,
+                            origin = fxOrigin,
+                            canSaveFolder = vm.sound.canSaveFolder,
+                        ),
+                        level = { vm.engine.outputLevel },
+                        sound = vm.sound,
+                        onAdvanced = { vm.setSetting(AV.EqMode, if (it) "advanced" else "simple") },
                     )
                     PlayerPanel.QUEUE -> QueuePanel(
                         titles = vm.engine.queue.map { it.title },

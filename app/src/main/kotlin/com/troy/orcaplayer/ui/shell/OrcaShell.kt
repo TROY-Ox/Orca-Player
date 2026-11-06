@@ -28,7 +28,9 @@ import com.troy.orcaplayer.core.model.NavLayout
 import com.troy.orcaplayer.ui.local.LocalScreen
 import com.troy.orcaplayer.ui.screens.LicencesScreen
 import com.troy.orcaplayer.ui.screens.ProfilesScreen
+import com.troy.orcaplayer.ui.screens.DecoderCheckScreen
 import com.troy.orcaplayer.ui.screens.TabPlaceholder
+import com.troy.orcaplayer.ui.screens.ToolsScreen
 import com.troy.orcaplayer.ui.settings.SettingsScreen
 
 enum class NavStyle { BOTTOM, RAIL, TV_RAIL }
@@ -102,10 +104,21 @@ private fun OrcaNavHost(nav: NavHostController, start: String) {
     ) {
         MainTab.entries.forEach { tab ->
             composable(tab.spec().route) {
-                if (tab == MainTab.LOCAL) LocalScreen(openSettings, openProfiles) else TabPlaceholder(tab, openSettings, openProfiles)
+                when (tab) {
+                    MainTab.LOCAL -> LocalScreen(openSettings, openProfiles)
+                    MainTab.TOOLS -> ToolsScreen(openSettings, openProfiles, onOpenDecoderCheck = { nav.navigate(Routes.DECODER_CHECK) { launchSingleTop = true } })
+                    else -> TabPlaceholder(tab, openSettings, openProfiles)
+                }
             }
         }
-        composable(Routes.SETTINGS) { SettingsScreen(onBack = back, onOpenLicences = { nav.navigate(Routes.LICENCES) }) }
+        composable(Routes.SETTINGS) {
+            SettingsScreen(
+                onBack = back,
+                onOpenLicences = { nav.navigate(Routes.LICENCES) },
+                onOpenDecoderCheck = { nav.navigate(Routes.DECODER_CHECK) { launchSingleTop = true } },
+            )
+        }
+        composable(Routes.DECODER_CHECK) { DecoderCheckScreen(onBack = back) }
         composable(Routes.PROFILES) { ProfilesScreen(onBack = back) }
         composable(Routes.LICENCES) { LicencesScreen(onBack = back) }
     }

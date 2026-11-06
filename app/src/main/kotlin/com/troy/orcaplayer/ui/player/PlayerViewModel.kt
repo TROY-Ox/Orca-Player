@@ -25,7 +25,13 @@ import com.troy.orcaplayer.core.model.SourceKind
 import com.troy.orcaplayer.core.settings.PlayerSettings
 import com.troy.orcaplayer.core.settings.SettingsRepository
 import com.troy.orcaplayer.core.settings.SettingsValues
+import com.troy.orcaplayer.core.settings.AudioVideoSettings
+import com.troy.orcaplayer.core.settings.SettingDef
 import com.troy.orcaplayer.player.engine.DecoderMode
+import com.troy.orcaplayer.player.engine.DolbyVision
+import com.troy.orcaplayer.player.engine.EngineNotice
+import com.troy.orcaplayer.player.engine.PlaybackStats
+import com.troy.orcaplayer.player.engine.VideoCaps
 import com.troy.orcaplayer.player.engine.PlaybackEngine
 import com.troy.orcaplayer.player.engine.PlaybackService
 import com.troy.orcaplayer.player.subtitles.ArabicText
@@ -113,6 +119,10 @@ class PlayerViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.Eagerly, PlayerLayout.Default)
 
     val player: StateFlow<ExoPlayer> = engine.playerFlow
+    val stats: StateFlow<PlaybackStats> = engine.stats
+
+    /** Equalizer, effects and volume boost. */
+    val sound = SoundController(viewModelScope, context, engine, settingsRepo, profiles.currentProfileId, settings)
     val decoderMode: StateFlow<DecoderMode> = engine.decoderMode
 
     private val _ui = MutableStateFlow(PlaybackUi())
@@ -150,9 +160,14 @@ class PlayerViewModel @Inject constructor(
     /** Screen lock: all touch is ignored except a small unlock button. */
     val locked = MutableStateFlow(false)
 
-    fun setBackgroundPlay(enabled: Boolean) {
-        viewModelScope.launch { settingsRepo.set(profiles.currentProfileId.value, PlayerSettings.BackgroundPlay, enabled) }
+    fun setBackgroundPlay(enabled: Boolean) = setSetting(PlayerSettings.BackgroundPlay, enabled)
+
+    fun <T> setSetting(def: SettingDef<T>, value: T) {
+        viewModelScope.launch { settingsRepo.set(profiles.currentProfileId.value, def, value) }
     }
+
+    /** Media IDs that already showed the Dolby Vision warning, so it shows once per video. */
+    private val dvWarned = mutableSetOf<String>()
 
     private var attached: ExoPlayer? = null
     private var handledIndex = -1
@@ -193,6 +208,22 @@ class PlayerViewModel @Inject constructor(
     }
 
     init {
+        viewModelScope.launch {
+            engine.notices.collect { n ->
+                _events.emit(PlayerEvent.Message(if (n == EngineNotice.DECODED_FOR_EFFECTS) MSG_DECODED_EFFECTS else MSG_DECODED_SPEED))
+            }
+        }
+        viewModelScope.launch {
+            // Dolby Vision profile 5 has no fallback: warn when this device can't show it.
+            engine.stats.collect { st ->
+                val f = st.video ?: return@collect
+                val profile = DolbyVision.profileOf(f.codecs) ?: return@collect
+                val id = attached?.currentMediaItem?.mediaId ?: return@collect
+                if (!DolbyVision.hasNoFallback(profile) || id in dvWarned || !settings.value[AudioVideoSettings.DolbyVisionWarning]) return@collect
+                dvWarned += id
+                if (!withContext(Dispatchers.IO) { VideoCaps.hasDolbyVisionDecoder() }) _events.emit(PlayerEvent.Message(MSG_DV5))
+            }
+        }
         viewModelScope.launch {
             engine.playerFlow.collect { p ->
                 attached?.removeListener(listener)
@@ -284,9 +315,10 @@ class PlayerViewModel @Inject constructor(
         _ui.update { it.copy(error = null) }
         handledIndex = request.startIndex
         val p = engine.player
-        p.setPlaybackSpeed(v[PlayerSettings.DefaultSpeed].toFloatOrNull() ?: 1f)
+        engine.setSpeed(v[PlayerSettings.DefaultSpeed].toFloatOrNull() ?: 1f)
         p.pauseAtEndOfMediaItems = !v[PlayerSettings.AutoNext]
         applySubtitleLanguage(p, v)
+        sound.onMediaStarted(first)
         engine.load(request.items, request.startIndex, startPos)
         refresh()
         // Subtitles sent by the calling app, then files next to the video.
@@ -342,6 +374,7 @@ class PlayerViewModel @Inject constructor(
         val item = engine.itemAt(index) ?: return
         viewModelScope.launch {
             val v = settings.value
+            sound.onMediaStarted(item)
             val explicit = explicitStart?.takeIf { it.first == index }?.second
             val pos = explicit ?: resumeStart(item, v, profiles.currentProfileId.value)
             if (pos > 0 && p === attached && p.currentMediaItemIndex == index) p.seekTo(pos)
@@ -436,7 +469,7 @@ class PlayerViewModel @Inject constructor(
     }
 
     fun setSpeed(speed: Float) {
-        attached?.setPlaybackSpeed(speed.coerceIn(0.25f, 4f))
+        engine.setSpeed(speed.coerceIn(0.25f, 4f))
         refresh()
     }
 
@@ -602,6 +635,9 @@ class PlayerViewModel @Inject constructor(
 
     companion object {
         const val MSG_NO_CUES = "no_cues"
+        const val MSG_DECODED_EFFECTS = "decoded_effects"
+        const val MSG_DECODED_SPEED = "decoded_speed"
+        const val MSG_DV5 = "dv5"
         const val MSG_LOAD_FAILED = "load_failed"
     }
 }

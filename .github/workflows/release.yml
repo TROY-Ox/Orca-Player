@@ -1,5 +1,5 @@
 # ORCA Player: builds signed release files when a version tag such as v0.2.0 is pushed,
-# and publishes them as a GitHub Release. Can also rebuild an existing tag by hand.
+# and publishes the public ones (standard APK, standard AAB, SHA256SUMS.txt) as a GitHub Release. Can also rebuild an existing tag by hand.
 name: Release
 
 on:
@@ -68,7 +68,19 @@ jobs:
       - name: Restore the signing key
         env:
           ORCA_KEYSTORE_BASE64: ${{ secrets.ORCA_KEYSTORE_BASE64 }}
+          ORCA_KEYSTORE_PASSWORD: ${{ secrets.ORCA_KEYSTORE_PASSWORD }}
+          ORCA_KEY_ALIAS: ${{ secrets.ORCA_KEY_ALIAS }}
+          ORCA_KEY_PASSWORD: ${{ secrets.ORCA_KEY_PASSWORD }}
         run: |
+          # Final releases (v1.0.0 and later, without a suffix) must use the real key: all four secrets.
+          if [[ "$TAG" =~ ^v[1-9][0-9]*\.[0-9]+\.[0-9]+$ ]]; then
+            for name in ORCA_KEYSTORE_BASE64 ORCA_KEYSTORE_PASSWORD ORCA_KEY_ALIAS ORCA_KEY_PASSWORD; do
+              if [ -z "${!name}" ]; then
+                echo "::error::Secret $name is missing. Add all four signing secrets before a final release."
+                exit 1
+              fi
+            done
+          fi
           if [ -z "$ORCA_KEYSTORE_BASE64" ]; then
             # Until the owner adds the real key, sign with the committed TEST key (app/test-release.keystore).
             # Test-signed builds can't be updated to real-key builds without uninstalling first.
@@ -103,17 +115,30 @@ jobs:
           done
           bash scripts/check-16kb.sh app/build/outputs/apk/*/release/*.apk
 
+      # The repository is public. The public release gets only the standard APK, the standard AAB
+      # and SHA256SUMS.txt. The extended APK (GPL, sideload only) and the R8 mapping files stay in
+      # a workflow artifact for 3 days.
       - name: Collect the release files
         run: |
-          mkdir -p dist
+          mkdir -p dist private
           cp app/build/outputs/apk/standard/release/*.apk "dist/ORCA-Player-standard-$TAG.apk"
-          cp app/build/outputs/apk/extended/release/*.apk "dist/ORCA-Player-extended-$TAG.apk"
           cp app/build/outputs/bundle/standardRelease/*.aab "dist/ORCA-Player-standard-$TAG.aab"
-          # R8 mapping files are needed to read crash logs. They become public if the repo is made public.
+          (cd dist && sha256sum -- *.apk *.aab > SHA256SUMS.txt)
+          cp app/build/outputs/apk/extended/release/*.apk "private/ORCA-Player-extended-$TAG.apk"
           if [ -d app/build/outputs/mapping ]; then
-            (cd app/build/outputs/mapping && zip -qr "$GITHUB_WORKSPACE/dist/ORCA-Player-mapping-$TAG.zip" .)
+            (cd app/build/outputs/mapping && zip -qr "$GITHUB_WORKSPACE/private/ORCA-Player-mapping-$TAG.zip" .)
           fi
-          (cd dist && sha256sum -- * > SHA256SUMS.txt)
+          (cd private && sha256sum -- * > SHA256SUMS-private.txt)
+          ls dist
+          test "$(ls dist | wc -l)" -eq 3
+
+      - name: Keep the extended APK and mapping files as a 3-day artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: orca-private-${{ env.TAG }}
+          path: private/
+          retention-days: 3
+          if-no-files-found: error
 
       - name: Publish the GitHub Release
         env:
@@ -126,9 +151,13 @@ jobs:
             v0.*|*-*) args+=(--prerelease) ;;
           esac
           if gh release view "$TAG" > /dev/null 2>&1; then
-            gh release upload "$TAG" dist/* --clobber
+            # Drop any file that isn't one of the three public ones (for example from an older run).
+            for asset in $(gh release view "$TAG" --json assets --jq '.assets[].name'); do
+              [ -f "dist/$asset" ] || gh release delete-asset "$TAG" "$asset" --yes
+            done
+            gh release upload "$TAG" dist/ORCA-Player-standard-"$TAG".apk dist/ORCA-Player-standard-"$TAG".aab dist/SHA256SUMS.txt --clobber
           else
-            gh release create "$TAG" dist/* --verify-tag "${args[@]}"
+            gh release create "$TAG" dist/ORCA-Player-standard-"$TAG".apk dist/ORCA-Player-standard-"$TAG".aab dist/SHA256SUMS.txt --verify-tag "${args[@]}"
           fi
 
       - name: Remove the signing key
