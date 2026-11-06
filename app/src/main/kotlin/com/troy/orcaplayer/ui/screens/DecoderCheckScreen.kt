@@ -80,7 +80,7 @@ fun DecoderCheckScreen(onBack: () -> Unit) {
                     )
                     Line(
                         stringResource(R.string.dc_refresh),
-                        d?.refreshRates?.joinToString(", ") { formatRate(it) } ?: "",
+                        d?.refreshRates?.map { formatRate(it) }?.joinToString(", ") ?: "",
                     )
                 }
             }
