@@ -71,17 +71,18 @@ object VideoCaps {
     @Suppress("DEPRECATION")
     fun display(display: Display?): DisplayCaps {
         if (display == null) return DisplayCaps(emptyList(), emptyList(), emptyList())
-        val hdr = runCatching {
-            display.hdrCapabilities?.supportedHdrTypes?.mapNotNull {
-                when (it) {
-                    Display.HdrCapabilities.HDR_TYPE_DOLBY_VISION -> HdrKind.DOLBY_VISION
-                    Display.HdrCapabilities.HDR_TYPE_HDR10 -> HdrKind.HDR10
-                    Display.HdrCapabilities.HDR_TYPE_HLG -> HdrKind.HLG
-                    Display.HdrCapabilities.HDR_TYPE_HDR10_PLUS -> HdrKind.HDR10_PLUS
-                    else -> null
+        val hdr = mutableListOf<HdrKind>()
+        runCatching {
+            val types: IntArray = display.hdrCapabilities?.supportedHdrTypes ?: IntArray(0)
+            for (t in types) {
+                when (t) {
+                    Display.HdrCapabilities.HDR_TYPE_DOLBY_VISION -> hdr += HdrKind.DOLBY_VISION
+                    Display.HdrCapabilities.HDR_TYPE_HDR10 -> hdr += HdrKind.HDR10
+                    Display.HdrCapabilities.HDR_TYPE_HLG -> hdr += HdrKind.HLG
+                    Display.HdrCapabilities.HDR_TYPE_HDR10_PLUS -> hdr += HdrKind.HDR10_PLUS
                 }
-            }.orEmpty()
-        }.getOrDefault(emptyList())
+            }
+        }
         val modes = display.supportedModes.map { DisplayModeInfo(it.modeId, it.physicalWidth, it.physicalHeight, it.refreshRate) }
         return DisplayCaps(hdr.distinct(), modes.map { it.refreshRate }.distinct().sorted(), modes)
     }
