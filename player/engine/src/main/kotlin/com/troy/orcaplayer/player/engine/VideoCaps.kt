@@ -22,6 +22,7 @@ data class DecoderRow(
 data class DisplayCaps(val hdr: List<HdrKind>, val refreshRates: List<Float>, val modes: List<DisplayModeInfo>)
 
 /** What this device can decode and show. Read once per screen; the codec list doesn't change at runtime. */
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 object VideoCaps {
     private val videoMimes = listOf(
         MimeTypes.VIDEO_H264, MimeTypes.VIDEO_H265, MimeTypes.VIDEO_AV1, MimeTypes.VIDEO_VP9,

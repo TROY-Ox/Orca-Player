@@ -139,8 +139,8 @@
     <string name="eq_presets">Presets</string>
     <string name="eq_custom">Custom</string>
     <string name="eq_boost">Extra volume</string>
-    <string name="eq_reset_boost">Reset to 100%</string>
-    <string name="eq_boost_off_hint">Turn on “Enable extra volume” in Settings → Audio to go past 100%.</string>
+    <string name="eq_reset_boost" formatted="false">Reset to 100%</string>
+    <string name="eq_boost_off_hint" formatted="false">Turn on “Enable extra volume” in Settings → Audio to go past 100%.</string>
     <string name="eq_bands">10-band equalizer</string>
     <string name="eq_preamp">Pre-amp</string>
     <string name="eq_bass">Bass boost</string>
@@ -160,7 +160,7 @@
     <string name="eq_band">Band %1$s Hz</string>
     <string name="eq_level">Output level</string>
     <string name="player_boost_label">Boost</string>
-    <string name="player_boost_warning">Volume above 150% can damage speakers and hearing. Lower it if the sound distorts.</string>
+    <string name="player_boost_warning" formatted="false">Volume above 150% can damage speakers and hearing. Lower it if the sound distorts.</string>
     <string name="player_experimental">Experimental</string>
     <string name="player_decoded_effects">Passthrough paused: audio is now decoded so the effects can run.</string>
     <string name="player_decoded_speed">Passthrough paused: audio is now decoded for this speed.</string>

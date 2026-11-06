@@ -137,8 +137,8 @@
     <string name="eq_presets">الإعدادات المسبقة</string>
     <string name="eq_custom">مخصص</string>
     <string name="eq_boost">صوت إضافي</string>
-    <string name="eq_reset_boost">إعادة إلى 100%</string>
-    <string name="eq_boost_off_hint">فعّل «تفعيل الصوت الإضافي» في الإعدادات ← الصوت لتجاوز 100%.</string>
+    <string name="eq_reset_boost" formatted="false">إعادة إلى 100%</string>
+    <string name="eq_boost_off_hint" formatted="false">فعّل «تفعيل الصوت الإضافي» في الإعدادات ← الصوت لتجاوز 100%.</string>
     <string name="eq_bands">معادل بعشرة نطاقات</string>
     <string name="eq_preamp">تضخيم مسبق</string>
     <string name="eq_bass">تعزيز الجهير</string>
@@ -158,7 +158,7 @@
     <string name="eq_band">نطاق %1$s هرتز</string>
     <string name="eq_level">مستوى الخرج</string>
     <string name="player_boost_label">تعزيز</string>
-    <string name="player_boost_warning">الصوت فوق 150% قد يضر السماعات والسمع. اخفضه إن تشوّه الصوت.</string>
+    <string name="player_boost_warning" formatted="false">الصوت فوق 150% قد يضر السماعات والسمع. اخفضه إن تشوّه الصوت.</string>
     <string name="player_experimental">تجريبي</string>
     <string name="player_decoded_effects">توقف التمرير المباشر: يُفك ترميز الصوت الآن لتعمل التأثيرات.</string>
     <string name="player_decoded_speed">توقف التمرير المباشر: يُفك ترميز الصوت الآن لهذه السرعة.</string>

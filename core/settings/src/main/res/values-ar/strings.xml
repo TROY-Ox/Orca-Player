@@ -220,19 +220,19 @@
     <string name="eq_mode_simple">بسيط</string>
     <string name="eq_mode_advanced">متقدم</string>
     <string name="setting_extra_volume">تفعيل الصوت الإضافي</string>
-    <string name="setting_extra_volume_summary">يسمح لشريط الصوت بتجاوز 100% بتضخيم برمجي مع محدِّد</string>
+    <string name="setting_extra_volume_summary" formatted="false">يسمح لشريط الصوت بتجاوز 100% بتضخيم برمجي مع محدِّد</string>
     <string name="setting_boost_keywords">تعزيز عالٍ أعلى تضخيم كسب محدد صوت boost</string>
     <string name="setting_max_boost">أقصى تعزيز</string>
-    <string name="setting_max_boost_summary">أعلى مستوى صوت فوق 100%</string>
-    <string name="percent_150">150%</string>
-    <string name="percent_200">200%</string>
-    <string name="percent_300">300%</string>
+    <string name="setting_max_boost_summary" formatted="false">أعلى مستوى صوت فوق 100%</string>
+    <string name="percent_150" formatted="false">150%</string>
+    <string name="percent_200" formatted="false">200%</string>
+    <string name="percent_300" formatted="false">300%</string>
     <string name="setting_limiter">قوة المحدِّد</string>
     <string name="setting_limiter_summary">مدى إمساك الذروات العالية كي لا يتشوه الصوت</string>
     <string name="limiter_soft">خفيف</string>
     <string name="limiter_medium">متوسط</string>
     <string name="limiter_strong">قوي</string>
-    <string name="setting_boost_warning">تنبيه فوق 150%</string>
+    <string name="setting_boost_warning" formatted="false">تنبيه فوق 150%</string>
     <string name="setting_boost_warning_summary">تذكير لمرة واحدة بأن التعزيز العالي جدًا قد يضر السماعات والسمع</string>
     <string name="setting_normalize">موازنة الصوت</string>
     <string name="setting_normalize_summary">يجعل الفيديوهات الهادئة والعالية بارتفاع متقارب</string>

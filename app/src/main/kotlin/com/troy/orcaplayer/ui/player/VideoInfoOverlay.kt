@@ -35,9 +35,11 @@ private fun bitrate(bps: Int): String? = bps.takeIf { it > 0 }?.let {
     if (it >= 1_000_000) formatNumber((it / 100_000) / 10f) + " Mbps" else formatNumber(it / 1000) + " kbps"
 }
 
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 private fun codec(f: Format?): String? = f?.let { (f.codecs ?: f.sampleMimeType?.substringAfter('/'))?.uppercase() }
 
 /** Resolution, frame rate, codec, bitrate, HDR, decoder, dropped frames, buffer and audio output. */
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
 fun VideoInfoOverlay(stats: PlaybackStats, bufferMs: Long, modifier: Modifier = Modifier) {
     val v = stats.video
