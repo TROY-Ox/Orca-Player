@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tab_home">الرئيسية</string>
+    <string name="tab_local">المحلي</string>
+    <string name="tab_addons">الإضافات</string>
+    <string name="tab_search">البحث</string>
+    <string name="tab_tools">الأدوات</string>
+
+    <string name="cd_profile_menu">الملف الشخصي والإعدادات</string>
+    <string name="menu_settings">الإعدادات</string>
+    <string name="menu_profiles">تبديل الملف الشخصي</string>
+    <string name="nav_back">رجوع</string>
+    <string name="dialog_cancel">إلغاء</string>
+    <string name="dialog_close">إغلاق</string>
+
+    <string name="home_empty_title">لا شيء هنا بعد</string>
+    <string name="home_empty_message">تمتلئ الرئيسية بمتابعة المشاهدة وقائمتي والتنزيلات وصفوف من المصادر التي تضيفها. يصل المشغل المحلي في التحديث القادم.</string>
+    <string name="local_empty_title">ستظهر مقاطعك هنا</string>
+    <string name="local_empty_message">المجلدات وكل المقاطع ومشاركات الشبكة والتنزيلات والمجلد الخاص. قريباً في التحديث القادم مع المشغل.</string>
+    <string name="addons_empty_title">لم تُضف أي مصادر</string>
+    <string name="addons_empty_message">لا يأتي ORCA Player بأي مصادر محتوى. لاحقاً يمكنك إضافة إضافات متوافقة مع Stremio برابط من هنا.</string>
+    <string name="search_empty_title">ابحث في كل شيء</string>
+    <string name="search_empty_message">سيشمل البحث ملفاتك المحلية ومكتبتك وكل مصدر تضيفه.</string>
+    <string name="tools_empty_title">أدوات لأي ملف</string>
+    <string name="tools_empty_message">المعادل الصوتي وقاطع المقاطع ومحرر الترجمة والمحوّل ومستخرج الصوت ومعلومات الوسائط وغيرها، دون تشغيل الملف.</string>
+
+    <string name="settings_title">الإعدادات</string>
+    <string name="settings_search_hint">ابحث في الإعدادات</string>
+    <string name="settings_no_results">لا توجد إعدادات تطابق بحثك.</string>
+    <string name="settings_reset_section">إعادة الضبط</string>
+    <string name="settings_about">حول</string>
+    <string name="about_version">الإصدار</string>
+    <string name="about_build">النسخة</string>
+    <string name="build_standard">القياسية</string>
+    <string name="build_extended">الموسّعة (تثبيت يدوي)</string>
+    <string name="about_licences">التراخيص</string>
+    <string name="about_licences_summary">المكتبات والخطوط مفتوحة المصدر المستخدمة في ORCA Player</string>
+    <string name="setting_custom_accent_title">اختر لون التمييز</string>
+    <string name="color_hue">درجة اللون</string>
+    <string name="color_brightness">السطوع</string>
+    <string name="color_apply">تطبيق</string>
+
+    <string name="profiles_title">الملفات الشخصية</string>
+    <string name="profiles_default_name">الرئيسي</string>
+    <string name="profiles_current">الملف الحالي</string>
+    <string name="profiles_more_later">ملفات شخصية إضافية ورموز PIN ووضع الأطفال في تحديث لاحق.</string>
+
+    <string name="licences_title">التراخيص</string>
+    <string name="licence_show_text">عرض الترخيص</string>
+    <string name="licences_extended_gpl">تتضمن هذه النسخة الموسّعة شيفرة مرخصة بـ GPL-3.0. إن شاركتها مع أي شخص فعليك توفير شيفرتها المصدرية أيضاً.</string>
+</resources>

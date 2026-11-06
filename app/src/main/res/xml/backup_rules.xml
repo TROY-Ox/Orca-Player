@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <exclude domain="file" path="private/" />
+    <exclude domain="file" path="downloads/" />
+    <exclude domain="file" path="secure/" />
+    <exclude domain="sharedpref" path="orca_secure.xml" />
+</full-backup-content>

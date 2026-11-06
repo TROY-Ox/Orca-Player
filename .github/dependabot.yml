@@ -1,0 +1,20 @@
+# ORCA Player: weekly update pull requests for Gradle libraries and GitHub Actions.
+version: 2
+updates:
+  - package-ecosystem: gradle
+    directory: /
+    schedule:
+      interval: weekly
+      day: sunday
+    open-pull-requests-limit: 5
+    groups:
+      androidx:
+        patterns: ['androidx.*']
+      kotlin:
+        patterns: ['org.jetbrains.kotlin*', 'org.jetbrains.kotlinx*']
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: sunday
