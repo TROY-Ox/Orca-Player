@@ -138,6 +138,8 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
     val subSpeed by vm.subtitleSpeed.collectAsStateWithLifecycle()
     val subsOff by vm.subtitlesOff.collectAsStateWithLifecycle()
     val pill by vm.resumePill.collectAsStateWithLifecycle()
+    val onlineNotice by vm.onlineNotice.collectAsStateWithLifecycle()
+    val onlineResults by vm.onlineResults.collectAsStateWithLifecycle()
     val decoder by vm.decoderMode.collectAsStateWithLifecycle()
     val locked by vm.locked.collectAsStateWithLifecycle()
     val fx by vm.sound.fx.collectAsStateWithLifecycle()
@@ -641,6 +643,26 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
             }
         }
 
+        // Online subtitle notice (9.6): what was fetched, with a Change button.
+        if (pill == null) onlineNotice?.let { n ->
+            LaunchedEffect(n) {
+                kotlinx.coroutines.delay(8_000)
+                vm.dismissOnlineNotice()
+            }
+            Row(
+                Modifier.align(Alignment.BottomCenter).windowInsetsPadding(WindowInsets.safeDrawing).padding(bottom = 96.dp)
+                    .glass(TroyShapes.Pill).padding(start = 18.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    stringResource(R.string.online_subs_loaded, listOfNotNull(n.language?.uppercase(), n.source.sourceName).joinToString(" · ")),
+                    style = Troy.type.body, color = c.text, maxLines = 1,
+                )
+                TroyButton(stringResource(R.string.online_subs_change), { vm.dismissOnlineNotice(); panel = PlayerPanel.ONLINE_SUBTITLES }, kind = ButtonKind.GHOST)
+            }
+        }
+
         // Error
         ui.error?.let { code ->
             GlassPanel(Modifier.align(Alignment.Center).widthIn(max = 420.dp).padding(24.dp)) {
@@ -675,7 +697,7 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
             val panelModifier = if (wide) {
                 Modifier.align(if (edge == SheetEdge.START) Alignment.CenterStart else Alignment.CenterEnd).fillMaxHeight().widthIn(
                     max = when (panel) {
-                        PlayerPanel.TRACKS, PlayerPanel.SUBTITLES -> 640.dp
+                        PlayerPanel.TRACKS, PlayerPanel.SUBTITLES, PlayerPanel.ONLINE_SUBTITLES -> 640.dp
                         PlayerPanel.AUDIO -> 460.dp
                         else -> 380.dp
                     },
@@ -697,6 +719,7 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
                         onAutoQuality = vm::autoVideoQuality,
                         onSubtitlesOff = vm::subtitlesOff,
                         onPickFile = host::pickSubtitle,
+                        onSearchOnline = { panel = PlayerPanel.ONLINE_SUBTITLES },
                         onDelay = vm::setSubtitleDelay,
                         onSubtitleSpeed = vm::setSubtitleSpeed,
                         onEncoding = vm::reloadWithEncoding,
@@ -774,6 +797,12 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
                         onPlay = vm::playAt,
                         onRepeat = vm::cycleRepeat,
                         onShuffle = vm::toggleShuffle,
+                    )
+                    PlayerPanel.ONLINE_SUBTITLES -> OnlineSubtitlesPanel(
+                        state = onlineResults,
+                        preferred = settings[PlayerSettings.SubtitleLanguage].let { if (it == "off" || it == "auto") java.util.Locale.getDefault().language else it },
+                        onSearch = vm::searchOnlineSubtitles,
+                        onPick = { vm.pickOnline(it); panel = PlayerPanel.NONE },
                     )
                     PlayerPanel.NONE -> Unit
                 }

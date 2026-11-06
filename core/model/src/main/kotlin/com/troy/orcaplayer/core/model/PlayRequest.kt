@@ -34,6 +34,11 @@ data class PlayItem(
     val canSave: Boolean = false,
     val drmProtected: Boolean = false,
     val downloadable: Boolean = true,
+    /**
+     * Other streams of the same title, best first. When this one fails to start, stalls or drops,
+     * the player moves to the next and continues from the same position (14.7).
+     */
+    val alternates: List<StreamAlternate> = emptyList(),
 ) {
     init {
         require(UriSchemes.isAllowed(uri)) { "Scheme not allowed: $uri" }
@@ -50,6 +55,15 @@ data class EpisodeInfo(
 )
 
 /** From sources, open only http, https, rtsp, rtmp, content and file links. */
+/** A fallback stream for the same title and episode. */
+@Serializable
+data class StreamAlternate(
+    val uri: String,
+    val name: String? = null,
+    val headers: Map<String, String> = emptyMap(),
+    val subtitles: List<SubtitleOption> = emptyList(),
+)
+
 object UriSchemes {
     val allowed = setOf("http", "https", "rtsp", "rtmp", "content", "file")
 

@@ -11,6 +11,7 @@ enum class SettingsSection(@StringRes val titleRes: Int) {
     AUDIO(R.string.settings_section_audio),
     VIDEO(R.string.settings_section_video),
     TOOLS(R.string.settings_section_tools),
+    SOURCES(R.string.settings_section_sources),
     LIBRARY(R.string.settings_section_library),
     ACCESSIBILITY(R.string.settings_section_accessibility),
     LANGUAGE(R.string.settings_section_language),
@@ -63,6 +64,22 @@ class ChoiceSetting(
     scope: SettingScope = SettingScope.PROFILE,
 ) : SettingDef<String>(key, section, titleRes, summaryRes, keywordsRes, default, scope) {
     override fun decode(raw: String?): String = raw?.takeIf { v -> choices.any { it.value == v } } ?: default
+    override fun encode(value: String): String = value
+}
+
+/** Free text, such as a user agent or an API key. [secret] values are masked on screen and left out of exports. */
+class TextSetting(
+    key: String,
+    section: SettingsSection,
+    @StringRes titleRes: Int,
+    @StringRes summaryRes: Int? = null,
+    @StringRes keywordsRes: Int? = null,
+    default: String = "",
+    val multiline: Boolean = false,
+    val secret: Boolean = false,
+    scope: SettingScope = SettingScope.PROFILE,
+) : SettingDef<String>(key, section, titleRes, summaryRes, keywordsRes, default, scope) {
+    override fun decode(raw: String?): String = raw ?: default
     override fun encode(value: String): String = value
 }
 
@@ -216,6 +233,7 @@ object Settings {
         *PlayerSettings.all.toTypedArray(),
         *AudioVideoSettings.all.toTypedArray(),
         *ToolSettings.all.toTypedArray(),
+        *SourceSettings.all.toTypedArray(),
         ReduceMotion, HighContrast, SolidPanels,
         Language, Digits, MirrorTimeline,
         SavingEnabled,

@@ -13,6 +13,12 @@ import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.ResolvingDataSource
+import androidx.media3.database.StandaloneDatabaseProvider
+import androidx.media3.datasource.cache.CacheDataSource
+import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
+import androidx.media3.datasource.cache.SimpleCache
+import androidx.media3.exoplayer.DefaultLoadControl
+import java.io.File
 import androidx.media3.common.Format
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
@@ -67,6 +73,15 @@ class PlaybackEngine private constructor(context: Context) {
     private var displayHdr = false
     @Volatile private var frameStrategy = C.VIDEO_CHANGE_FRAME_RATE_STRATEGY_ONLY_IF_SEAMLESS
 
+    // Stream settings (13). Headers and user agent apply to the next request; buffer to the next video.
+    @Volatile private var defaultHeaders: Map<String, String> = emptyMap()
+    @Volatile private var userAgent: String = DEFAULT_USER_AGENT
+    @Volatile private var bufferSec = 50
+    private var builtBufferSec = 50
+    @Volatile private var cacheMb = 200L
+    private var cache: SimpleCache? = null
+    @Volatile private var cacheChanged = false
+
     private val _player = MutableStateFlow(build(DecoderMode.Default))
     val playerFlow: StateFlow<ExoPlayer> = _player.asStateFlow()
     val player: ExoPlayer get() = _player.value
@@ -109,13 +124,13 @@ class PlaybackEngine private constructor(context: Context) {
             .setAllowCrossProtocolRedirects(true)
             .setConnectTimeoutMs(15_000)
             .setReadTimeoutMs(20_000)
-            .setUserAgent("ORCA Player")
+            // No factory user agent: it would override the one a link or addon sends. It is added below instead.
+            .setUserAgent(null)
         val upstream = DefaultDataSource.Factory(app, http)
-        val resolving = ResolvingDataSource.Factory(upstream) { spec: DataSpec ->
-            val host = spec.uri.host
-            val extra = host?.let { headersByHost[it.lowercase()] }
-            if (extra.isNullOrEmpty()) spec else spec.withAdditionalHeaders(extra)
+        val cached = streamCache()?.let { c ->
+            CacheDataSource.Factory().setCache(c).setUpstreamDataSourceFactory(upstream).setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
         }
+        val resolving = ResolvingDataSource.Factory(cached ?: upstream) { spec: DataSpec -> withStreamHeaders(spec) }
         val extractors = DefaultExtractorsFactory()
             .setConstantBitrateSeekingEnabled(true)
         val sources = DefaultMediaSourceFactory(resolving, extractors)
@@ -124,8 +139,14 @@ class PlaybackEngine private constructor(context: Context) {
         selector.setParameters(selector.buildUponParameters().setConstrainAudioChannelCountToDeviceCapabilities(true))
         effectsApplied = false
         _stats.value = PlaybackStats()
+        builtBufferSec = bufferSec
+        val maxMs = bufferSec * 1000
+        val load = DefaultLoadControl.Builder()
+            .setBufferDurationsMs(minOf(15_000, maxMs), maxMs, 2_500, 5_000)
+            .build()
         val p = ExoPlayer.Builder(app, renderers)
             .setMediaSourceFactory(sources)
+            .setLoadControl(load)
             .setTrackSelector(selector)
             .setAudioAttributes(audioAttributes(), true)
             .setHandleAudioBecomingNoisy(true)
@@ -201,11 +222,68 @@ class PlaybackEngine private constructor(context: Context) {
         effectsApplied = want.isNotEmpty()
     }
 
+    private fun withStreamHeaders(spec: DataSpec): DataSpec {
+        val scheme = spec.uri.scheme?.lowercase()
+        if (scheme != "http" && scheme != "https") return spec
+        val extra = spec.uri.host?.let { headersByHost[it.lowercase()] }.orEmpty()
+        val all = LinkedHashMap<String, String>()
+        all.putAll(defaultHeaders)
+        all.putAll(extra)
+        all.putAll(spec.httpRequestHeaders)
+        if (all.keys.none { it.equals("User-Agent", ignoreCase = true) }) all["User-Agent"] = userAgent
+        return spec.buildUpon().setHttpRequestHeaders(all).build()
+    }
+
+    /** Settings for links and streams (13). */
+    fun setStreamPrefs(headers: Map<String, String>, agent: String, bufferSeconds: Int, cacheMegabytes: Long) {
+        defaultHeaders = headers
+        userAgent = agent.ifBlank { DEFAULT_USER_AGENT }
+        bufferSec = bufferSeconds.coerceIn(5, 600)
+        val mb = cacheMegabytes.coerceAtLeast(0)
+        if (mb != cacheMb) {
+            cacheMb = mb
+            cacheChanged = true
+        }
+    }
+
+    /** The disk cache for streamed video. Its size is fixed for the life of the process. */
+    private fun streamCache(): SimpleCache? {
+        if (cacheMb <= 0) return null
+        cache?.let { return it }
+        return runCatching {
+            SimpleCache(File(app.cacheDir, "stream-cache"), LeastRecentlyUsedCacheEvictor(cacheMb * 1024 * 1024), StandaloneDatabaseProvider(app))
+        }.getOrNull()?.also { cache = it }
+    }
+
+    /**
+     * Swaps the item at [index] for another stream of the same video and continues from
+     * [positionMs]. Used by the automatic fallback (14.7).
+     */
+    fun replaceItem(index: Int, item: PlayItem, positionMs: Long) {
+        if (index !in queue.indices) return
+        queue = queue.toMutableList().also { it[index] = item }
+        if (item.headers.isNotEmpty()) Uri.parse(item.uri).host?.let { headersByHost[it.lowercase()] = item.headers }
+        val p = player
+        p.replaceMediaItem(index, item.toMediaItem(index))
+        p.seekTo(index, positionMs.coerceAtLeast(0))
+        p.prepare()
+        p.playWhenReady = true
+    }
+
     /** Loads a queue. Positions come from [startPositionMs]; smart resume is applied by the caller. */
     fun load(items: List<PlayItem>, startIndex: Int, startPositionMs: Long, playWhenReady: Boolean = true) {
         // Each new video may use passthrough again when nothing needs decoded audio.
         val want = wantPassthrough()
-        if (want != passthroughAllowed) {
+        if (cacheChanged) {
+            // A new cache size needs a new cache: stop what is playing first so nothing reads the old one.
+            cacheChanged = false
+            passthroughAllowed = want
+            player.stop()
+            player.clearMediaItems()
+            runCatching { cache?.release() }
+            cache = null
+            rebuild(_decoderMode.value)
+        } else if (want != passthroughAllowed || builtBufferSec != bufferSec) {
             passthroughAllowed = want
             rebuild(_decoderMode.value)
         }
@@ -268,6 +346,8 @@ class PlaybackEngine private constructor(context: Context) {
             instance ?: synchronized(this) { instance ?: PlaybackEngine(context).also { instance = it } }
 
         internal fun peek(): PlaybackEngine? = instance
+
+        const val DEFAULT_USER_AGENT = "ORCA Player"
     }
 }
 

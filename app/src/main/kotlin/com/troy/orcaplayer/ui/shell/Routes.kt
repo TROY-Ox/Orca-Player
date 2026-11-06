@@ -28,6 +28,16 @@ object Routes {
     const val DECODER_CHECK = "decoder_check"
     const val JOBS = "jobs"
     const val TOOLS_CUSTOMIZE = "tools_customize"
+    const val URL_PLAYER = "url_player?url={url}"
+    const val ADDON = "addon/{id}"
+    const val DISCOVER = "discover?addon={addon}&catalog={catalog}"
+    const val TITLE = "title/{type}/{id}"
+
+    fun urlPlayer(url: String? = null) = "url_player?url=" + android.net.Uri.encode(url.orEmpty())
+    fun addon(id: String) = "addon/" + android.net.Uri.encode(id)
+    fun discover(addonId: String? = null, catalogKey: String? = null) =
+        "discover?addon=" + android.net.Uri.encode(addonId.orEmpty()) + "&catalog=" + android.net.Uri.encode(catalogKey.orEmpty())
+    fun title(type: String, id: String) = "title/" + android.net.Uri.encode(type) + "/" + android.net.Uri.encode(id)
 }
 
 data class TabSpec(val tab: MainTab, val route: String, @StringRes val label: Int, val icon: ImageVector, val selectedIcon: ImageVector)

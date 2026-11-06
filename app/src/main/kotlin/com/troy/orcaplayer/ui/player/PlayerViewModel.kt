@@ -16,6 +16,13 @@ import androidx.media3.common.text.Cue
 import androidx.media3.common.text.CueGroup
 import androidx.media3.exoplayer.ExoPlayer
 import com.troy.orcaplayer.core.data.ProfileRepository
+import com.troy.orcaplayer.core.model.MediaKey
+import com.troy.orcaplayer.core.model.StreamAlternate
+import com.troy.orcaplayer.core.model.SubtitleOption
+import com.troy.orcaplayer.core.settings.SourceSettings
+import com.troy.orcaplayer.data.ContentHub
+import com.troy.orcaplayer.data.OnlineSubtitle
+import com.troy.orcaplayer.data.OnlineSubtitles
 import com.troy.orcaplayer.core.data.ResumePositionEntity
 import com.troy.orcaplayer.core.data.ResumeRepository
 import com.troy.orcaplayer.core.model.MediaPrefs
@@ -94,6 +101,14 @@ data class PlaybackUi(
     val aspect: Float get() = if (videoWidth > 0 && videoHeight > 0) videoWidth.toFloat() / videoHeight else 16f / 9f
 }
 
+/** The manual online subtitle search (9.6). */
+data class OnlineSearch(
+    val loading: Boolean = false,
+    val results: List<OnlineSubtitle> = emptyList(),
+    val languages: List<String> = emptyList(),
+    val keyMissing: Boolean = false,
+)
+
 /** A loaded external subtitle file. */
 data class ExternalSubtitle(val uri: String, val name: String, val timeline: CueTimeline, val encoding: String)
 
@@ -113,6 +128,8 @@ class PlayerViewModel @Inject constructor(
     private val resume: ResumeRepository,
     private val settingsRepo: SettingsRepository,
     private val profiles: ProfileRepository,
+    private val hub: ContentHub,
+    private val online: OnlineSubtitles,
 ) : ViewModel() {
     /** Saves must finish even when the screen closes, so they don't use viewModelScope. */
     private val io = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -184,6 +201,21 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch { settingsRepo.set(profiles.currentProfileId.value, def, value) }
     }
 
+    // Automatic fallback (14.7)
+    private var fallbackIndex = -1
+    private var fallbackTries = 0
+    private var freshTried = false
+    private val triedUrls = mutableSetOf<String>()
+    private var stallSince = 0L
+    private var lastGoodPosition = 0L
+
+    // Online subtitles (9.6)
+    private val _onlineNotice = MutableStateFlow<OnlineSubtitle?>(null)
+    /** The subtitle fetched automatically, shown with a Change button. */
+    val onlineNotice: StateFlow<OnlineSubtitle?> = _onlineNotice.asStateFlow()
+    private val _onlineResults = MutableStateFlow<OnlineSearch>(OnlineSearch())
+    val onlineResults: StateFlow<OnlineSearch> = _onlineResults.asStateFlow()
+
     /** Media IDs that already showed the Dolby Vision warning, so it shows once per video. */
     private val dvWarned = mutableSetOf<String>()
 
@@ -221,6 +253,7 @@ class PlayerViewModel @Inject constructor(
         }
 
         override fun onPlayerError(error: PlaybackException) {
+            if (tryFallback()) return
             _ui.update { it.copy(error = error.errorCodeName) }
         }
     }
@@ -258,6 +291,7 @@ class PlayerViewModel @Inject constructor(
                 val p = attached ?: continue
                 if (p.isPlaying || _ui.value.positionMs != p.currentPosition) refresh()
                 if (p.isPlaying && System.currentTimeMillis() - lastSaveAt > 5_000) saveNow()
+                checkStall(p)
                 extras.tick(p)
                 _resumePill.value?.let { pill ->
                     if (System.currentTimeMillis() - pill.shownAt > if (pill.ask) 10_000 else 6_000) _resumePill.value = null
@@ -343,6 +377,14 @@ class PlayerViewModel @Inject constructor(
         applySubtitleLanguage(p, v)
         applyTrackPrefs(p, prefs)
         sound.onMediaStarted(first)
+        engine.setStreamPrefs(
+            SourceSettings.parseHeaders(v[SourceSettings.DefaultHeaders]),
+            v[SourceSettings.UserAgent],
+            v[SourceSettings.BufferSeconds].toIntOrNull() ?: 50,
+            v[SourceSettings.CacheSize].toLongOrNull() ?: 200,
+        )
+        resetFallback(request.startIndex)
+        _onlineNotice.value = null
         engine.load(request.items, request.startIndex, startPos)
         refresh()
         // Subtitles sent by the calling app, then files next to the video.
@@ -352,6 +394,7 @@ class PlayerViewModel @Inject constructor(
             loadSubtitle(Uri.parse(pick.first), pick.second)
         } else {
             autoLoadSidecar(first, v)
+            autoOnline(first, v)
         }
     }
 
@@ -408,7 +451,10 @@ class PlayerViewModel @Inject constructor(
             val explicit = explicitStart?.takeIf { it.first == index }?.second
             val pos = explicit ?: resumeStart(item, v, profiles.currentProfileId.value)
             if (pos > 0 && p === attached && p.currentMediaItemIndex == index) p.seekTo(pos)
+            resetFallback(index)
+            _onlineNotice.value = null
             autoLoadSidecar(item, v)
+            autoOnline(item, v)
         }
     }
 
@@ -637,6 +683,15 @@ class PlayerViewModel @Inject constructor(
     // External subtitles
 
     fun loadSubtitle(uri: Uri, name: String? = null, encoding: String? = null) {
+        if (uri.scheme == "http" || uri.scheme == "https") {
+            // A subtitle link (URL player, sources): fetch it to the cache first.
+            viewModelScope.launch {
+                val headers = currentItem()?.headers.orEmpty()
+                val file = runCatching { online.fetch(uri.toString(), headers, name ?: uri.lastPathSegment ?: "subtitle") }.getOrNull()
+                if (file == null) _events.emit(PlayerEvent.Message(MSG_LOAD_FAILED)) else loadSubtitle(Uri.fromFile(file), name ?: uri.lastPathSegment, encoding)
+            }
+            return
+        }
         viewModelScope.launch {
             val result = withContext(Dispatchers.IO) {
                 runCatching {
@@ -712,6 +767,175 @@ class PlayerViewModel @Inject constructor(
     /** Fix-punctuation applied at draw time, so the switch works without reloading. */
     fun textFor(text: String): String = if (settings.value[PlayerSettings.FixPunctuation]) ArabicText.fixPunctuation(text) else text
 
+    // Automatic fallback (14.7)
+
+    private fun resetFallback(index: Int) {
+        fallbackIndex = index
+        fallbackTries = 0
+        freshTried = false
+        triedUrls.clear()
+        engine.itemAt(index)?.let { triedUrls += it.uri }
+        stallSince = 0
+        lastGoodPosition = 0
+    }
+
+    private fun checkStall(p: ExoPlayer) {
+        val item = engine.itemAt(p.currentMediaItemIndex) ?: return
+        if (p.isPlaying) lastGoodPosition = p.currentPosition
+        val network = item.uri.startsWith("http", ignoreCase = true)
+        if (!network || p.playbackState != Player.STATE_BUFFERING || !p.playWhenReady) {
+            stallSince = 0
+            return
+        }
+        val now = System.currentTimeMillis()
+        if (stallSince == 0L) {
+            stallSince = now
+            return
+        }
+        val limit = (settings.value[SourceSettings.StallSeconds].toLongOrNull() ?: 15) * 1000
+        if (now - stallSince > limit) {
+            stallSince = 0
+            tryFallback()
+        }
+    }
+
+    /** Moves to the next stream of the same video, from the same position. False when there's none to try. */
+    private fun tryFallback(): Boolean {
+        val p = attached ?: return false
+        val v = settings.value
+        if (!v[SourceSettings.Fallback]) return false
+        val index = p.currentMediaItemIndex
+        if (index != fallbackIndex) resetFallback(index)
+        val item = engine.itemAt(index) ?: return false
+        val limit = v[SourceSettings.FallbackRetries].toIntOrNull() ?: 3
+        if (fallbackTries >= limit) return false
+        val position = maxOf(p.currentPosition, lastGoodPosition)
+        val next = item.alternates.firstOrNull { it.uri !in triedUrls }
+        if (next != null) {
+            switchTo(index, item, next, item.alternates.filter { it !== next && it.uri !in triedUrls }, position)
+            return true
+        }
+        // Out of alternates: for an addon title, ask the sources for fresh links once (expired links).
+        val key = item.key as? MediaKey.SourceContent ?: return false
+        val target = hub.targetFor(key.id) ?: return false
+        if (freshTried) return false
+        freshTried = true
+        viewModelScope.launch {
+            val fresh = runCatching { hub.freshAlternates(target, triedUrls.toSet(), SourceSettings.parseHeaders(v[SourceSettings.DefaultHeaders])) }.getOrDefault(emptyList())
+            val first = fresh.firstOrNull()
+            if (first == null || attached !== p || p.currentMediaItemIndex != index) {
+                _ui.update { it.copy(error = "ERROR_CODE_IO_NETWORK_CONNECTION_FAILED") }
+                return@launch
+            }
+            switchTo(index, item, first, fresh.drop(1), position)
+        }
+        return true
+    }
+
+    private fun switchTo(index: Int, item: PlayItem, alt: StreamAlternate, rest: List<StreamAlternate>, position: Long) {
+        fallbackTries++
+        triedUrls += alt.uri
+        val next = item.copy(
+            uri = alt.uri,
+            headers = alt.headers,
+            subtitles = alt.subtitles.ifEmpty { item.subtitles },
+            alternates = rest,
+        )
+        _ui.update { it.copy(error = null) }
+        engine.replaceItem(index, next, position)
+        _events.tryEmit(PlayerEvent.Message(MSG_FALLBACK))
+    }
+
+    // Online subtitles (9.6)
+
+    private fun preferredLanguage(v: SettingsValues): String? =
+        v[PlayerSettings.SubtitleLanguage].let { if (it == "off") null else if (it == "auto") Locale.getDefault().language else it }
+
+    /** When no subtitle in the preferred language is loaded, fetch the best match and say so. */
+    private fun autoOnline(item: PlayItem, v: SettingsValues) {
+        if (!v[SourceSettings.SubtitleAutoDownload]) return
+        val lang = preferredLanguage(v) ?: return
+        val index = attached?.currentMediaItemIndex ?: return
+        viewModelScope.launch {
+            // Embedded tracks are known only once the video is prepared.
+            delay(3_000)
+            if (attached?.currentMediaItemIndex != index || _external.value != null || _subtitlesOff.value) return@launch
+            val hasEmbedded = _tracks.value.groups.any { g ->
+                g.type == C.TRACK_TYPE_TEXT && (0 until g.length).any { i -> LanguageCodes.matches(g.getTrackFormat(i).language, lang) }
+            }
+            if (hasEmbedded) return@launch
+            val results = searchOnline(item, v, listOf(lang))
+            val best = results.firstOrNull { LanguageCodes.matches(it.language, lang) } ?: return@launch
+            if (attached?.currentMediaItemIndex != index || _external.value != null) return@launch
+            if (loadOnlineNow(best, v)) _onlineNotice.value = best
+        }
+    }
+
+    /** Opens the manual search: stream subtitles, subtitle addons and OpenSubtitles, in [languages]. */
+    fun searchOnlineSubtitles(languages: List<String>) {
+        val item = currentItem() ?: return
+        val v = settings.value
+        _onlineResults.value = OnlineSearch(loading = true, languages = languages)
+        viewModelScope.launch {
+            val results = searchOnline(item, v, languages)
+            _onlineResults.value = OnlineSearch(results = results, languages = languages, keyMissing = v[SourceSettings.OpenSubtitlesKey].isBlank())
+        }
+    }
+
+    fun pickOnline(sub: OnlineSubtitle) {
+        viewModelScope.launch {
+            if (loadOnlineNow(sub, settings.value)) _onlineNotice.value = null
+        }
+    }
+
+    fun dismissOnlineNotice() {
+        _onlineNotice.value = null
+    }
+
+    private suspend fun loadOnlineNow(sub: OnlineSubtitle, v: SettingsValues): Boolean {
+        val file = runCatching {
+            if (sub.url != null) online.fetch(sub.url, sub.headers, sub.label) else online.download(sub, v[SourceSettings.OpenSubtitlesKey])
+        }.getOrNull()
+        if (file == null) {
+            _events.emit(PlayerEvent.Message(MSG_LOAD_FAILED))
+            return false
+        }
+        loadSubtitle(Uri.fromFile(file), sub.label)
+        return true
+    }
+
+    private suspend fun searchOnline(item: PlayItem, v: SettingsValues, languages: List<String>): List<OnlineSubtitle> {
+        val out = mutableListOf<OnlineSubtitle>()
+        fun fromOption(o: SubtitleOption, match: Int) = OnlineSubtitle(
+            id = o.url, language = o.language, label = o.label ?: o.language ?: item.title,
+            source = o.source ?: item.source, url = o.url, headers = o.headers, match = match,
+        )
+        item.subtitles.forEach { out += fromOption(it, 90) }
+        val key = item.key
+        val target = (key as? MediaKey.SourceContent)?.let { hub.targetFor(it.id) }
+        if (target != null) {
+            runCatching { hub.subtitles(target.type, target.videoId, null, null, null) }.getOrDefault(emptyList())
+                .forEach { out += fromOption(it, 70) }
+        }
+        val apiKey = v[SourceSettings.OpenSubtitlesKey]
+        if (apiKey.isNotBlank()) {
+            val hash = if (item.source.kind == SourceKind.LOCAL) withContext(Dispatchers.IO) { pathOf(Uri.parse(item.uri))?.let { OnlineSubtitles.hashOf(File(it)) } } else null
+            val imdb = target?.videoId?.substringBefore(':')?.takeIf { it.startsWith("tt") }
+            val os = runCatching {
+                online.searchOpenSubtitles(
+                    apiKey, languages.map { LanguageCodes.toTwoLetter(it) },
+                    imdbId = imdb, season = target?.episode?.season, episode = target?.episode?.number,
+                    movieHash = hash, query = if (imdb == null && hash == null) item.title else null,
+                )
+            }.getOrDefault(emptyList())
+            out += os
+        }
+        return out
+            .filter { languages.isEmpty() || languages.any { l -> LanguageCodes.matches(it.language, l) } }
+            .distinctBy { it.id }
+            .sortedWith(compareByDescending<OnlineSubtitle> { it.match }.thenByDescending { it.downloads })
+    }
+
     override fun onCleared() {
         saveNow()
         extras.release()
@@ -726,5 +950,6 @@ class PlayerViewModel @Inject constructor(
         const val MSG_DECODED_SPEED = "decoded_speed"
         const val MSG_DV5 = "dv5"
         const val MSG_LOAD_FAILED = "load_failed"
+        const val MSG_FALLBACK = "fallback"
     }
 }

@@ -5,6 +5,10 @@ import com.troy.orcaplayer.core.data.OrcaDatabase
 import com.troy.orcaplayer.core.data.ProfileRepository
 import com.troy.orcaplayer.core.data.ResumeRepository
 import com.troy.orcaplayer.core.settings.SettingsRepository
+import com.troy.orcaplayer.data.AddonRepository
+import com.troy.orcaplayer.data.ContentHub
+import com.troy.orcaplayer.data.LinksRepository
+import com.troy.orcaplayer.data.OnlineSubtitles
 import com.troy.orcaplayer.player.engine.PlaybackEngine
 import com.troy.orcaplayer.sources.local.LocalMediaRepository
 import com.troy.orcaplayer.sources.local.Thumbnails
@@ -45,4 +49,20 @@ object AppModule {
     @Provides
     @Singleton
     fun thumbnails(@ApplicationContext context: Context): Thumbnails = Thumbnails(context)
+
+    @Provides
+    @Singleton
+    fun addons(@ApplicationContext context: Context): AddonRepository = AddonRepository(context)
+
+    @Provides
+    @Singleton
+    fun links(@ApplicationContext context: Context): LinksRepository = LinksRepository(context)
+
+    @Provides
+    @Singleton
+    fun hub(addons: AddonRepository, profiles: ProfileRepository): ContentHub = ContentHub(addons, profiles)
+
+    @Provides
+    @Singleton
+    fun onlineSubtitles(@ApplicationContext context: Context): OnlineSubtitles = OnlineSubtitles(context.cacheDir)
 }
