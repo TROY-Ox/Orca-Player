@@ -18,7 +18,12 @@ import androidx.media3.exoplayer.ExoPlayer
 import com.troy.orcaplayer.core.data.ProfileRepository
 import com.troy.orcaplayer.core.data.ResumePositionEntity
 import com.troy.orcaplayer.core.data.ResumeRepository
+import com.troy.orcaplayer.core.model.MediaPrefs
 import com.troy.orcaplayer.core.model.PlayItem
+import com.troy.orcaplayer.core.model.SaveDecision
+import com.troy.orcaplayer.core.model.SavingPolicy
+import com.troy.orcaplayer.core.model.SavingRule
+import com.troy.orcaplayer.core.model.ToolsLayout
 import com.troy.orcaplayer.core.model.PlayRequest
 import com.troy.orcaplayer.core.model.PlayerLayout
 import com.troy.orcaplayer.core.model.SourceKind
@@ -27,6 +32,8 @@ import com.troy.orcaplayer.core.settings.SettingsRepository
 import com.troy.orcaplayer.core.settings.SettingsValues
 import com.troy.orcaplayer.core.settings.AudioVideoSettings
 import com.troy.orcaplayer.core.settings.SettingDef
+import com.troy.orcaplayer.core.settings.Settings
+import com.troy.orcaplayer.core.settings.ToolSettings
 import com.troy.orcaplayer.player.engine.DecoderMode
 import com.troy.orcaplayer.player.engine.DolbyVision
 import com.troy.orcaplayer.player.engine.EngineNotice
@@ -118,11 +125,22 @@ class PlayerViewModel @Inject constructor(
         .flatMapLatest { settingsRepo.playerLayout(it) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, PlayerLayout.Default)
 
+    val toolsLayout: StateFlow<ToolsLayout> = profiles.currentProfileId
+        .flatMapLatest { settingsRepo.toolsLayout(it) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, ToolsLayout.Default)
+
     val player: StateFlow<ExoPlayer> = engine.playerFlow
     val stats: StateFlow<PlaybackStats> = engine.stats
 
     /** Equalizer, effects and volume boost. */
     val sound = SoundController(viewModelScope, context, engine, settingsRepo, profiles.currentProfileId, settings)
+    val extras = PlayerExtras(viewModelScope, settingsRepo, { profiles.currentProfileId.value }, { settings.value }).also { ex ->
+        ex.onNightChanged = { on -> sound.setNightCompressor(on && settings.value[ToolSettings.NightCompressor]) }
+    }
+
+    /** Per-video values for the screen (aspect, zoom, brightness), with a counter so each start applies once. */
+    private val _applied = MutableStateFlow(0 to MediaPrefs())
+    val applied: StateFlow<Pair<Int, MediaPrefs>> = _applied.asStateFlow()
     val decoderMode: StateFlow<DecoderMode> = engine.decoderMode
 
     private val _ui = MutableStateFlow(PlaybackUi())
@@ -229,6 +247,7 @@ class PlayerViewModel @Inject constructor(
                 attached?.removeListener(listener)
                 p.addListener(listener)
                 attached = p
+                extras.armLoop(p)
                 _tracks.value = p.currentTracks
                 refresh()
             }
@@ -239,6 +258,7 @@ class PlayerViewModel @Inject constructor(
                 val p = attached ?: continue
                 if (p.isPlaying || _ui.value.positionMs != p.currentPosition) refresh()
                 if (p.isPlaying && System.currentTimeMillis() - lastSaveAt > 5_000) saveNow()
+                extras.tick(p)
                 _resumePill.value?.let { pill ->
                     if (System.currentTimeMillis() - pill.shownAt > if (pill.ask) 10_000 else 6_000) _resumePill.value = null
                 }
@@ -305,19 +325,23 @@ class PlayerViewModel @Inject constructor(
         started = true
         options = opts
         val v = settingsRepo.values(request.profileId).first()
-        engine.setDecoderMode(opts.decoderMode ?: DecoderMode.fromKey(v[PlayerSettings.Decoder]))
         val first = request.items[request.startIndex]
+        val prefs = extras.onMediaStarted(first)
+        engine.setDecoderMode(opts.decoderMode ?: DecoderMode.fromKey(prefs.decoder ?: v[PlayerSettings.Decoder]))
+        extras.applySchedule()
         explicitStart = first.startPositionMs?.let { request.startIndex to it }
         val startPos = first.startPositionMs ?: resumeStart(first, v, request.profileId)
         _external.value = null
-        _subtitleDelayMs.value = 0
+        _subtitleDelayMs.value = prefs.subtitleDelayMs ?: 0
         _subtitleSpeed.value = 1.0
+        _applied.update { (n, _) -> n + 1 to prefs }
         _ui.update { it.copy(error = null) }
         handledIndex = request.startIndex
         val p = engine.player
-        engine.setSpeed(v[PlayerSettings.DefaultSpeed].toFloatOrNull() ?: 1f)
+        engine.setSpeed(prefs.speed ?: v[PlayerSettings.DefaultSpeed].toFloatOrNull() ?: 1f)
         p.pauseAtEndOfMediaItems = !v[PlayerSettings.AutoNext]
         applySubtitleLanguage(p, v)
+        applyTrackPrefs(p, prefs)
         sound.onMediaStarted(first)
         engine.load(request.items, request.startIndex, startPos)
         refresh()
@@ -375,6 +399,12 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch {
             val v = settings.value
             sound.onMediaStarted(item)
+            val prefs = extras.onMediaStarted(item)
+            prefs.subtitleDelayMs?.let { _subtitleDelayMs.value = it }
+            applyTrackPrefs(p, prefs)
+            prefs.speed?.let { engine.setSpeed(it) }
+            prefs.decoder?.let { k -> DecoderMode.fromKey(k).takeIf { it != engine.decoderMode.value }?.let(engine::setDecoderMode) }
+            _applied.update { (n, _) -> n + 1 to prefs }
             val explicit = explicitStart?.takeIf { it.first == index }?.second
             val pos = explicit ?: resumeStart(item, v, profiles.currentProfileId.value)
             if (pos > 0 && p === attached && p.currentMediaItemIndex == index) p.seekTo(pos)
@@ -469,7 +499,9 @@ class PlayerViewModel @Inject constructor(
     }
 
     fun setSpeed(speed: Float) {
-        engine.setSpeed(speed.coerceIn(0.25f, 4f))
+        val s = speed.coerceIn(0.25f, 4f)
+        engine.setSpeed(s)
+        extras.remember { it.copy(speed = s) }
         refresh()
     }
 
@@ -499,7 +531,40 @@ class PlayerViewModel @Inject constructor(
     fun setDecoder(mode: DecoderMode) {
         _ui.update { it.copy(error = null) }
         engine.setDecoderMode(mode)
+        extras.remember { it.copy(decoder = mode.key) }
     }
+
+    // Tools
+
+    /** The playing item, for the tools. */
+    fun currentItem(): PlayItem? = attached?.let { engine.itemAt(it.currentMediaItemIndex) }
+
+    fun currentPosition(): Long = attached?.currentPosition ?: 0
+
+    /** The saving rule (3.7) for the playing item. */
+    fun saveDecision(): SaveDecision {
+        val item = currentItem() ?: return SaveDecision.DENIED_BY_SOURCE
+        val v = settings.value
+        return SavingRule.canSave(item, SavingPolicy(savingEnabled = v[Settings.SavingEnabled], reminderAccepted = v[ToolSettings.SaveReminderSeen]))
+    }
+
+    fun acceptSaveReminder() = setSetting(ToolSettings.SaveReminderSeen, true)
+
+    fun rememberAspect(aspect: String, zoom: Float) = extras.remember { it.copy(aspect = aspect, zoom = zoom.takeIf { z -> z != 1f }) }
+
+    fun rememberBrightness(value: Float) = extras.remember { it.copy(brightness = value) }
+
+    fun markA() = extras.markA(currentPosition())
+
+    fun markB(): Boolean = extras.markB(currentPosition())
+
+    fun startSleep(minutes: Int) = attached?.let { extras.startSleep(minutes, it) }
+
+    fun sleepAtEnd() = attached?.let { extras.sleepAtEnd(it) }
+
+    fun cancelSleep() = attached?.let { extras.cancelSleep(it) }
+
+    fun sleepRemaining(): Long? = attached?.let { extras.sleepRemaining(it) }
 
     /** Stops playback for good (the screen closed and background play is off). */
     fun stopPlayback() {
@@ -525,6 +590,24 @@ class PlayerViewModel @Inject constructor(
             .setTrackTypeDisabled(type, false)
             .setOverrideForType(TrackSelectionOverride(group.mediaTrackGroup, trackIndex))
             .build()
+        val lang = group.getTrackFormat(trackIndex).language?.takeIf { it.isNotBlank() && it != C.LANGUAGE_UNDETERMINED }
+        when (type) {
+            C.TRACK_TYPE_AUDIO -> lang?.let { l -> extras.remember { it.copy(audioLanguage = l) } }
+            C.TRACK_TYPE_TEXT -> extras.remember { it.copy(subtitleLanguage = lang, subtitlesOff = false) }
+        }
+    }
+
+    /** Track languages saved for this video win over the profile's preferred languages. */
+    private fun applyTrackPrefs(p: ExoPlayer, prefs: MediaPrefs) {
+        val b = p.trackSelectionParameters.buildUpon()
+        prefs.audioLanguage?.let { b.setPreferredAudioLanguage(it) }
+        if (prefs.subtitlesOff == true) {
+            b.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
+            _subtitlesOff.value = true
+        } else {
+            prefs.subtitleLanguage?.let { b.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false).setPreferredTextLanguage(it) }
+        }
+        p.trackSelectionParameters = b.build()
     }
 
     /** Auto quality for adaptive streams. */
@@ -534,6 +617,7 @@ class PlayerViewModel @Inject constructor(
     }
 
     fun subtitlesOff() {
+        extras.remember { it.copy(subtitlesOff = true) }
         val p = attached ?: return
         _external.value = null
         _subtitlesOff.value = true
@@ -541,7 +625,9 @@ class PlayerViewModel @Inject constructor(
     }
 
     fun setSubtitleDelay(ms: Long) {
-        _subtitleDelayMs.value = ms.coerceIn(-600_000, 600_000)
+        val d = ms.coerceIn(-600_000, 600_000)
+        _subtitleDelayMs.value = d
+        extras.remember { it.copy(subtitleDelayMs = d) }
     }
 
     fun setSubtitleSpeed(speed: Double) {
@@ -628,6 +714,7 @@ class PlayerViewModel @Inject constructor(
 
     override fun onCleared() {
         saveNow()
+        extras.release()
         attached?.removeListener(listener)
         attached = null
         super.onCleared()

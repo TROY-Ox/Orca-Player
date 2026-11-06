@@ -2,6 +2,7 @@ package com.troy.orcaplayer
 
 import android.app.Application
 import com.troy.orcaplayer.core.data.ProfileRepository
+import com.troy.orcaplayer.tools.JobsRepository
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -17,6 +18,7 @@ class OrcaApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        JobsRepository.init(this)
         appScope.launch {
             profiles.ensureDefaultProfile(getString(R.string.profiles_default_name))
         }

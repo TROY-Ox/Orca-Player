@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="job_channel">مهام الأدوات</string>
+    <string name="job_running">جارٍ العمل على ملف</string>
+    <string name="job_cancel">إلغاء</string>
+</resources>

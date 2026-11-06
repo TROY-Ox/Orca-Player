@@ -1,6 +1,18 @@
 package com.troy.orcaplayer.ui.player
 
 import android.content.res.Configuration
+import android.net.Uri
+import android.widget.Toast
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.platform.LocalContext
+import com.troy.orcaplayer.core.model.SaveDecision
+import com.troy.orcaplayer.core.model.ToolId
+import com.troy.orcaplayer.core.settings.ToolSettings
+import com.troy.orcaplayer.ui.tools.ToolActivity
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.launch
 import android.view.HapticFeedbackConstants
 import androidx.annotation.OptIn
 import androidx.compose.animation.AnimatedVisibility
@@ -111,6 +123,7 @@ interface PlayerHost {
 }
 
 @OptIn(UnstableApi::class)
+@kotlin.OptIn(kotlinx.coroutines.FlowPreview::class)
 @Composable
 fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, isPip: Boolean) {
     val c = Troy.colors
@@ -132,6 +145,19 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
     val fxOrigin by vm.sound.origin.collectAsStateWithLifecycle()
     val stats by vm.stats.collectAsStateWithLifecycle()
     var boostWarnAt by remember { mutableLongStateOf(0L) }
+    val toolsLayout by vm.toolsLayout.collectAsStateWithLifecycle()
+    val abLoop by vm.extras.abLoop.collectAsStateWithLifecycle()
+    val abStart by vm.extras.abStart.collectAsStateWithLifecycle()
+    val sleep by vm.extras.sleep.collectAsStateWithLifecycle()
+    val night by vm.extras.night.collectAsStateWithLifecycle()
+    val hasVideoPrefs by vm.extras.hasVideoPrefs.collectAsStateWithLifecycle()
+    val applied by vm.applied.collectAsStateWithLifecycle()
+    val surfaceRef = remember { VideoSurfaceRef() }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var reminderFor by remember { mutableStateOf<ToolId?>(null) }
+    var sleepLeft by remember { mutableStateOf<Long?>(null) }
+    val rtlNow = LocalLayoutDirection.current == LayoutDirection.Rtl
 
     // Volume boost on the slider: up to the maximum while extra volume is on.
     val extraVolume = settings[AV.ExtraVolume]
@@ -161,6 +187,75 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
     var remaining by rememberSaveable { mutableStateOf(settings[PlayerSettings.ShowRemaining]) }
     var unlockShownAt by remember { mutableLongStateOf(0L) }
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+
+    // Per-video values: applied once each time a video starts.
+    LaunchedEffect(applied.first) {
+        val prefs = applied.second
+        prefs.aspect?.let { a -> AspectMode.entries.firstOrNull { it.name == a }?.let { aspect = it } }
+        zoom = prefs.zoom ?: 1f
+        pan = Offset.Zero
+        prefs.brightness?.let { levels.setBrightnessPercent(it) }
+    }
+    // Brightness is remembered for the video once the finger has settled.
+    LaunchedEffect(levels) {
+        snapshotFlow { levels.brightness }.drop(1).debounce(1500).collect { vm.rememberBrightness(it) }
+    }
+    // Night mode also turns the compressor on or off when its setting changes.
+    LaunchedEffect(night, settings[ToolSettings.NightCompressor]) {
+        vm.sound.setNightCompressor(night && settings[ToolSettings.NightCompressor])
+    }
+    TickEffect(sleep != null) { sleepLeft = vm.sleepRemaining() }
+
+    fun launchTool(tool: ToolId) {
+        val item = vm.currentItem() ?: return
+        val saves = tool != ToolId.MEDIA_INFO && tool != ToolId.SUBTITLE_EDITOR
+        if (saves) {
+            when (vm.saveDecision()) {
+                SaveDecision.ALLOWED -> Unit
+                SaveDecision.NEEDS_REMINDER -> { reminderFor = tool; return }
+                SaveDecision.DENIED_DRM -> { Toast.makeText(context, R.string.save_denied_drm, Toast.LENGTH_LONG).show(); return }
+                SaveDecision.DENIED_BY_SOURCE -> { Toast.makeText(context, R.string.save_denied_source, Toast.LENGTH_LONG).show(); return }
+                SaveDecision.DENIED_BY_SETTINGS -> { Toast.makeText(context, R.string.save_denied_settings, Toast.LENGTH_LONG).show(); return }
+            }
+        }
+        if (tool == ToolId.SUBTITLE_EDITOR && external == null) {
+            Toast.makeText(context, R.string.sub_editor_needs_file, Toast.LENGTH_LONG).show()
+            return
+        }
+        vm.pause()
+        panel = PlayerPanel.NONE
+        context.startActivity(
+            ToolActivity.intent(
+                context, tool, Uri.parse(item.uri), item.title, item.headers, vm.currentPosition(),
+                external?.uri?.let(Uri::parse),
+            ),
+        )
+    }
+
+    fun takeScreenshot() {
+        val view = surfaceRef.view ?: return
+        val subtitleLines = if (settings[ToolSettings.ScreenshotSubtitles]) {
+            when {
+                external != null -> external!!.timeline.at(ui.positionMs, delayMs, subSpeed).map { vm.textFor(it.text) }
+                subsOff -> emptyList()
+                else -> embedded.mapNotNull { it.text?.toString()?.let(vm::textFor) }
+            }
+        } else emptyList()
+        val png = settings[ToolSettings.ScreenshotFormat] == "png"
+        val title = ui.title
+        val pos = ui.positionMs
+        scope.launch {
+            val bmp = Screenshot.capture(view, ui.videoWidth.takeIf { it > 0 } ?: view.width, ui.videoHeight.takeIf { it > 0 } ?: view.height)
+            if (bmp == null) {
+                Toast.makeText(context, R.string.shot_failed, Toast.LENGTH_LONG).show()
+                return@launch
+            }
+            Screenshot.burnSubtitles(bmp, subtitleLines, rtlNow)
+            val ok = runCatching { Screenshot.save(context, bmp, title, pos, png) }.isSuccess
+            bmp.recycle()
+            Toast.makeText(context, if (ok) R.string.shot_saved else R.string.shot_failed, Toast.LENGTH_SHORT).show()
+        }
+    }
 
     val skipSeconds = settings[PlayerSettings.SkipSeconds].toIntOrNull() ?: 10
     val view = LocalView.current
@@ -387,10 +482,16 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
                     .requiredSize((w * zoom).dp, (h * zoom).dp)
                     .offset { IntOffset(pan.x.roundToInt(), pan.y.roundToInt()) },
             ) {
-                PlayerSurface(player = player, modifier = Modifier.fillMaxSize())
+                VideoSurface(player, surfaceRef, Modifier.fillMaxSize())
             }
         }
         if (levels.dimAlpha > 0f) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = levels.dimAlpha)))
+        if (night) {
+            val dim = (settings[ToolSettings.NightDim].toIntOrNull() ?: 35) / 100f
+            Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = dim)))
+            // The warm filter uses the theme's warm signal colour at a low strength.
+            if (settings[ToolSettings.NightWarm]) Box(Modifier.fillMaxSize().background(c.warn.copy(alpha = 0.08f)))
+        }
 
         // Subtitles
         val drawn = when {
@@ -506,11 +607,13 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
                 skipSeconds = skipSeconds,
                 remaining = remaining,
                 onToggleRemaining = { remaining = !remaining; touch() },
-                onPanel = { panel = it; touch() },
+                // The controls hide while a panel is open; the scrim dims the video.
+                onPanel = { panel = it; controlsVisible = false; touch() },
                 onAspect = {
                     aspect = aspect.next()
                     zoom = 1f
                     pan = Offset.Zero
+                    vm.rememberAspect(aspect.name, 1f)
                     aspectToastAt = System.currentTimeMillis()
                     touch()
                 },
@@ -564,8 +667,13 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
                 Modifier.fillMaxSize().background(c.scrim.copy(alpha = 0.35f))
                     .pointerInput(Unit) { detectTapGestures { panel = PlayerPanel.NONE } },
             )
+            val edge = when {
+                !wide -> SheetEdge.BOTTOM
+                panel == PlayerPanel.TOOLS && settings[ToolSettings.PanelSide] == "start" -> SheetEdge.START
+                else -> SheetEdge.END
+            }
             val panelModifier = if (wide) {
-                Modifier.align(Alignment.CenterEnd).fillMaxHeight().widthIn(
+                Modifier.align(if (edge == SheetEdge.START) Alignment.CenterStart else Alignment.CenterEnd).fillMaxHeight().widthIn(
                     max = when (panel) {
                         PlayerPanel.TRACKS, PlayerPanel.SUBTITLES -> 640.dp
                         PlayerPanel.AUDIO -> 460.dp
@@ -575,7 +683,7 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
             } else {
                 Modifier.align(Alignment.BottomCenter).fillMaxWidth().heightIn(max = (LocalConfiguration.current.screenHeightDp * 0.65f).dp)
             }
-            GlassPanel(panelModifier.windowInsetsPadding(WindowInsets.safeDrawing).padding(12.dp).pointerInput(Unit) { detectTapGestures { } }) {
+            GlassPanel(panelModifier.sheetDrag(edge) { panel = PlayerPanel.NONE }.windowInsetsPadding(WindowInsets.safeDrawing).padding(12.dp).pointerInput(Unit) { detectTapGestures { } }) {
                 when (panel) {
                     PlayerPanel.SPEED -> SpeedPanel(ui.speed, vm::setSpeed)
                     PlayerPanel.TRACKS, PlayerPanel.SUBTITLES -> TracksPanel(
@@ -594,21 +702,52 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
                         onEncoding = vm::reloadWithEncoding,
                     )
                     PlayerPanel.TOOLS -> ToolsPanel(
-                        decoder = decoder,
-                        onDecoder = vm::setDecoder,
-                        orientationLock = host.orientationLock,
-                        onOrientationLock = host::lockOrientation,
-                        showOrientation = host.isPhone,
-                        backgroundPlay = settings[PlayerSettings.BackgroundPlay],
-                        onBackgroundPlay = vm::setBackgroundPlay,
-                        onPip = if (host.canPip) ({ panel = PlayerPanel.NONE; host.enterPip() }) else null,
-                        onEqualizer = { panel = PlayerPanel.AUDIO },
-                        boostPercent = if (extraVolume) fx.boostPercent else null,
-                        onResetBoost = { vm.sound.setBoost(100) },
-                        quietRecording = settings[AV.QuietRecording],
-                        onQuietRecording = { vm.setSetting(AV.QuietRecording, it) },
-                        infoOverlay = settings[AV.InfoOverlay],
-                        onInfoOverlay = { vm.setSetting(AV.InfoOverlay, it) },
+                        ToolsPanelState(
+                            tools = toolsLayout.panel,
+                            decoder = decoder,
+                            orientationLock = host.orientationLock,
+                            showOrientation = host.isPhone,
+                            backgroundPlay = settings[PlayerSettings.BackgroundPlay],
+                            canPip = host.canPip,
+                            boostPercent = if (extraVolume) fx.boostPercent else null,
+                            quietRecording = settings[AV.QuietRecording],
+                            infoOverlay = settings[AV.InfoOverlay],
+                            abStart = abStart,
+                            abLoop = abLoop,
+                            sleepRemainingMs = if (sleep?.endAt != null || sleep?.atEndOfVideo == true) sleepLeft else null,
+                            sleepAtEnd = sleep?.atEndOfVideo == true,
+                            night = night,
+                            hasVideoPrefs = hasVideoPrefs,
+                            canSaveFolder = vm.extras.canSaveFolder,
+                            rememberPerVideo = settings[ToolSettings.RememberPerVideo],
+                            canSave = vm.saveDecision().let { it == SaveDecision.ALLOWED || it == SaveDecision.NEEDS_REMINDER },
+                        ),
+                        object : ToolsPanelActions {
+                            override fun openTool(tool: ToolId) = launchTool(tool)
+                            override fun screenshot() { panel = PlayerPanel.NONE; takeScreenshot() }
+                            override fun equalizer() { panel = PlayerPanel.AUDIO }
+                            override fun markA() = vm.markA()
+                            override fun markB() {
+                                if (!vm.markB()) Toast.makeText(context, R.string.ab_b_before_a, Toast.LENGTH_SHORT).show()
+                            }
+                            override fun clearAb() = vm.extras.clearAb()
+                            override fun sleep(minutes: Int) { vm.startSleep(minutes) }
+                            override fun sleepAtEnd() { vm.sleepAtEnd() }
+                            override fun cancelSleep() { vm.cancelSleep() }
+                            override fun night(on: Boolean) = vm.extras.setNight(on)
+                            override fun resetBoost() = vm.sound.setBoost(100)
+                            override fun quietRecording(on: Boolean) = vm.setSetting(AV.QuietRecording, on)
+                            override fun saveForFolder() {
+                                vm.extras.saveForFolder()
+                                Toast.makeText(context, R.string.per_video_folder_done, Toast.LENGTH_SHORT).show()
+                            }
+                            override fun resetVideo() = vm.extras.resetVideo()
+                            override fun decoder(mode: DecoderMode) = vm.setDecoder(mode)
+                            override fun orientation(lock: String) = host.lockOrientation(lock)
+                            override fun backgroundPlay(on: Boolean) = vm.setBackgroundPlay(on)
+                            override fun infoOverlay(on: Boolean) = vm.setSetting(AV.InfoOverlay, on)
+                            override fun pip() { panel = PlayerPanel.NONE; host.enterPip() }
+                        },
                     )
                     PlayerPanel.AUDIO -> EqualizerPanel(
                         fx = fx,
@@ -637,6 +776,29 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
                         onShuffle = vm::toggleShuffle,
                     )
                     PlayerPanel.NONE -> Unit
+                }
+            }
+        }
+
+        // The one-time saving reminder (3.7), before the first save from a link or an add-on.
+        reminderFor?.let { tool ->
+            Box(Modifier.fillMaxSize().background(c.scrim.copy(alpha = 0.5f)).pointerInput(Unit) { detectTapGestures { reminderFor = null } })
+            GlassPanel(Modifier.align(Alignment.Center).widthIn(max = 460.dp).padding(24.dp).pointerInput(Unit) { detectTapGestures { } }) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(stringResource(R.string.save_reminder_title), style = Troy.type.title, color = c.text)
+                    Text(stringResource(R.string.save_reminder_body), style = Troy.type.body, color = c.text2)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TroyButton(stringResource(R.string.save_reminder_accept), {
+                            vm.acceptSaveReminder()
+                            reminderFor = null
+                            scope.launch {
+                                // Wait for the setting to land, then open the tool.
+                                kotlinx.coroutines.delay(300)
+                                launchTool(tool)
+                            }
+                        }, kind = ButtonKind.PRIMARY)
+                        TroyButton(stringResource(R.string.save_reminder_cancel), { reminderFor = null }, kind = ButtonKind.GHOST)
+                    }
                 }
             }
         }
@@ -783,7 +945,12 @@ private fun ControlsOverlay(
             CompositionLocalProvider(LocalLayoutDirection provides timelineDir) {
                 Column {
                     if (layout.any { it.control == PlayerControl.SEEK_BAR }) {
-                        SeekBar(ui.positionMs, ui.durationMs, ui.bufferedMs, onPreview, { vm.seekTo(it); onTouch() }, Modifier.padding(horizontal = 8.dp))
+                        val ab by vm.extras.abLoop.collectAsStateWithLifecycle()
+                        val abStart by vm.extras.abStart.collectAsStateWithLifecycle()
+                        SeekBar(
+                            ui.positionMs, ui.durationMs, ui.bufferedMs, onPreview, { vm.seekTo(it); onTouch() }, Modifier.padding(horizontal = 8.dp),
+                            markA = ab?.aMs ?: abStart, markB = ab?.bMs,
+                        )
                     }
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         inSlot(ControlSlot.BOTTOM_START).forEach { cfg ->

@@ -158,6 +158,9 @@ fun SeekBar(
     onPreview: (Long?) -> Unit,
     onSeek: (Long) -> Unit,
     modifier: Modifier = Modifier,
+    /** A-B repeat points, drawn as marks on the track. */
+    markA: Long? = null,
+    markB: Long? = null,
 ) {
     val c = Troy.colors
     val source = remember { MutableInteractionSource() }
@@ -222,6 +225,17 @@ fun SeekBar(
             drawRoundRect(track, Offset(0f, y), Size(size.width, h), r)
             drawRoundRect(buf, Offset(0f, y), Size(size.width * buffered, h), r)
             drawRoundRect(accent, Offset(0f, y), Size(size.width * fraction, h), r)
+            if (enabled && markA != null && markB != null) {
+                val ax = size.width * (markA.toFloat() / durationMs).coerceIn(0f, 1f)
+                val bx = size.width * (markB.toFloat() / durationMs).coerceIn(0f, 1f)
+                drawRect(accent.copy(alpha = 0.35f), Offset(ax, y - h), Size((bx - ax).coerceAtLeast(1f), h * 3))
+            }
+            listOfNotNull(markA, markB).forEach { m ->
+                if (enabled) {
+                    val x = size.width * (m.toFloat() / durationMs).coerceIn(0f, 1f)
+                    drawRect(c.text, Offset(x - 1.dp.toPx(), y - h), Size(2.dp.toPx(), h * 3))
+                }
+            }
             drawCircle(accent, thumbR.toPx(), Offset(size.width * fraction, size.height / 2))
         }
     }
