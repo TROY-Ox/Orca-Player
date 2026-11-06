@@ -5,6 +5,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AudioFile
 import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.Compress
+import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Equalizer
@@ -41,6 +42,7 @@ fun ToolId.nameRes(): Int = when (this) {
     ToolId.QUIET_MODE -> R.string.tool_quiet_mode
     ToolId.PER_VIDEO -> R.string.tool_per_video
     ToolId.DOWNLOAD -> R.string.tool_download
+    ToolId.SKIP_MARKS -> R.string.tool_skip_marks
     ToolId.DECODER_CHECK -> R.string.dc_title
     ToolId.URL_PLAYER -> R.string.tool_url_player
 }
@@ -62,6 +64,7 @@ fun ToolId.summaryRes(): Int = when (this) {
     ToolId.QUIET_MODE -> R.string.tool_quiet_mode_summary
     ToolId.PER_VIDEO -> R.string.tool_per_video_summary
     ToolId.DOWNLOAD -> R.string.tool_download_summary
+    ToolId.SKIP_MARKS -> R.string.tool_skip_marks_summary
     ToolId.DECODER_CHECK -> R.string.dc_summary
     ToolId.URL_PLAYER -> R.string.tool_url_player_summary
 }
@@ -82,6 +85,7 @@ fun ToolId.icon(): ImageVector = when (this) {
     ToolId.QUIET_MODE -> Icons.AutoMirrored.Filled.VolumeDown
     ToolId.PER_VIDEO -> Icons.Filled.Tune
     ToolId.DOWNLOAD -> Icons.Filled.Download
+    ToolId.SKIP_MARKS -> Icons.Filled.FastForward
     ToolId.DECODER_CHECK -> Icons.Filled.Memory
     ToolId.URL_PLAYER -> Icons.Filled.Link
 }

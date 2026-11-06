@@ -46,7 +46,22 @@ import com.troy.orcaplayer.core.model.MainTab
 import com.troy.orcaplayer.core.model.NavLayout
 import com.troy.orcaplayer.ui.local.LocalScreen
 import com.troy.orcaplayer.ui.screens.LicencesScreen
-import com.troy.orcaplayer.ui.screens.ProfilesScreen
+import com.troy.orcaplayer.ui.profiles.ProfilesScreen
+import com.troy.orcaplayer.ui.profiles.KidsExitGate
+import com.troy.orcaplayer.ui.profiles.ProfilesViewModel
+import com.troy.orcaplayer.ui.profiles.WhoIsWatchingScreen
+import com.troy.orcaplayer.ui.home.TitlePreviewHost
+import com.troy.orcaplayer.ui.home.MyListScreen
+import com.troy.orcaplayer.ui.home.HomeRowsScreen
+import com.troy.orcaplayer.ui.common.CardSpec
+import com.troy.orcaplayer.ui.common.LocalCardSpec
+import com.troy.orcaplayer.core.settings.BrowsingSettings
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import com.troy.orcaplayer.ui.screens.DecoderCheckScreen
 import com.troy.orcaplayer.ui.screens.TabPlaceholder
 import com.troy.orcaplayer.ui.screens.ToolsScreen
@@ -64,42 +79,119 @@ fun navStyle(isTv: Boolean): NavStyle {
     }
 }
 
+/** Kids restrictions for the shell (18): set once from the current profile. */
+data class KidsGuard(val active: Boolean = false, val request: (after: () -> Unit) -> Unit = { it() })
+
+val LocalKidsGuard = staticCompositionLocalOf { KidsGuard() }
+
 @Composable
 fun OrcaShell(navLayout: NavLayout, isTv: Boolean) {
+    val appVm: AppViewModel = hiltViewModel(LocalContext.current as ComponentActivity)
+    val profiles by appVm.allProfiles.collectAsStateWithLifecycle()
+    val chosen by appVm.profileChosen.collectAsStateWithLifecycle()
+    val values by appVm.settings.collectAsStateWithLifecycle()
+    val list = profiles
+    // Who's watching, once per launch, when there is a choice to make (18).
+    if (!chosen && list != null && values != null) {
+        if (list.size > 1 && values!![BrowsingSettings.AskAtStart]) {
+            var managing by remember { mutableStateOf(false) }
+            Box(Modifier.fillMaxSize().background(Troy.colors.bg)) {
+                if (managing) {
+                    ProfilesScreen(onBack = { managing = false })
+                } else {
+                    WhoIsWatchingScreen(onChosen = { appVm.profileChosen.value = true }, onManage = { managing = true })
+                }
+            }
+            return
+        }
+        LaunchedEffect(Unit) { appVm.profileChosen.value = true }
+    }
+    if (list == null || values == null) {
+        Box(Modifier.fillMaxSize().background(Troy.colors.bg))
+        return
+    }
+    MainShell(navLayout, isTv, appVm)
+}
+
+@Composable
+private fun MainShell(navLayout: NavLayout, isTv: Boolean, appVm: AppViewModel) {
     val nav = rememberNavController()
     val entry by nav.currentBackStackEntryAsState()
     val route = entry?.destination?.route
+    val profile by appVm.currentProfile.collectAsStateWithLifecycle()
+    val kids = profile?.isKids == true
     // Tabs can be hidden or reordered by the layout model; Home stays reachable as the start.
-    val tabs = navLayout.visibleTabs.ifEmpty { listOf(MainTab.HOME) }.map { it.spec() }
+    // Kids profiles never see Addons or Tools (18).
+    val tabs = navLayout.visibleTabs
+        .filter { !kids || (it != MainTab.ADDONS && it != MainTab.TOOLS) }
+        .ifEmpty { listOf(MainTab.HOME) }.map { it.spec() }
     val onTabRoute = tabs.any { it.route == route }
     val style = navStyle(isTv)
     val onSelect: (TabSpec) -> Unit = { spec -> nav.navigateToTab(spec.route) }
     val c = Troy.colors
 
-    val appVm: AppViewModel = hiltViewModel(LocalContext.current as ComponentActivity)
     val values by appVm.settings.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val profilesVm: ProfilesViewModel = hiltViewModel()
+    var gateThen by remember { mutableStateOf<(() -> Unit)?>(null) }
+    val guard = remember(kids) { KidsGuard(kids) { after -> if (kids) gateThen = after else after() } }
 
-    Box(Modifier.fillMaxSize().background(c.bg)) {
-        when (style) {
-            NavStyle.BOTTOM -> Column(Modifier.fillMaxSize()) {
-                Box(Modifier.weight(1f)) { OrcaNavHost(nav, tabs.first().route) }
-                if (onTabRoute) OrcaBottomBar(tabs, route, onSelect)
-            }
-            NavStyle.RAIL, NavStyle.TV_RAIL -> Row(Modifier.fillMaxSize()) {
-                if (onTabRoute) OrcaRail(tabs, route, onSelect, tv = style == NavStyle.TV_RAIL)
-                Box(Modifier.weight(1f)) { OrcaNavHost(nav, tabs.first().route) }
+    // Screen pinning keeps a child in the app (18); it is released when the profile changes.
+    val activity = context as? android.app.Activity
+    val pin = kids && profile?.kids?.screenPinning == true
+    LaunchedEffect(pin) {
+        runCatching { if (pin) activity?.startLockTask() else if (isLockTaskOn(context)) activity?.stopLockTask() }
+    }
+    // A tab the new profile can't see: go back to Home.
+    LaunchedEffect(kids, route) {
+        if (kids && (route == MainTab.ADDONS.spec().route || route == MainTab.TOOLS.spec().route)) nav.navigateToTab(tabs.first().route)
+    }
+
+    val spec = values?.let { CardSpec.from(it, Troy.motion.reduceMotion) } ?: CardSpec()
+    CompositionLocalProvider(LocalKidsGuard provides guard, LocalCardSpec provides spec) {
+        TitlePreviewHost(openTitle = { t, play ->
+            com.troy.orcaplayer.ui.common.TitleMemory.put(t)
+            nav.navigate(Routes.title(t.type.name, t.id, play))
+        }) {
+            Box(Modifier.fillMaxSize().background(c.bg)) {
+                when (style) {
+                    NavStyle.BOTTOM -> Column(Modifier.fillMaxSize()) {
+                        Box(Modifier.weight(1f)) { OrcaNavHost(nav, tabs.first().route) }
+                        if (onTabRoute) OrcaBottomBar(tabs, route, onSelect)
+                    }
+                    NavStyle.RAIL, NavStyle.TV_RAIL -> Row(Modifier.fillMaxSize()) {
+                        if (onTabRoute) OrcaRail(tabs, route, onSelect, tv = style == NavStyle.TV_RAIL)
+                        Box(Modifier.weight(1f)) { OrcaNavHost(nav, tabs.first().route) }
+                    }
+                }
+                ClipboardOffer(
+                    enabled = !kids && (values?.get(com.troy.orcaplayer.core.settings.SourceSettings.ClipboardDetect) ?: false),
+                    onPlay = { link -> appVm.playLink(link)?.let { com.troy.orcaplayer.ui.player.PlayerLaunch.play(context, it) } },
+                    onInstall = { link -> appVm.pendingInstall.value = link },
+                )
+                // A link shared to the app: play it or download it (16.1). Not in Kids profiles.
+                val shared by appVm.pendingShare.collectAsStateWithLifecycle()
+                shared?.let { link ->
+                    if (kids) {
+                        LaunchedEffect(link) {
+                            appVm.pendingShare.value = null
+                            android.widget.Toast.makeText(context, com.troy.orcaplayer.R.string.kids_blocked, android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    } else {
+                        com.troy.orcaplayer.ui.downloads.SharedLinkDialog(link, appVm, onDone = { appVm.pendingShare.value = null })
+                    }
+                }
+                gateThen?.let { then ->
+                    KidsExitGate(profilesVm, onDismiss = { gateThen = null }, onUnlocked = { gateThen = null; then() })
+                }
             }
         }
-        ClipboardOffer(
-            enabled = values?.get(com.troy.orcaplayer.core.settings.SourceSettings.ClipboardDetect) ?: false,
-            onPlay = { link -> appVm.playLink(link)?.let { com.troy.orcaplayer.ui.player.PlayerLaunch.play(context, it) } },
-            onInstall = { link -> appVm.pendingInstall.value = link },
-        )
-        // A link shared to the app: play it or download it (16.1).
-        val shared by appVm.pendingShare.collectAsStateWithLifecycle()
-        shared?.let { link -> com.troy.orcaplayer.ui.downloads.SharedLinkDialog(link, appVm, onDone = { appVm.pendingShare.value = null }) }
     }
+}
+
+private fun isLockTaskOn(context: android.content.Context): Boolean {
+    val am = context.getSystemService(android.app.ActivityManager::class.java) ?: return false
+    return am.lockTaskModeState != android.app.ActivityManager.LOCK_TASK_MODE_NONE
 }
 
 private fun NavHostController.navigateToTab(route: String) {
@@ -121,11 +213,22 @@ private fun OrcaNavHost(nav: NavHostController, start: String) {
     val exit: ExitTransition = if (motion.reduceMotion) ExitTransition.None else fadeOut(
         spring(dampingRatio = 1f, stiffness = SpringMath.stiffness(TroySprings.LITE_RESPONSE_CAP)),
     )
-    val openSettings = { nav.navigate(Routes.SETTINGS) { launchSingleTop = true } }
-    val openProfiles = { nav.navigate(Routes.PROFILES) { launchSingleTop = true } }
+    val guard = LocalKidsGuard.current
+    val ctx = LocalContext.current
+    // In a Kids profile, Settings and Profiles sit behind the exit gate (18).
+    val openSettings: () -> Unit = { guard.request { nav.navigate(Routes.SETTINGS) { launchSingleTop = true } } }
+    val openProfiles: () -> Unit = { guard.request { nav.navigate(Routes.PROFILES) { launchSingleTop = true } } }
     val back: () -> Unit = { nav.popBackStack() }
     val appVm: AppViewModel = hiltViewModel(LocalContext.current as ComponentActivity)
-    val openUrlPlayer = { nav.navigate(Routes.urlPlayer()) { launchSingleTop = true } }
+    val openUrlPlayer: () -> Unit = {
+        if (guard.active) {
+            android.widget.Toast.makeText(ctx, com.troy.orcaplayer.R.string.kids_blocked, android.widget.Toast.LENGTH_SHORT).show()
+        } else {
+            nav.navigate(Routes.urlPlayer()) { launchSingleTop = true }
+        }
+    }
+    val openDetails: (String, String, String?) -> Unit = { type, id, play -> nav.navigate(Routes.title(type, id, play)) }
+    val openMyList: () -> Unit = { nav.navigate(Routes.MY_LIST) { launchSingleTop = true } }
     val openTitle: (Title) -> Unit = { t ->
         TitleMemory.put(t)
         nav.navigate(Routes.title(t.type.name, t.id))
@@ -139,9 +242,21 @@ private fun OrcaNavHost(nav: NavHostController, start: String) {
             openDownloads(null)
         }
     }
+    val pendingTitle by appVm.pendingTitle.collectAsStateWithLifecycle()
+    androidx.compose.runtime.LaunchedEffect(pendingTitle) {
+        val t = pendingTitle ?: return@LaunchedEffect
+        appVm.pendingTitle.value = null
+        val type = t.substringBefore('/')
+        val id = t.substringAfter('/', "")
+        if (id.isNotEmpty()) nav.navigate(Routes.title(type, id))
+    }
     val pendingInstall by appVm.pendingInstall.collectAsStateWithLifecycle()
-    androidx.compose.runtime.LaunchedEffect(pendingInstall) {
-        if (pendingInstall != null && nav.currentDestination?.route != MainTab.ADDONS.spec().route) nav.navigateToTab(MainTab.ADDONS.spec().route)
+    androidx.compose.runtime.LaunchedEffect(pendingInstall, guard.active) {
+        if (pendingInstall != null && guard.active) {
+            appVm.pendingInstall.value = null
+        } else if (pendingInstall != null && nav.currentDestination?.route != MainTab.ADDONS.spec().route) {
+            nav.navigateToTab(MainTab.ADDONS.spec().route)
+        }
     }
 
     NavHost(
@@ -161,6 +276,8 @@ private fun OrcaNavHost(nav: NavHostController, start: String) {
                         onOpenUrlPlayer = openUrlPlayer,
                         onOpenAddons = { nav.navigateToTab(MainTab.ADDONS.spec().route) },
                         onOpenDownloads = { openDownloads("COMPLETED") },
+                        onOpenDetails = openDetails,
+                        onOpenMyList = openMyList,
                     )
                     MainTab.ADDONS -> AddonsScreen(
                         openSettings, openProfiles,
@@ -191,8 +308,12 @@ private fun OrcaNavHost(nav: NavHostController, start: String) {
                 onBack = back,
                 onOpenLicences = { nav.navigate(Routes.LICENCES) },
                 onOpenDecoderCheck = { nav.navigate(Routes.DECODER_CHECK) { launchSingleTop = true } },
+                onOpenHomeRows = { nav.navigate(Routes.HOME_ROWS) { launchSingleTop = true } },
+                onOpenProfiles = { nav.navigate(Routes.PROFILES) { launchSingleTop = true } },
             )
         }
+        composable(Routes.MY_LIST) { MyListScreen(onBack = back, onOpenDetails = openDetails) }
+        composable(Routes.HOME_ROWS) { HomeRowsScreen(onBack = back) }
         composable(Routes.DECODER_CHECK) { DecoderCheckScreen(onBack = back) }
         composable(Routes.JOBS) { JobsScreen(onBack = back) }
         composable(Routes.TOOLS_CUSTOMIZE) {
@@ -217,11 +338,13 @@ private fun OrcaNavHost(nav: NavHostController, start: String) {
         ) { DiscoverScreen(onBack = back, onOpenTitle = openTitle) }
         composable(
             Routes.TITLE,
-            arguments = listOf(navArgument("type") { type = NavType.StringType }, navArgument("id") { type = NavType.StringType }),
+            arguments = listOf(
+                navArgument("type") { type = NavType.StringType }, navArgument("id") { type = NavType.StringType },
+                navArgument("play") { type = NavType.StringType; defaultValue = "" },
+            ),
         ) { TitleScreen(onBack = back) }
         composable(Routes.LICENCES) { LicencesScreen(onBack = back) }
         composable(Routes.DOWNLOADS, arguments = listOf(navArgument("tab") { type = NavType.StringType; defaultValue = "" })) { e ->
-            val ctx = LocalContext.current
             com.troy.orcaplayer.ui.downloads.DownloadsScreen(
                 initialTab = e.arguments?.getString("tab")?.takeIf { it.isNotEmpty() },
                 onBack = back,

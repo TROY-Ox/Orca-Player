@@ -53,6 +53,7 @@ data class HomeRow(
     val name: String,
     val style: RowStyle,
     val genre: String?,
+    val homeOrder: Int? = null,
 ) {
     val key: String get() = "$addonId|${decl.key}"
 }
@@ -69,7 +70,14 @@ data class StreamEntry(val option: StreamOption, val info: StreamInfo, val sourc
 data class StreamsState(val entries: List<StreamEntry> = emptyList(), val pending: Int = 0, val failed: List<String> = emptyList())
 
 /** How the player can ask for a fresh link for a title it is playing (14.7 and resuming). */
-data class StreamTarget(val type: TitleType, val videoId: String, val title: String, val episode: EpisodeInfo?)
+data class StreamTarget(
+    val type: TitleType,
+    val videoId: String,
+    val title: String,
+    val episode: EpisodeInfo?,
+    /** Binge group of the chosen stream, so the next episode can keep to the same release. */
+    val bingeGroup: String? = null,
+)
 
 /**
  * Everything the browsing screens ask of sources: Home rows, Discover pages, unified search,
@@ -92,13 +100,24 @@ class ContentHub(
 
     // Home and Discover (14.3)
 
-    fun homeRows(list: AddonList = addons.list.value, p: Profile? = profile.value): List<HomeRow> =
-        list.addons.filter { it.activeFor(p) && it.useCatalogs }.flatMap { a ->
+    fun homeRows(list: AddonList = addons.list.value, p: Profile? = profile.value): List<HomeRow> {
+        val rows = list.addons.filter { it.activeFor(p) && it.useCatalogs }.flatMap { a ->
             val client = addons.client(a)
             a.effectiveCatalogs().filter { it.second.place == CatalogPlace.HOME }.map { (decl, pref) ->
-                HomeRow(a.id, a.manifest.name, decl, client.toCatalog(decl), pref.name ?: decl.name, pref.rowStyle, pref.defaultGenre)
+                HomeRow(a.id, a.manifest.name, decl, client.toCatalog(decl), pref.name ?: decl.name, pref.rowStyle, pref.defaultGenre, pref.homeOrder)
             }
         }
+        // Kids profiles see only the catalogs chosen for them (18).
+        val allowed = if (p?.isKids == true) rows.filter { p.kids.allowsCatalog(it.key) } else rows
+        // Rows placed on the Home rows screen keep that order; the rest follow in add-on order.
+        return allowed.withIndex().sortedWith(compareBy({ it.value.homeOrder ?: Int.MAX_VALUE }, { it.index })).map { it.value }
+    }
+
+    /** The catalog the featured area shows: the one picked, or the first Home row. */
+    fun heroRow(list: AddonList = addons.list.value, p: Profile? = profile.value): HomeRow? {
+        val rows = homeRows(list, p)
+        return list.hero?.let { key -> rows.firstOrNull { it.key == key } ?: discoverCatalogs(list, p).firstOrNull { it.key == key } } ?: rows.firstOrNull()
+    }
 
     /** Every catalog that can be opened as a grid: Home and Discover-only ones. */
     fun discoverCatalogs(list: AddonList = addons.list.value, p: Profile? = profile.value): List<HomeRow> =
@@ -107,7 +126,7 @@ class ContentHub(
             a.effectiveCatalogs().filter { it.second.place != CatalogPlace.HIDDEN }.map { (decl, pref) ->
                 HomeRow(a.id, a.manifest.name, decl, client.toCatalog(decl), pref.name ?: decl.name, pref.rowStyle, pref.defaultGenre)
             }
-        }
+        }.filter { p?.isKids != true || p.kids.allowsCatalog(it.key) }
 
     suspend fun page(row: HomeRow, filters: Map<String, String>, page: PageRequest): Page<Title> = withContext(Dispatchers.IO) {
         val a = addons.addon(row.addonId) ?: throw IllegalStateException("Source removed")
@@ -245,7 +264,7 @@ class ContentHub(
         val videoId = episode?.id ?: title.id
         val key = MediaKeys.forSource(RESUME_SOURCE, title.id, episode?.id)
         val epInfo = episode?.let { EpisodeInfo(title.id, it.id, it.season, it.number, it.name) }
-        targets[key.id] = StreamTarget(title.type, videoId, title.name, epInfo)
+        targets[key.id] = StreamTarget(title.type, videoId, title.name, epInfo, chosen.option.bingeGroup)
         val others = ranked.filter { it !== chosen && it.playable }
             .sortedBy { if (chosen.option.bingeGroup != null && it.option.bingeGroup == chosen.option.bingeGroup) 0 else 1 }
             .take(maxAlternates)
@@ -263,6 +282,8 @@ class ContentHub(
             drmProtected = s.drmProtected,
             downloadable = s.downloadable,
             alternates = others.map { StreamAlternate(it.option.url, it.option.name, extraHeaders + it.option.headers, it.option.subtitles) },
+            poster = title.poster ?: title.background,
+            titleType = title.type.name,
         )
         return PlayRequest(listOf(item), 0, profileId)
     }

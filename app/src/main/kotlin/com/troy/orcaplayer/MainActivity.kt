@@ -65,6 +65,7 @@ class MainActivity : AppCompatActivity() {
         val link = intent?.getStringExtra(EXTRA_INSTALL_ADDON) ?: intent?.dataString?.takeIf { it.startsWith("stremio:", ignoreCase = true) }
         if (link != null) vm.pendingInstall.value = link
         intent?.getStringExtra(EXTRA_SHARED_LINK)?.let { vm.pendingShare.value = it }
+        intent?.getStringExtra(com.troy.orcaplayer.data.NewEpisodeAlerts.EXTRA_OPEN_TITLE)?.let { vm.pendingTitle.value = it }
         if (intent?.getBooleanExtra(com.troy.orcaplayer.downloads.DownloadNotifications.EXTRA_OPEN_DOWNLOADS, false) == true) vm.pendingDownloads.value = true
     }
 

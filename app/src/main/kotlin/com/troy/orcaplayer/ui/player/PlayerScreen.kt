@@ -155,6 +155,13 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
     val night by vm.extras.night.collectAsStateWithLifecycle()
     val hasVideoPrefs by vm.extras.hasVideoPrefs.collectAsStateWithLifecycle()
     val applied by vm.applied.collectAsStateWithLifecycle()
+    val skipOffer by vm.binge.skip.collectAsStateWithLifecycle()
+    val nextOffer by vm.binge.next.collectAsStateWithLifecycle()
+    val marking by vm.binge.marking.collectAsStateWithLifecycle()
+    val limitReached by vm.binge.limitReached.collectAsStateWithLifecycle()
+    val profile by vm.profile.collectAsStateWithLifecycle()
+    val kids = profile?.isKids == true
+    var parentGate by remember { mutableStateOf(false) }
     val surfaceRef = remember { VideoSurfaceRef() }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -189,6 +196,15 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
     var boosting by remember { mutableStateOf(false) }
     var remaining by rememberSaveable { mutableStateOf(settings[PlayerSettings.ShowRemaining]) }
     var unlockShownAt by remember { mutableLongStateOf(0L) }
+    // Kids profiles start locked, so a tap can't leave the video (18).
+    var kidsLocked by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(kids, settings[com.troy.orcaplayer.core.settings.BrowsingSettings.KidsLockPlayer]) {
+        if (kids && settings[com.troy.orcaplayer.core.settings.BrowsingSettings.KidsLockPlayer] && !kidsLocked) {
+            kidsLocked = true
+            vm.locked.value = true
+            unlockShownAt = System.currentTimeMillis()
+        }
+    }
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
 
     // Per-video values: applied once each time a video starts.
@@ -621,7 +637,8 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
                 vm = vm,
                 host = host,
                 ui = ui,
-                layout = layout.controls.filter { it.visible },
+                // Kids profiles have no Tools panel (18).
+                layout = layout.controls.filter { it.visible && !(kids && it.control == com.troy.orcaplayer.core.model.PlayerControl.TOOLS) },
                 skipSeconds = skipSeconds,
                 remaining = remaining,
                 onToggleRemaining = { remaining = !remaining; touch() },
@@ -657,6 +674,23 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
                     TroyButton(stringResource(R.string.player_start_over), vm::startOver, kind = ButtonKind.GHOST)
                 }
             }
+        }
+
+        // Skip intro, recap and credits; Next Episode with its countdown (17.6).
+        if (!locked && !isPip && panel == PlayerPanel.NONE && pill == null) {
+            BingeButtons(
+                skip = skipOffer,
+                next = nextOffer,
+                marking = marking,
+                onSkip = { player.let(vm.binge::skip) },
+                onNext = vm::next,
+                onDismissNext = vm.binge::dismissNext,
+                onEndMark = {
+                    if (!vm.binge.endMark(vm.currentPosition())) Toast.makeText(context, R.string.mark_too_short, Toast.LENGTH_SHORT).show()
+                    else Toast.makeText(context, R.string.mark_saved, Toast.LENGTH_SHORT).show()
+                },
+                onCancelMark = vm.binge::cancelMark,
+            )
         }
 
         // Online subtitle notice (9.6): what was fetched, with a Change button.
@@ -760,9 +794,20 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
                             canSaveFolder = vm.extras.canSaveFolder,
                             rememberPerVideo = settings[ToolSettings.RememberPerVideo],
                             canSave = vm.saveDecision().let { it == SaveDecision.ALLOWED || it == SaveDecision.NEEDS_REMINDER },
+                            canMark = vm.binge.canMark,
+                            hasMarks = vm.binge.hasMarks,
                         ),
                         object : ToolsPanelActions {
                             override fun openTool(tool: ToolId) = launchTool(tool)
+                            override fun startMark(kind: com.troy.orcaplayer.core.model.SkipKind) {
+                                vm.binge.startMark(kind, vm.currentPosition())
+                                panel = PlayerPanel.NONE
+                                Toast.makeText(context, R.string.mark_started, Toast.LENGTH_SHORT).show()
+                            }
+                            override fun clearMarks() {
+                                vm.binge.clearMarks()
+                                Toast.makeText(context, R.string.skip_marks_cleared, Toast.LENGTH_SHORT).show()
+                            }
                             override fun screenshot() { panel = PlayerPanel.NONE; takeScreenshot() }
                             override fun equalizer() { panel = PlayerPanel.AUDIO }
                             override fun markA() = vm.markA()
@@ -860,15 +905,40 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
                 Row(
                     Modifier.align(Alignment.BottomCenter).windowInsetsPadding(WindowInsets.safeDrawing).padding(bottom = 32.dp)
                         .glass(TroyShapes.Pill)
-                        .clickable(interactionSource = source, indication = null) { vm.locked.value = false; controlsVisible = true; touch() }
+                        .then(
+                            if (kids) {
+                                // Children can't unlock with a tap: it takes a long press.
+                                Modifier.pointerInput(Unit) {
+                                    detectTapGestures(
+                                        onTap = { unlockShownAt = System.currentTimeMillis() },
+                                        onLongPress = { vm.locked.value = false; controlsVisible = true; touch() },
+                                    )
+                                }
+                            } else {
+                                Modifier.clickable(interactionSource = source, indication = null) { vm.locked.value = false; controlsVisible = true; touch() }
+                            },
+                        )
                         .padding(horizontal = 18.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Icon(Icons.Filled.LockOpen, contentDescription = null, tint = c.text)
-                    Text(stringResource(R.string.player_unlock), style = Troy.type.button, color = c.text)
+                    Text(stringResource(if (kids) R.string.player_unlock_hold else R.string.player_unlock), style = Troy.type.button, color = c.text)
                 }
             }
+        }
+
+        // The Kids daily limit is used up (18).
+        if (limitReached) {
+            WatchLimitScreen(onClose = host::close, onParent = { parentGate = true })
+        }
+        if (parentGate) {
+            val profilesVm: com.troy.orcaplayer.ui.profiles.ProfilesViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+            com.troy.orcaplayer.ui.profiles.KidsExitGate(
+                profilesVm,
+                onDismiss = { parentGate = false },
+                onUnlocked = { parentGate = false; vm.binge.overrideLimit(); vm.togglePlay() },
+            )
         }
     }
 }

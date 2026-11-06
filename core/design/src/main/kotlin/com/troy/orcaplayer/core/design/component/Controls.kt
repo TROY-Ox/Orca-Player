@@ -144,6 +144,8 @@ fun TroyTextField(
     imeAction: ImeAction = ImeAction.Done,
     onImeAction: () -> Unit = {},
     leading: (@Composable () -> Unit)? = null,
+    keyboardType: androidx.compose.ui.text.input.KeyboardType = androidx.compose.ui.text.input.KeyboardType.Text,
+    password: Boolean = false,
 ) {
     val c = Troy.colors
     val t = Troy.type
@@ -156,7 +158,8 @@ fun TroyTextField(
         interactionSource = source,
         textStyle = t.body.copy(color = c.text),
         cursorBrush = SolidColor(c.accent),
-        keyboardOptions = KeyboardOptions(imeAction = imeAction),
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = imeAction),
+        visualTransformation = if (password) androidx.compose.ui.text.input.PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
         keyboardActions = KeyboardActions(onAny = { onImeAction() }),
         modifier = modifier.drawBehind {
             if (focused) {

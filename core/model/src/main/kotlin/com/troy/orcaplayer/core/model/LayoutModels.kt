@@ -145,6 +145,7 @@ enum class ToolId(
     VOLUME_BOOST(false, true),
     QUIET_MODE(false, true),
     PER_VIDEO(false, true),
+    SKIP_MARKS(false, true),
     DOWNLOAD(false, true),
     DECODER_CHECK(true, false),
     URL_PLAYER(true, false),

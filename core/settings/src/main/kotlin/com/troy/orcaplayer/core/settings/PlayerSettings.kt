@@ -37,6 +37,11 @@ object PlayerSettings {
         "80" to R.string.percent_80, "90" to R.string.percent_90, "95" to R.string.percent_95,
     )
     val AutoNext = bool("player.auto_next", P, R.string.setting_auto_next, R.string.setting_auto_next_summary, R.string.setting_queue_keywords, true)
+    val NextCountdown = choice(
+        "player.next_countdown", P, R.string.setting_next_countdown, R.string.setting_next_countdown_summary, R.string.setting_queue_keywords, "10",
+        "off" to R.string.countdown_off, "5" to R.string.seconds_5, "10" to R.string.seconds_10, "15" to R.string.seconds_15, "20" to R.string.seconds_20,
+    )
+    val SkipButtons = bool("player.skip_buttons", P, R.string.setting_skip_buttons, R.string.setting_skip_buttons_summary, R.string.setting_queue_keywords, true)
     val BackgroundPlay = bool("player.background", P, R.string.setting_background, R.string.setting_background_summary, R.string.setting_background_keywords, false)
     val Pip = choice(
         "player.pip", P, R.string.setting_pip, R.string.setting_pip_summary, R.string.setting_pip_keywords, "playing",
@@ -155,7 +160,7 @@ object PlayerSettings {
     )
 
     val all: List<SettingDef<*>> = listOf(
-        Decoder, DefaultSpeed, Resume, WatchedThreshold, AutoNext, BackgroundPlay, Pip, PlayerOrientation, MenuOrientation,
+        Decoder, DefaultSpeed, Resume, WatchedThreshold, AutoNext, NextCountdown, SkipButtons, BackgroundPlay, Pip, PlayerOrientation, MenuOrientation,
         LockBlocksKeys, ShowRemaining,
         SkipSeconds, LongPressSpeed, DoubleTap, SwipeSeek, SwipeSliders, PinchZoom, LongPress, SeekSensitivity,
         SliderDisplay, SliderSwap, SliderMode, SliderAcceleration, SliderStep, SliderFastMax, SliderHaptics,

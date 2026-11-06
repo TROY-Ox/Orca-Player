@@ -13,7 +13,11 @@ data class Profile(
     val pinHash: String? = null,
     val pinSalt: String? = null,
     val createdAt: Long = 0L,
+    /** What a Kids profile may see and how long it may watch each day (18). */
+    val kids: KidsRules = KidsRules(),
 ) {
+    val hasPin: Boolean get() = pinHash != null && pinSalt != null
+
     companion object {
         const val DEFAULT_ID = "default"
         const val DEFAULT_AVATAR = "orca"

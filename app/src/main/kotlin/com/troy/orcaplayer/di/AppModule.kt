@@ -28,11 +28,19 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun profiles(db: OrcaDatabase): ProfileRepository = ProfileRepository(db)
+    fun profiles(db: OrcaDatabase, @ApplicationContext context: Context): ProfileRepository = ProfileRepository(db, context)
 
     @Provides
     @Singleton
     fun resume(db: OrcaDatabase): ResumeRepository = ResumeRepository(db)
+
+    @Provides
+    @Singleton
+    fun myList(db: OrcaDatabase): com.troy.orcaplayer.core.data.MyListRepository = com.troy.orcaplayer.core.data.MyListRepository(db)
+
+    @Provides
+    @Singleton
+    fun playbackMarks(db: OrcaDatabase): com.troy.orcaplayer.core.data.PlaybackMarksRepository = com.troy.orcaplayer.core.data.PlaybackMarksRepository(db)
 
     @Provides
     @Singleton

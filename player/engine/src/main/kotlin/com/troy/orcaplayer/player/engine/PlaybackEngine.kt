@@ -301,6 +301,13 @@ class PlaybackEngine private constructor(context: Context) {
 
     fun itemAt(index: Int): PlayItem? = queue.getOrNull(index)
 
+    /** Adds [item] to the end of the queue, for the next episode found while playing (17.6). */
+    fun append(item: PlayItem) {
+        queue = queue + item
+        if (item.headers.isNotEmpty()) Uri.parse(item.uri).host?.let { headersByHost[it.lowercase()] = item.headers }
+        player.addMediaItem(item.toMediaItem(queue.lastIndex))
+    }
+
     /** Rebuilds the player with another decoder mode, keeping queue, position, speed and play state. */
     fun setDecoderMode(mode: DecoderMode) {
         if (mode == _decoderMode.value) return

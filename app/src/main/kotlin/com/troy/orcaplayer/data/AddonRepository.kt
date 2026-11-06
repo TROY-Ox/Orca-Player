@@ -28,7 +28,7 @@ import java.io.File
 enum class CatalogPlace { HOME, DISCOVER, HIDDEN }
 
 @Serializable
-enum class RowStyle { POSTER, LANDSCAPE, LARGE }
+enum class RowStyle { POSTER, LANDSCAPE, LARGE, TOP10, HERO }
 
 /** The user's choices for one catalog of one addon (15.3). */
 @Serializable
@@ -39,6 +39,8 @@ data class CatalogPref(
     val order: Int? = null,
     val rowStyle: RowStyle = RowStyle.POSTER,
     val defaultGenre: String? = null,
+    /** Position among every add-on's Home rows, set on the Home rows screen (17.1). */
+    val homeOrder: Int? = null,
 )
 
 @Serializable
@@ -101,6 +103,8 @@ data class AddonList(
     val addons: List<InstalledAddon> = emptyList(),
     /** "addonId|catalogKey" of the catalog the user marked as trending, for search suggestions (14.4). */
     val trending: String? = null,
+    /** "addonId|catalogKey" of the catalog the featured area takes its titles from (17.2). */
+    val hero: String? = null,
     val lastAutoCheck: Long = 0,
 )
 
@@ -254,6 +258,28 @@ class AddonRepository(context: Context) {
     }
 
     fun setTrending(addonId: String?, key: String?) = store.update { it.copy(trending = if (addonId != null && key != null) "$addonId|$key" else null) }
+
+    fun setHero(addonId: String?, key: String?) = store.update { it.copy(hero = if (addonId != null && key != null) "$addonId|$key" else null) }
+
+    /** Saves the order of every Home row, and which are hidden, from the Home rows screen. */
+    fun setHomeLayout(order: List<String>, hidden: Set<String>) = store.update { list ->
+        list.copy(
+            addons = list.addons.map { a ->
+                val prefs = a.manifest.catalogs.map { decl ->
+                    val rowKey = "${a.id}|${decl.key}"
+                    val old = a.prefFor(decl.key)
+                    val pos = order.indexOf(rowKey).takeIf { it >= 0 }
+                    val place = when {
+                        rowKey in hidden -> CatalogPlace.DISCOVER
+                        pos != null && old.place == CatalogPlace.DISCOVER -> CatalogPlace.HOME
+                        else -> old.place
+                    }
+                    old.copy(homeOrder = pos ?: old.homeOrder, place = place)
+                }
+                a.copy(catalogs = prefs)
+            },
+        )
+    }
 
     fun markSeen(id: String) = edit(id) { it.copy(updatedFrom = null, changes = emptyList()) }
 
