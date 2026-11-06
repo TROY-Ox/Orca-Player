@@ -20,7 +20,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-enum class AddonFilter { ALL, ENABLED, DISABLED, ERRORS, UPDATES }
+enum class AddonFilter { ALL, ADDONS, EXTENSIONS, ENABLED, DISABLED, ERRORS, UPDATES }
 
 sealed interface PreviewState {
     data object Idle : PreviewState
@@ -64,6 +64,8 @@ class AddonsViewModel @Inject constructor(
         val h = health.value[a.id]
         val ok = when (filter) {
             AddonFilter.ALL -> true
+            AddonFilter.ADDONS -> !com.troy.orcaplayer.data.ExtensionBridge.handles(a.manifestUrl)
+            AddonFilter.EXTENSIONS -> com.troy.orcaplayer.data.ExtensionBridge.handles(a.manifestUrl)
             AddonFilter.ENABLED -> a.enabled
             AddonFilter.DISABLED -> !a.enabled
             AddonFilter.ERRORS -> a.lastError != null || h?.state == HealthState.FAILING

@@ -782,4 +782,10 @@
         <item quantity="one">%1$d new episode</item>
         <item quantity="other">%1$d new episodes</item>
     </plurals>
+    <string name="filter_addons">Addons</string>
+    <string name="filter_extensions">Extensions</string>
+    <string name="kind_extension">Extension</string>
+    <string name="ext_entry_title">CloudStream extensions</string>
+    <string name="ext_entry_summary">Add repositories you trust and install their extensions</string>
+    <string name="ext_entry_open">Manage</string>
 </resources>

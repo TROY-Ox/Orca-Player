@@ -213,16 +213,20 @@ fun AddonDetailScreen(onBack: () -> Unit, vm: AddonDetailViewModel = hiltViewMod
             Card {
                 SectionLabel(stringResource(R.string.addon_actions))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (m.behaviorHints.configurable || m.behaviorHints.configurationRequired) {
+                    // Extensions have no manifest link; they are managed with their repository.
+                    val isExtension = com.troy.orcaplayer.data.ExtensionBridge.handles(a.manifestUrl)
+                    if (!isExtension && (m.behaviorHints.configurable || m.behaviorHints.configurationRequired)) {
                         TroyButton(stringResource(R.string.addon_configure_again), { openCustomTab(context, StremioUrls.configureUrl(a.manifestUrl)) })
                     }
-                    TroyButton(stringResource(R.string.addon_copy_link), {
-                        copyText(context, m.name, a.manifestUrl)
-                        android.widget.Toast.makeText(context, R.string.copied, android.widget.Toast.LENGTH_SHORT).show()
-                    })
-                    TroyButton(stringResource(R.string.share), {
-                        context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, a.manifestUrl), null))
-                    })
+                    if (!isExtension) {
+                        TroyButton(stringResource(R.string.addon_copy_link), {
+                            copyText(context, m.name, a.manifestUrl)
+                            android.widget.Toast.makeText(context, R.string.copied, android.widget.Toast.LENGTH_SHORT).show()
+                        })
+                        TroyButton(stringResource(R.string.share), {
+                            context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, a.manifestUrl), null))
+                        })
+                    }
                     TroyButton(stringResource(R.string.addon_raw), { raw = true })
                     TroyButton(stringResource(R.string.remove), { confirmRemove = true })
                 }

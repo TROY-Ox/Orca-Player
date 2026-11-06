@@ -285,6 +285,11 @@ private fun OrcaNavHost(nav: NavHostController, start: String) {
                         onOpenDiscover = { openDiscover(null, null) },
                         installRequest = pendingInstall,
                         onInstallRequestHandled = { appVm.pendingInstall.value = null },
+                        onOpenExtensions = if (com.troy.orcaplayer.flavor.Flavor.EXTENSIONS) {
+                            { nav.navigate(Routes.EXTENSIONS) { launchSingleTop = true } }
+                        } else {
+                            null
+                        },
                     )
                     MainTab.SEARCH -> SearchScreen(openSettings, openProfiles, openTitle)
                     MainTab.LOCAL -> LocalScreen(openSettings, openProfiles, openUrlPlayer, onOpenDownloads = { openDownloads("COMPLETED") })
@@ -344,6 +349,7 @@ private fun OrcaNavHost(nav: NavHostController, start: String) {
             ),
         ) { TitleScreen(onBack = back) }
         composable(Routes.LICENCES) { LicencesScreen(onBack = back) }
+        composable(Routes.EXTENSIONS) { com.troy.orcaplayer.flavor.Flavor.ExtensionsScreen(onBack = back) }
         composable(Routes.DOWNLOADS, arguments = listOf(navArgument("tab") { type = NavType.StringType; defaultValue = "" })) { e ->
             com.troy.orcaplayer.ui.downloads.DownloadsScreen(
                 initialTab = e.arguments?.getString("tab")?.takeIf { it.isNotEmpty() },

@@ -3,6 +3,7 @@ package com.troy.orcaplayer.data
 import android.content.Context
 import com.troy.orcaplayer.BuildConfig
 import com.troy.orcaplayer.core.model.Profile
+import com.troy.orcaplayer.sources.stremio.AddonClient
 import com.troy.orcaplayer.sources.stremio.AddonManifest
 import com.troy.orcaplayer.sources.stremio.CatalogDecl
 import com.troy.orcaplayer.sources.stremio.HttpClient
@@ -146,17 +147,31 @@ class AddonRepository(context: Context) {
 
     @Volatile var defaultTimeoutSec: Int = 10
 
-    private val clients = HashMap<String, Pair<String, StremioAddon>>()
+    private val clients = HashMap<String, Pair<String, AddonClient>>()
+
+    /** Set by the extended build so CloudStream extensions get their own clients (19). */
+    @Volatile var extensionBridge: ExtensionBridge? = null
+
+    /** Drops cached clients, for example after an extension was updated. */
+    @Synchronized
+    fun resetClients(ids: Set<String>? = null) {
+        if (ids == null) clients.clear() else ids.forEach { clients.remove(it) }
+    }
 
     fun addon(id: String): InstalledAddon? = list.value.addons.firstOrNull { it.id == id }
 
     /** The client for an installed addon, rebuilt when its manifest or timeout changes. */
     @Synchronized
-    fun client(a: InstalledAddon): StremioAddon {
+    fun client(a: InstalledAddon): AddonClient {
         val timeout = (a.timeoutSec ?: defaultTimeoutSec) * 1000
         val stamp = "${a.manifestUrl}|${a.manifest.version}|${a.manifest.catalogs.size}|$timeout"
         clients[a.id]?.let { (s, c) -> if (s == stamp) return c }
-        val c = StremioAddon(a.manifestUrl, a.manifest, http, cache, timeout, scope, onRequest = { record(a.id, it) })
+        val bridge = extensionBridge
+        val c = if (ExtensionBridge.handles(a.manifestUrl) && bridge != null) {
+            bridge.client(a, timeout) { record(a.id, it) }
+        } else {
+            StremioAddon(a.manifestUrl, a.manifest, http, cache, timeout, scope, onRequest = { record(a.id, it) })
+        }
         clients[a.id] = stamp to c
         return c
     }
@@ -290,7 +305,8 @@ class AddonRepository(context: Context) {
         val now = System.currentTimeMillis()
         if (!force && now - list.value.lastAutoCheck < 24 * 3600_000L) return@withContext
         store.update { it.copy(lastAutoCheck = now) }
-        list.value.addons.map { a ->
+        // Extensions are checked by their own repositories, not by manifest URL.
+        list.value.addons.filterNot { ExtensionBridge.handles(it.manifestUrl) }.map { a ->
             async {
                 val started = System.currentTimeMillis()
                 val result = runCatching { StremioAddon.fetchManifest(http, a.manifestUrl, (a.timeoutSec ?: defaultTimeoutSec) * 1000) }

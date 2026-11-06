@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ext_title">CloudStream extensions</string>
+    <string name="ext_refresh">Check for updates</string>
+    <string name="ext_warning">Extensions are code that runs inside ORCA Player with its access to the network and its files. ORCA Player provides no sources and suggests none.</string>
+    <string name="ext_add_repo">Add a repository</string>
+    <string name="ext_repo_hint">repo.json link or cloudstreamrepo:// link</string>
+    <string name="ext_add">Add</string>
+    <string name="ext_repos">Repositories</string>
+    <string name="ext_repo_error">Last check failed: %1$s</string>
+    <string name="ext_auto_update">Update extensions automatically</string>
+    <string name="ext_auto_update_summary">When the app starts, on Wi-Fi only</string>
+    <string name="ext_search">Search extensions</string>
+    <string name="ext_empty_title">No repositories</string>
+    <string name="ext_empty_message">Paste the link of a repository you trust to see its extensions</string>
+    <string name="ext_trust_title">Only add repositories you trust</string>
+    <string name="ext_trust_message">Extensions from this repository run inside the app with its access. You are responsible for what you add and for having the right to watch what it offers.</string>
+    <string name="ext_trust_accept">I trust this repository</string>
+    <string name="ext_remove_repo_title">Remove %1$s?</string>
+    <string name="ext_remove_repo_message">Its extensions are uninstalled too</string>
+    <string name="ext_failed">Couldn\'t do that: %1$s</string>
+    <string name="ext_status_down">Not working</string>
+    <string name="ext_status_slow">Slow</string>
+    <string name="ext_status_beta">Beta</string>
+    <string name="ext_authors">By %1$s</string>
+    <string name="ext_load_failed">Couldn\'t load: %1$s</string>
+    <string name="ext_incompatible">Needs a newer version of ORCA Player</string>
+    <string name="ext_working">Working…</string>
+    <string name="ext_install">Install</string>
+    <string name="ext_update">Update</string>
+    <string name="ext_uninstall">Uninstall</string>
+    <plurals name="ext_updates">
+        <item quantity="one">%1$d update</item>
+        <item quantity="other">%1$d updates</item>
+    </plurals>
+    <plurals name="ext_count">
+        <item quantity="one">%1$d extension</item>
+        <item quantity="other">%1$d extensions</item>
+    </plurals>
+    <plurals name="ext_update_all">
+        <item quantity="one">Update %1$d extension</item>
+        <item quantity="other">Update all %1$d</item>
+    </plurals>
+</resources>
