@@ -24,6 +24,8 @@ data class MediaPrefs(
     val audioDelayMs: Long? = null,
     val decoder: String? = null,
     val abLoop: AbLoop? = null,
+    /** Picture filters for this video (20.6). */
+    val filter: VideoFilter? = null,
 ) {
     val isEmpty: Boolean get() = this == MediaPrefs()
 
@@ -40,6 +42,7 @@ data class MediaPrefs(
         audioDelayMs = audioDelayMs ?: fallback.audioDelayMs,
         decoder = decoder ?: fallback.decoder,
         abLoop = abLoop ?: fallback.abLoop,
+        filter = filter ?: fallback.filter,
     )
 }
 

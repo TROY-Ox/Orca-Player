@@ -105,6 +105,10 @@ licensee {
     allow("LGPL-2.1-or-later")
     allow("LGPL-3.0-only")
     allow("LGPL-3.0-or-later")
+    allowUrl("https://opensource.org/license/mit") { because("The MIT licence, published under another URL") }
+    allowUrl("https://developer.android.com/studio/terms.html") { because("Google Play services Cast SDK, for Chromecast (20.7)") }
+    allowUrl("https://www.gnu.org/licenses/old-licenses/lgpl-2.1.en.html") { because("libVLC for Android, LGPL-2.1-or-later, loaded as a separate library (20.8)") }
+    allowUrl("https://www.bouncycastle.org/licence.html") { because("The Bouncy Castle licence is the MIT licence") }
 }
 
 // Alias used by CI: fails if any dependency of the standard release build is GPL-only
@@ -127,6 +131,14 @@ dependencies {
     implementation(project(":player:subtitles"))
     implementation(project(":tools"))
     implementation(project(":downloads"))
+    implementation(project(":vault"))
+    implementation(project(":sources:network"))
+    implementation(project(":library"))
+    implementation(libs.libvlc)
+    implementation(libs.play.services.cast)
+    implementation(libs.androidx.mediarouter)
+    implementation(libs.tink.android)
+    implementation(libs.okhttp)
     implementation(libs.androidx.work.runtime)
     implementation(libs.androidx.biometric)
     "extendedImplementation"(project(":sources:cloudstream"))

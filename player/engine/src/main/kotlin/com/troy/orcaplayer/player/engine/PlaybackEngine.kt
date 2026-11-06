@@ -56,6 +56,15 @@ class PlaybackEngine private constructor(context: Context) {
     /** The one software audio chain, shared by every player instance. */
     val audioChain = AudioChain()
 
+    /** Audio delay per output device (10.6). */
+    val audioDelay = AudioDelayController(app)
+
+    // Picture filters (20.6) and audio-only mode (20.3).
+    private var filter = com.troy.orcaplayer.core.model.VideoFilter()
+    private var filterSkipHdr = true
+    private val _audioOnly = MutableStateFlow(false)
+    val audioOnly: StateFlow<Boolean> = _audioOnly.asStateFlow()
+
     private val _stats = MutableStateFlow(PlaybackStats())
     val stats: StateFlow<PlaybackStats> = _stats.asStateFlow()
 
@@ -108,7 +117,7 @@ class PlaybackEngine private constructor(context: Context) {
                 .setEnableFloatOutput(enableFloatOutput)
                 .setAudioProcessors(arrayOf(FxAudioProcessor(audioChain)))
                 .build()
-            return PassthroughGate(sink) { passthroughAllowed }
+            return AudioDelaySink(PassthroughGate(sink) { passthroughAllowed }) { audioDelay.delayUs }
         }
     }
 
@@ -135,7 +144,7 @@ class PlaybackEngine private constructor(context: Context) {
         val resolving = ResolvingDataSource.Factory(offline) { spec: DataSpec -> withStreamHeaders(spec) }
         val extractors = DefaultExtractorsFactory()
             .setConstantBitrateSeekingEnabled(true)
-        val sources = DefaultMediaSourceFactory(resolving, extractors)
+        val sources = DefaultMediaSourceFactory(SchemeRoutingDataSource.Factory(resolving), extractors)
         val selector = DefaultTrackSelector(app)
         // With spatial audio on, multichannel tracks are kept when the device can spatialize them.
         selector.setParameters(selector.buildUponParameters().setConstrainAudioChannelCountToDeviceCapabilities(true))
@@ -215,10 +224,35 @@ class PlaybackEngine private constructor(context: Context) {
         player.videoChangeFrameRateStrategy = frameStrategy
     }
 
-    /** GPU tone mapping applies only to HDR video on screens that can't show HDR. */
+    /** Picture filters for the video that plays now. Effects are re-applied at once. */
+    fun setFilter(value: com.troy.orcaplayer.core.model.VideoFilter, skipHdr: Boolean) {
+        filter = value
+        filterSkipHdr = skipHdr
+        player.videoFormat?.let(::onVideoFormat) ?: run {
+            if (!value.isNeutral) runCatching { player.setVideoEffects(VideoFilters.effects(value)) }.onSuccess { effectsApplied = true }
+        }
+    }
+
+    /** Whether filters are in use for the current video (they may be skipped for HDR). */
+    private val _filtersActive = MutableStateFlow(false)
+    val filtersActive: StateFlow<Boolean> = _filtersActive.asStateFlow()
+
+    /** Plays the sound only: the video track is turned off, so the decoder and screen can rest (20.3). */
+    fun setAudioOnly(on: Boolean) {
+        if (_audioOnly.value == on) return
+        _audioOnly.value = on
+        player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
+            .setTrackTypeDisabled(C.TRACK_TYPE_VIDEO, on)
+            .build()
+    }
+
+    /** GPU tone mapping applies only to HDR video on screens that can't show HDR; filters to SDR video unless allowed. */
     private fun onVideoFormat(format: Format) {
         val hdr = hdrKindOf(format) != HdrKind.SDR
-        val want = if (hdr && !displayHdr) ToneMapping.effects(toneMap, toneBrightness) else emptyList()
+        val tone = if (hdr && !displayHdr) ToneMapping.effects(toneMap, toneBrightness) else emptyList()
+        val filters = if (hdr && filterSkipHdr) emptyList() else VideoFilters.effects(filter)
+        _filtersActive.value = filters.isNotEmpty()
+        val want = tone + filters
         if (want.isEmpty() && !effectsApplied) return
         runCatching { player.setVideoEffects(want) }
         effectsApplied = want.isNotEmpty()

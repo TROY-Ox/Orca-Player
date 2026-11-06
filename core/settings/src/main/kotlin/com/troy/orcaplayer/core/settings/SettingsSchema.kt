@@ -239,6 +239,7 @@ object Settings {
         *ToolSettings.all.toTypedArray(),
         *SourceSettings.all.toTypedArray(),
         *DownloadSettings.all.toTypedArray(),
+        *ExtrasSettings.all.toTypedArray(),
         ReduceMotion, HighContrast, SolidPanels,
         Language, Digits, MirrorTimeline,
         SavingEnabled,

@@ -15,6 +15,10 @@ data class LaunchOptions(
     /** External subtitle files (URIs) with optional names, loaded when the video starts. */
     val subtitles: List<Pair<String, String?>> = emptyList(),
     val enabledSubtitle: String? = null,
+    /** Start in audio-only mode (20.3), for example from the music list. */
+    val audioOnly: Boolean = false,
+    /** Started from inside the app, so leaving the player may shrink it to the mini player (20.5). */
+    val inApp: Boolean = false,
 )
 
 /**

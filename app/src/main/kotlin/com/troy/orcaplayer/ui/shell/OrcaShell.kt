@@ -133,6 +133,7 @@ private fun MainShell(navLayout: NavLayout, isTv: Boolean, appVm: AppViewModel) 
     val values by appVm.settings.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val profilesVm: ProfilesViewModel = hiltViewModel()
+    val miniVm: com.troy.orcaplayer.ui.mini.MiniPlayerViewModel = hiltViewModel()
     var gateThen by remember { mutableStateOf<(() -> Unit)?>(null) }
     val guard = remember(kids) { KidsGuard(kids) { after -> if (kids) gateThen = after else after() } }
 
@@ -157,11 +158,15 @@ private fun MainShell(navLayout: NavLayout, isTv: Boolean, appVm: AppViewModel) 
                 when (style) {
                     NavStyle.BOTTOM -> Column(Modifier.fillMaxSize()) {
                         Box(Modifier.weight(1f)) { OrcaNavHost(nav, tabs.first().route) }
+                        com.troy.orcaplayer.ui.mini.MiniPlayerBar(miniVm)
                         if (onTabRoute) OrcaBottomBar(tabs, route, onSelect)
                     }
                     NavStyle.RAIL, NavStyle.TV_RAIL -> Row(Modifier.fillMaxSize()) {
                         if (onTabRoute) OrcaRail(tabs, route, onSelect, tv = style == NavStyle.TV_RAIL)
-                        Box(Modifier.weight(1f)) { OrcaNavHost(nav, tabs.first().route) }
+                        Column(Modifier.weight(1f)) {
+                            Box(Modifier.weight(1f)) { OrcaNavHost(nav, tabs.first().route) }
+                            com.troy.orcaplayer.ui.mini.MiniPlayerBar(miniVm)
+                        }
                     }
                 }
                 ClipboardOffer(
@@ -292,7 +297,13 @@ private fun OrcaNavHost(nav: NavHostController, start: String) {
                         },
                     )
                     MainTab.SEARCH -> SearchScreen(openSettings, openProfiles, openTitle)
-                    MainTab.LOCAL -> LocalScreen(openSettings, openProfiles, openUrlPlayer, onOpenDownloads = { openDownloads("COMPLETED") })
+                    MainTab.LOCAL -> LocalScreen(
+                        openSettings, openProfiles, openUrlPlayer,
+                        onOpenDownloads = { openDownloads("COMPLETED") },
+                        onOpenPrivate = { if (!guard.active) nav.navigate(Routes.PRIVATE_FOLDER) { launchSingleTop = true } },
+                        onOpenLibrary = { nav.navigate(Routes.LIBRARY) { launchSingleTop = true } },
+                        onOpenNetwork = { if (!guard.active) nav.navigate(Routes.NETWORK_SHARES) { launchSingleTop = true } },
+                    )
                     MainTab.TOOLS -> {
                         val layout by appVm.toolsLayout.collectAsStateWithLifecycle()
                         ToolsScreen(
@@ -315,6 +326,7 @@ private fun OrcaNavHost(nav: NavHostController, start: String) {
                 onOpenDecoderCheck = { nav.navigate(Routes.DECODER_CHECK) { launchSingleTop = true } },
                 onOpenHomeRows = { nav.navigate(Routes.HOME_ROWS) { launchSingleTop = true } },
                 onOpenProfiles = { nav.navigate(Routes.PROFILES) { launchSingleTop = true } },
+                onOpenTrakt = { nav.navigate(Routes.TRAKT) { launchSingleTop = true } },
             )
         }
         composable(Routes.MY_LIST) { MyListScreen(onBack = back, onOpenDetails = openDetails) }
@@ -349,6 +361,31 @@ private fun OrcaNavHost(nav: NavHostController, start: String) {
             ),
         ) { TitleScreen(onBack = back) }
         composable(Routes.LICENCES) { LicencesScreen(onBack = back) }
+        composable(Routes.PRIVATE_FOLDER) { com.troy.orcaplayer.ui.local.PrivateFolderScreen(onBack = back) }
+        composable(Routes.LIBRARY) {
+            com.troy.orcaplayer.ui.library.LibraryScreen(
+                onBack = back,
+                onOpenMovie = { nav.navigate(Routes.libraryItem(it)) },
+                onOpenShow = { nav.navigate(Routes.libraryShow(it)) },
+            )
+        }
+        composable(Routes.LIBRARY_MOVIE, arguments = listOf(navArgument("id") { type = NavType.StringType })) { e ->
+            com.troy.orcaplayer.ui.library.LibraryMovieScreen(id = e.arguments?.getString("id").orEmpty(), onBack = back)
+        }
+        composable(Routes.LIBRARY_SHOW, arguments = listOf(navArgument("id") { type = NavType.StringType })) { e ->
+            com.troy.orcaplayer.ui.library.LibraryShowScreen(
+                showKey = e.arguments?.getString("id").orEmpty(),
+                onBack = back,
+                onOpenItem = { nav.navigate(Routes.libraryItem(it)) },
+            )
+        }
+        composable(Routes.TRAKT) { com.troy.orcaplayer.trakt.TraktScreen(onBack = back) }
+        composable(Routes.NETWORK_SHARES) {
+            com.troy.orcaplayer.ui.network.NetworkSharesScreen(onBack = back, onOpen = { nav.navigate(Routes.share(it)) })
+        }
+        composable(Routes.SHARE_BROWSE, arguments = listOf(navArgument("id") { type = NavType.StringType })) { e ->
+            com.troy.orcaplayer.ui.network.ShareBrowserScreen(id = e.arguments?.getString("id").orEmpty(), onBack = back)
+        }
         composable(Routes.EXTENSIONS) { com.troy.orcaplayer.flavor.Flavor.ExtensionsScreen(onBack = back) }
         composable(Routes.DOWNLOADS, arguments = listOf(navArgument("tab") { type = NavType.StringType; defaultValue = "" })) { e ->
             com.troy.orcaplayer.ui.downloads.DownloadsScreen(

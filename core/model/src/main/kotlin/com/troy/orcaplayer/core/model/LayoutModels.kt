@@ -74,6 +74,7 @@ data class PlayerLayout(val controls: List<PlayerControlConfig>) {
                 PlayerControlConfig(PlayerControl.TITLE, ControlSlot.TOP_START),
                 PlayerControlConfig(PlayerControl.TRACKS, ControlSlot.TOP_END),
                 PlayerControlConfig(PlayerControl.SUBTITLES, ControlSlot.TOP_END),
+                PlayerControlConfig(PlayerControl.CAST, ControlSlot.TOP_END),
                 PlayerControlConfig(PlayerControl.TOOLS, ControlSlot.TOP_END),
                 PlayerControlConfig(PlayerControl.PREVIOUS, ControlSlot.CENTER),
                 PlayerControlConfig(PlayerControl.REWIND, ControlSlot.CENTER),
@@ -147,6 +148,10 @@ enum class ToolId(
     PER_VIDEO(false, true),
     SKIP_MARKS(false, true),
     DOWNLOAD(false, true),
+    AUDIO_ONLY(false, true),
+    FILTERS(false, true),
+    AUDIO_DELAY(false, true),
+    FLOATING_WINDOW(false, true),
     DECODER_CHECK(true, false),
     URL_PLAYER(true, false),
 }

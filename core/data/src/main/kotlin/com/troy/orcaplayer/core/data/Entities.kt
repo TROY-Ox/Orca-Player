@@ -100,3 +100,74 @@ data class WatchTimeEntity(val profileId: String, val day: String, val ms: Long)
 /** A skip range the user marked once for a series ("Mark intro", 17.6). */
 @Entity(tableName = "skip_marks", primaryKeys = ["seriesKey", "kind"])
 data class SkipMarkEntity(val seriesKey: String, val kind: String, val startMs: Long, val endMs: Long, val updatedAt: Long)
+
+/**
+ * One video in the media library (20.1): a local file or a file on a network share, with what
+ * its name says and, once matched, what TMDB says.
+ */
+@Entity(tableName = "library_items", indices = [Index("showKey"), Index("origin")])
+data class LibraryItemEntity(
+    /** Stable for the same file: a hash of its URI. */
+    @PrimaryKey val id: String,
+    val uri: String,
+    val fileName: String,
+    val folder: String,
+    /** "local", or the network share's connection id. */
+    val origin: String,
+    val sizeBytes: Long,
+    val durationMs: Long,
+    /** MOVIE or EPISODE. */
+    val kind: String,
+    /** The movie's title, or the show's title for an episode. */
+    val title: String,
+    val year: Int?,
+    val season: Int?,
+    val episode: Int?,
+    val showKey: String?,
+    val tmdbId: Int?,
+    val overview: String?,
+    val poster: String?,
+    val backdrop: String?,
+    val rating: Double?,
+    val genres: String?,
+    val episodeTitle: String?,
+    val still: String?,
+    val collectionId: Int?,
+    val collectionName: String?,
+    val imdbId: String?,
+    /** Changed by hand with Fix match or Edit; scans leave it alone. */
+    val manual: Boolean,
+    /** When TMDB was last asked about it; 0 when never. */
+    val matchedAt: Long,
+    val addedAt: Long,
+    val seenAt: Long,
+)
+
+/** A series in the library, grouping its episodes by [showKey]. */
+@Entity(tableName = "library_shows")
+data class LibraryShowEntity(
+    @PrimaryKey val showKey: String,
+    val name: String,
+    val year: Int?,
+    val tmdbId: Int?,
+    val overview: String?,
+    val poster: String?,
+    val backdrop: String?,
+    val rating: Double?,
+    val genres: String?,
+    val manual: Boolean,
+    val matchedAt: Long,
+)
+
+/** Watched marks for library items, per profile. */
+@Entity(
+    tableName = "library_watched",
+    primaryKeys = ["profileId", "itemId"],
+    foreignKeys = [ForeignKey(entity = ProfileEntity::class, parentColumns = ["id"], childColumns = ["profileId"], onDelete = ForeignKey.CASCADE)],
+    indices = [Index("profileId")],
+)
+data class LibraryWatchedEntity(
+    val profileId: String,
+    val itemId: String,
+    val at: Long,
+)

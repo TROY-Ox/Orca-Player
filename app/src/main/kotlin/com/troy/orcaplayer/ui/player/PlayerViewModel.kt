@@ -9,6 +9,9 @@ import androidx.lifecycle.viewModelScope
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
+import com.troy.orcaplayer.cast.CastController
+import com.troy.orcaplayer.cast.CastProblem
+import com.troy.orcaplayer.cast.CastState
 import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
@@ -66,8 +69,10 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -118,6 +123,8 @@ data class ResumePill(val positionMs: Long, val ask: Boolean, val shownAt: Long 
 sealed interface PlayerEvent {
     data object Finish : PlayerEvent
     data class Message(val text: String) : PlayerEvent
+    /** Hand this item to the libVLC engine (20.8). */
+    data class OpenInVlc(val item: PlayItem, val positionMs: Long) : PlayerEvent
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -155,6 +162,15 @@ class PlayerViewModel @Inject constructor(
     val extras = PlayerExtras(viewModelScope, settingsRepo, { profiles.currentProfileId.value }, { settings.value }).also { ex ->
         ex.onNightChanged = { on -> sound.setNightCompressor(on && settings.value[ToolSettings.NightCompressor]) }
     }
+
+    /** Picture filters and audio delay (20.6, 10.6). */
+    val picture = PlayerPicture(viewModelScope, engine, settingsRepo, profiles.currentProfileId, extras)
+
+    /** Audio-only mode (20.3): the video track is off and the screen shows a music-style view. */
+    val audioOnly: StateFlow<Boolean> = engine.audioOnly
+
+    /** Sound keeps playing with the screen off or the app in the background while this is on. */
+    fun setAudioOnly(on: Boolean) = engine.setAudioOnly(on)
 
     /** Per-video values for the screen (aspect, zoom, brightness), with a counter so each start applies once. */
     private val _applied = MutableStateFlow(0 to MediaPrefs())
@@ -246,16 +262,21 @@ class PlayerViewModel @Inject constructor(
         }
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            scrobbleStop()
             onItemChanged()
+            // While casting, the TV follows the queue.
+            if (cast.state.value != null && reason != Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED) handOverToCast(0)
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             if (!isPlaying) saveNow()
+            if (isPlaying) scrobble("start") else if (attached?.playbackState != Player.STATE_ENDED) scrobble("pause")
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
             if (playbackState == Player.STATE_ENDED) {
                 saveNow()
+                scrobble("stop", 100.0)
                 val p = attached ?: return
                 if (!p.hasNextMediaItem() && p.repeatMode == Player.REPEAT_MODE_OFF && !binge.onEnded(p, settings.value)) _events.tryEmit(PlayerEvent.Finish)
             }
@@ -263,9 +284,16 @@ class PlayerViewModel @Inject constructor(
 
         override fun onPlayerError(error: PlaybackException) {
             if (tryFallback()) return
+            // Formats Media3 can't read go straight to the libVLC engine when that's on (3.5).
+            if (error.errorCode in VLC_ERRORS && settings.value[com.troy.orcaplayer.core.settings.ExtrasSettings.VlcFallback] && openInVlc()) return
             _ui.update { it.copy(error = error.errorCodeName) }
         }
     }
+
+    // Chromecast (20.7)
+    val cast: CastController = CastController.get(context)
+    val castState: StateFlow<CastState?> = cast.state
+    val castProblem: StateFlow<CastProblem?> = cast.problem
 
     init {
         viewModelScope.launch {
@@ -284,11 +312,19 @@ class PlayerViewModel @Inject constructor(
                 if (!withContext(Dispatchers.IO) { VideoCaps.hasDolbyVisionDecoder() }) _events.emit(PlayerEvent.Message(MSG_DV5))
             }
         }
+        cast.onSessionStarted = { handOverToCast(null) }
+        cast.onSessionEnded = { pos -> attached?.let { p -> if (pos > 0) p.seekTo(pos) } }
+        viewModelScope.launch {
+            settings.map { it[com.troy.orcaplayer.core.settings.ExtrasSettings.CastEnabled] }
+                .distinctUntilChanged()
+                .collect { on -> if (on) cast.start() }
+        }
         viewModelScope.launch {
             engine.playerFlow.collect { p ->
                 attached?.removeListener(listener)
                 p.addListener(listener)
                 attached = p
+                if (cast.state.value != null) handOverToCast(null)
                 extras.armLoop(p)
                 _tracks.value = p.currentTracks
                 refresh()
@@ -344,7 +380,7 @@ class PlayerViewModel @Inject constructor(
     /** Handles the launch intent (or a new one). Returns false through [events] when there's nothing to play. */
     fun start(intent: Intent) {
         viewModelScope.launch {
-            val fromApp = PlayerLaunch.take(intent)
+            val fromApp = PlayerLaunch.take(intent)?.let { (r, o) -> r to o.copy(inApp = true) }
             val request = fromApp ?: if (intent.action == Intent.ACTION_VIEW || intent.action == Intent.ACTION_SEND) {
                 withContext(Dispatchers.IO) { runCatching { ExternalIntents.parse(intent, context.contentResolver) }.getOrNull() }
             } else {
@@ -355,6 +391,7 @@ class PlayerViewModel @Inject constructor(
                 // Reopened from the notification or after the screen was recreated: keep playing.
                 engine.queue.isNotEmpty() && (intent.action == PlaybackService.ACTION_OPEN_PLAYER || started || intent.action == null) -> {
                     started = true
+                    if (intent.action == PlaybackService.ACTION_OPEN_PLAYER) options = options.copy(inApp = true)
                     handledIndex = engine.player.currentMediaItemIndex
                     refresh()
                 }
@@ -371,6 +408,9 @@ class PlayerViewModel @Inject constructor(
         val v = settingsRepo.values(request.profileId).first()
         val first = request.items[request.startIndex]
         val prefs = extras.onMediaStarted(first)
+        picture.onMediaStarted(prefs)
+        // A new queue starts with the picture, unless it was opened as audio (20.3).
+        engine.setAudioOnly(opts.audioOnly)
         engine.setDecoderMode(opts.decoderMode ?: DecoderMode.fromKey(prefs.decoder ?: v[PlayerSettings.Decoder]))
         extras.applySchedule()
         explicitStart = first.startPositionMs?.let { request.startIndex to it }
@@ -455,6 +495,7 @@ class PlayerViewModel @Inject constructor(
             val v = settings.value
             sound.onMediaStarted(item)
             val prefs = extras.onMediaStarted(item)
+            picture.onMediaStarted(prefs)
             prefs.subtitleDelayMs?.let { _subtitleDelayMs.value = it }
             applyTrackPrefs(p, prefs)
             prefs.speed?.let { engine.setSpeed(it) }
@@ -825,6 +866,85 @@ class PlayerViewModel @Inject constructor(
     }
 
     /** Moves to the next stream of the same video, from the same position. False when there's none to try. */
+    // Chromecast (20.7)
+
+    /** Sends what's playing to the TV, from [positionMs] or where the phone is, and pauses the phone. */
+    fun handOverToCast(positionMs: Long?) {
+        val p = attached ?: return
+        val item = currentItem() ?: return
+        val position = positionMs ?: p.currentPosition
+        saveNow()
+        p.pause()
+        viewModelScope.launch { cast.load(item, position) }
+    }
+
+    fun castNext() {
+        val p = attached ?: return
+        if (p.hasNextMediaItem()) p.seekToNextMediaItem()
+    }
+
+    fun castPrevious() {
+        val p = attached ?: return
+        if (p.hasPreviousMediaItem()) p.seekToPreviousMediaItem()
+    }
+
+    // Trakt scrobbling (20.9)
+
+    private val trakt = com.troy.orcaplayer.trakt.Trakt.get(context)
+    private var scrobbledItem: PlayItem? = null
+
+    private fun traktRef(item: PlayItem): com.troy.orcaplayer.trakt.TraktRef? {
+        val key = item.key as? com.troy.orcaplayer.core.model.MediaKey.SourceContent
+        return com.troy.orcaplayer.trakt.Trakt.refFor(
+            titleType = item.titleType,
+            titleId = item.externalIds["imdb"] ?: key?.titleId,
+            episodeId = key?.episodeId,
+            tmdb = item.externalIds["tmdb"]?.toIntOrNull(),
+            season = item.episode?.season,
+            episode = item.episode?.number,
+        )
+    }
+
+    private fun scrobble(action: String, progress: Double? = null) {
+        val v = settings.value
+        if (!v[com.troy.orcaplayer.core.settings.ExtrasSettings.TraktScrobble] || trakt.tokens.value == null) return
+        val clientId = v[com.troy.orcaplayer.core.settings.ExtrasSettings.TraktClientId].trim()
+        if (clientId.isEmpty()) return
+        val item = currentItem() ?: return
+        val ref = traktRef(item) ?: return
+        val p = attached ?: return
+        val pct = progress ?: if (p.duration > 0) p.currentPosition * 100.0 / p.duration else 0.0
+        scrobbledItem = if (action == "start") item else null
+        val secret = v[com.troy.orcaplayer.core.settings.ExtrasSettings.TraktClientSecret].trim()
+        viewModelScope.launch { trakt.scrobble(action, ref, pct, clientId, secret) }
+    }
+
+    /** The item that was playing has been left: tell Trakt where it stopped. */
+    private fun scrobbleStop() {
+        val item = scrobbledItem ?: return
+        scrobbledItem = null
+        val v = settings.value
+        val ref = traktRef(item) ?: return
+        val p = attached
+        val pct = if (p != null && p.duration > 0) p.currentPosition * 100.0 / p.duration else 0.0
+        val clientId = v[com.troy.orcaplayer.core.settings.ExtrasSettings.TraktClientId].trim()
+        val secret = v[com.troy.orcaplayer.core.settings.ExtrasSettings.TraktClientSecret].trim()
+        ((context.applicationContext as? com.troy.orcaplayer.OrcaApp)?.appScope ?: viewModelScope).launch { trakt.scrobble("stop", ref, pct, clientId, secret) }
+    }
+
+    /** Opens the current item in the libVLC engine; false when it can't take it (the private folder). */
+    fun openInVlc(): Boolean {
+        val p = attached ?: return false
+        val item = currentItem() ?: return false
+        if (!com.troy.orcaplayer.ui.vlc.VlcPlayerActivity.canOpen(item.uri)) return false
+        val position = maxOf(p.currentPosition, lastGoodPosition)
+        saveNow()
+        p.pause()
+        _ui.update { it.copy(error = null) }
+        _events.tryEmit(PlayerEvent.OpenInVlc(item, position))
+        return true
+    }
+
     private fun tryFallback(): Boolean {
         val p = attached ?: return false
         val v = settings.value
@@ -962,6 +1082,9 @@ class PlayerViewModel @Inject constructor(
     }
 
     override fun onCleared() {
+        scrobbleStop()
+        cast.onSessionStarted = null
+        cast.onSessionEnded = null
         saveNow()
         binge.flush(profiles.currentProfileId.value)
         extras.release()
@@ -977,5 +1100,13 @@ class PlayerViewModel @Inject constructor(
         const val MSG_DV5 = "dv5"
         const val MSG_LOAD_FAILED = "load_failed"
         const val MSG_FALLBACK = "fallback"
+        private val VLC_ERRORS = setOf(
+            PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED,
+            PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED,
+            PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED,
+            PlaybackException.ERROR_CODE_DECODING_FORMAT_EXCEEDS_CAPABILITIES,
+            PlaybackException.ERROR_CODE_DECODER_INIT_FAILED,
+            PlaybackException.ERROR_CODE_AUDIO_TRACK_INIT_FAILED,
+        )
     }
 }

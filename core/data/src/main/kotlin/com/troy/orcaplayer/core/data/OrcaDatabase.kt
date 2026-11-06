@@ -8,8 +8,9 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [ProfileEntity::class, ResumePositionEntity::class, MyListEntity::class, WatchTimeEntity::class, SkipMarkEntity::class],
-    version = 2,
+    entities = [ProfileEntity::class, ResumePositionEntity::class, MyListEntity::class, WatchTimeEntity::class, SkipMarkEntity::class,
+        LibraryItemEntity::class, LibraryShowEntity::class, LibraryWatchedEntity::class],
+    version = 3,
     exportSchema = true,
 )
 abstract class OrcaDatabase : RoomDatabase() {
@@ -18,6 +19,7 @@ abstract class OrcaDatabase : RoomDatabase() {
     abstract fun myList(): MyListDao
     abstract fun watchTime(): WatchTimeDao
     abstract fun skipMarks(): SkipMarkDao
+    abstract fun library(): LibraryDao
 
     companion object {
         const val NAME = "orca.db"
@@ -48,9 +50,34 @@ abstract class OrcaDatabase : RoomDatabase() {
             }
         }
 
+        /** Phase 9: the media library. */
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS library_items (id TEXT NOT NULL, uri TEXT NOT NULL, fileName TEXT NOT NULL, folder TEXT NOT NULL, " +
+                        "origin TEXT NOT NULL, sizeBytes INTEGER NOT NULL, durationMs INTEGER NOT NULL, kind TEXT NOT NULL, title TEXT NOT NULL, " +
+                        "year INTEGER, season INTEGER, episode INTEGER, showKey TEXT, tmdbId INTEGER, overview TEXT, poster TEXT, backdrop TEXT, " +
+                        "rating REAL, genres TEXT, episodeTitle TEXT, still TEXT, collectionId INTEGER, collectionName TEXT, imdbId TEXT, " +
+                        "manual INTEGER NOT NULL, matchedAt INTEGER NOT NULL, addedAt INTEGER NOT NULL, seenAt INTEGER NOT NULL, PRIMARY KEY(id))",
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_library_items_showKey ON library_items (showKey)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_library_items_origin ON library_items (origin)")
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS library_shows (showKey TEXT NOT NULL, name TEXT NOT NULL, year INTEGER, tmdbId INTEGER, " +
+                        "overview TEXT, poster TEXT, backdrop TEXT, rating REAL, genres TEXT, manual INTEGER NOT NULL, matchedAt INTEGER NOT NULL, " +
+                        "PRIMARY KEY(showKey))",
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS library_watched (profileId TEXT NOT NULL, itemId TEXT NOT NULL, at INTEGER NOT NULL, " +
+                        "PRIMARY KEY(profileId, itemId), FOREIGN KEY(profileId) REFERENCES profiles(id) ON UPDATE NO ACTION ON DELETE CASCADE)",
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_library_watched_profileId ON library_watched (profileId)")
+            }
+        }
+
         fun create(context: Context): OrcaDatabase =
             Room.databaseBuilder(context.applicationContext, OrcaDatabase::class.java, NAME)
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .build()
     }
 }

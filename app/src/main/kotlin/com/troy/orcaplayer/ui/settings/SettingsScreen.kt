@@ -93,6 +93,7 @@ fun SettingsScreen(
     onOpenDecoderCheck: () -> Unit,
     onOpenHomeRows: () -> Unit = {},
     onOpenProfiles: () -> Unit = {},
+    onOpenTrakt: () -> Unit = {},
     vm: SettingsViewModel = hiltViewModel(),
 ) {
     val values by vm.values.collectAsStateWithLifecycle()
@@ -181,6 +182,9 @@ fun SettingsScreen(
                                 }
                                 if (section == SettingsSection.PROFILES) {
                                     NavRow(stringResource(R.string.profiles_manage), stringResource(R.string.profiles_manage_summary), onOpenProfiles)
+                                }
+                                if (section == SettingsSection.SOURCES) {
+                                    NavRow(stringResource(R.string.trakt_title), stringResource(R.string.trakt_summary), onOpenTrakt)
                                 }
                             }
                         }

@@ -1,0 +1,12 @@
+# smbj, sshj and Bouncy Castle look some classes up by name.
+-keep class com.hierynomus.** { *; }
+-keep class net.schmizz.** { *; }
+-keep class org.bouncycastle.** { *; }
+-dontwarn javax.naming.**
+-dontwarn org.slf4j.**
+-dontwarn org.ietf.jgss.**
+-dontwarn javax.el.**
+-dontwarn net.engio.mbassy.**
+-dontwarn org.bouncycastle.**
+-dontwarn com.jcraft.jzlib.**
+-dontwarn sun.security.**

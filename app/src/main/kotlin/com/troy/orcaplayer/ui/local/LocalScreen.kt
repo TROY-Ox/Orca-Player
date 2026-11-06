@@ -8,6 +8,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Lan
+import androidx.compose.material.icons.filled.VideoLibrary
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -96,9 +102,18 @@ import com.troy.orcaplayer.core.settings.R as SR
 import androidx.compose.material.icons.filled.Download
 
 /** Local tab: folders or all videos, as a list or grid, with sort, filter and search (section 6). */
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-fun LocalScreen(onOpenSettings: () -> Unit, onOpenProfiles: () -> Unit, onOpenUrlPlayer: () -> Unit = {}, onOpenDownloads: () -> Unit = {}, vm: LocalViewModel = hiltViewModel()) {
+fun LocalScreen(
+    onOpenSettings: () -> Unit,
+    onOpenProfiles: () -> Unit,
+    onOpenUrlPlayer: () -> Unit = {},
+    onOpenDownloads: () -> Unit = {},
+    onOpenPrivate: () -> Unit = {},
+    onOpenNetwork: () -> Unit = {},
+    onOpenLibrary: () -> Unit = {},
+    vm: LocalViewModel = hiltViewModel(),
+) {
     val c = Troy.colors
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -110,6 +125,19 @@ fun LocalScreen(onOpenSettings: () -> Unit, onOpenProfiles: () -> Unit, onOpenUr
     var searching by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
     var sortMenu by remember { mutableStateOf(false) }
+    // File manager (20.4): long press starts selecting; null means "not selecting".
+    var selection by remember { mutableStateOf<Set<String>?>(null) }
+    val ops: FileOpsViewModel = hiltViewModel()
+    var visible by remember { mutableStateOf<List<LocalMedia>>(emptyList()) }
+    fun sel(m: LocalMedia): Boolean? = selection?.contains(m.uri)
+    val kids = com.troy.orcaplayer.ui.shell.LocalKidsGuard.current.active
+    fun toggle(m: LocalMedia) {
+        // Kids profiles can't change files (18).
+        if (kids) return
+        val now = selection ?: emptySet()
+        val next = if (m.uri in now) now - m.uri else now + m.uri
+        selection = next.takeIf { it.isNotEmpty() }
+    }
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { vm.refreshAccess() }
     val permissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { vm.refreshAccess() }
@@ -121,7 +149,8 @@ fun LocalScreen(onOpenSettings: () -> Unit, onOpenProfiles: () -> Unit, onOpenUr
     val filter = LocalFilter.fromKey(settings[PlayerSettings.LibraryFilter])
     val gridMin = when (settings[PlayerSettings.GridSize]) { "small" -> 120.dp; "large" -> 240.dp; else -> 168.dp }
 
-    BackHandler(enabled = folderId != null) { folderId = null }
+    BackHandler(enabled = selection != null) { selection = null }
+    BackHandler(enabled = folderId != null && selection == null) { folderId = null }
 
     val play: (List<LocalMedia>, Int) -> Unit = { list, index ->
         scope.launch { PlayerLaunch.play(context, vm.request(list, index)) }
@@ -153,15 +182,30 @@ fun LocalScreen(onOpenSettings: () -> Unit, onOpenProfiles: () -> Unit, onOpenUr
                 }
             }
         }
-        if (folderId != null) {
+        val chosen = selection?.let { set -> all.orEmpty().filter { it.uri in set } }
+        if (chosen != null) {
+            FileSelectionBar(
+                chosen = chosen,
+                allVisible = visible,
+                ops = ops,
+                onSelectAll = { selection = visible.map { it.uri }.toSet() },
+                onDone = { selection = null },
+            )
+        } else if (folderId != null) {
             BackTopBar(folderName ?: "", onBack = { folderId = null }) { Row { actions() } }
         } else {
             MainTopBar(stringResource(R.string.tab_local), onOpenSettings, onOpenProfiles) {
                 actions()
                 TroyIconButton(Icons.Filled.Link, stringResource(R.string.url_player_title), onOpenUrlPlayer)
                 TroyIconButton(Icons.Filled.CreateNewFolder, stringResource(R.string.local_add_folder), { runCatching { pickFolder.launch(null) } })
+                if (!kids && settings[com.troy.orcaplayer.core.settings.ExtrasSettings.LibraryEnabled]) {
+                    TroyIconButton(Icons.Filled.VideoLibrary, stringResource(R.string.library_title), onOpenLibrary)
+                }
+                if (!kids) TroyIconButton(Icons.Filled.Lan, stringResource(R.string.network_title), onOpenNetwork)
+                if (!kids) TroyIconButton(Icons.Filled.Lock, stringResource(R.string.vault_title), onOpenPrivate)
             }
         }
+        FileOpsHost(ops)
         if (searching) {
             TroyTextField(
                 query,
@@ -220,6 +264,7 @@ fun LocalScreen(onOpenSettings: () -> Unit, onOpenProfiles: () -> Unit, onOpenUr
             }
             else -> {
                 val list = LocalSorting.sort(if (folderId != null) filtered.filter { it.folderId == folderId } else filtered, sort)
+                visible = list
                 if (grid) {
                     LazyVerticalGrid(
                         GridCells.Adaptive(gridMin),
@@ -228,11 +273,15 @@ fun LocalScreen(onOpenSettings: () -> Unit, onOpenProfiles: () -> Unit, onOpenUr
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        itemsIndexed(list, key = { _, m -> m.uri }) { i, m -> MediaCard(m, progress[m.uri], vm.thumbnails) { play(list, i) } }
+                        itemsIndexed(list, key = { _, m -> m.uri }) { i, m ->
+                            MediaCard(m, progress[m.uri], vm.thumbnails, sel(m), { toggle(m) }) { if (selection != null) toggle(m) else play(list, i) }
+                        }
                     }
                 } else {
                     LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(bottom = 16.dp)) {
-                        itemsIndexed(list, key = { _, m -> m.uri }) { i, m -> MediaRow(m, progress[m.uri], vm.thumbnails) { play(list, i) } }
+                        itemsIndexed(list, key = { _, m -> m.uri }) { i, m ->
+                            MediaRow(m, progress[m.uri], vm.thumbnails, sel(m), { toggle(m) }) { if (selection != null) toggle(m) else play(list, i) }
+                        }
                     }
                 }
             }
@@ -289,19 +338,33 @@ private fun Thumb(media: LocalMedia?, thumbnails: Thumbnails, progress: Progress
 }
 
 @Composable
+private fun SelectMark(selected: Boolean) {
+    val c = Troy.colors
+    Icon(
+        if (selected) Icons.Filled.CheckCircle else Icons.Outlined.Circle,
+        contentDescription = stringResource(if (selected) R.string.files_selected else R.string.files_not_selected),
+        tint = if (selected) c.accent else c.text3,
+        modifier = Modifier.size(22.dp),
+    )
+}
+
+@Composable
 private fun NewDot() {
     Box(Modifier.size(8.dp).clip(CircleShape).background(Troy.colors.accent))
 }
 
 @Composable
-private fun MediaRow(m: LocalMedia, progress: Progress?, thumbnails: Thumbnails, onClick: () -> Unit) {
+private fun MediaRow(m: LocalMedia, progress: Progress?, thumbnails: Thumbnails, selected: Boolean?, onLongClick: () -> Unit, onClick: () -> Unit) {
     val c = Troy.colors
     val context = LocalContext.current
     Row(
-        Modifier.fillMaxWidth().troyFocusRing().clickable(role = Role.Button, onClick = onClick).padding(horizontal = 16.dp, vertical = 8.dp),
+        Modifier.fillMaxWidth().troyFocusRing()
+            .background(if (selected == true) c.accent.copy(alpha = 0.14f) else androidx.compose.ui.graphics.Color.Transparent)
+            .combinedClickable(role = Role.Button, onLongClick = onLongClick, onClick = onClick).padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        if (selected != null) SelectMark(selected)
         Thumb(m, thumbnails, progress, Modifier.width(128.dp).aspectRatio(16f / 9f))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -320,13 +383,18 @@ private fun MediaRow(m: LocalMedia, progress: Progress?, thumbnails: Thumbnails,
 }
 
 @Composable
-private fun MediaCard(m: LocalMedia, progress: Progress?, thumbnails: Thumbnails, onClick: () -> Unit) {
+private fun MediaCard(m: LocalMedia, progress: Progress?, thumbnails: Thumbnails, selected: Boolean?, onLongClick: () -> Unit, onClick: () -> Unit) {
     val c = Troy.colors
     Column(
-        Modifier.troyFocusRing().clickable(role = Role.Button, onClick = onClick),
+        Modifier.troyFocusRing()
+            .background(if (selected == true) c.accent.copy(alpha = 0.14f) else androidx.compose.ui.graphics.Color.Transparent, TroyShapes.Control)
+            .combinedClickable(role = Role.Button, onLongClick = onLongClick, onClick = onClick),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Thumb(m, thumbnails, progress, Modifier.fillMaxWidth().aspectRatio(16f / 9f))
+        Box {
+            Thumb(m, thumbnails, progress, Modifier.fillMaxWidth().aspectRatio(16f / 9f))
+            if (selected != null) Box(Modifier.padding(6.dp)) { SelectMark(selected) }
+        }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             if (progress == null) NewDot()
             Text(
