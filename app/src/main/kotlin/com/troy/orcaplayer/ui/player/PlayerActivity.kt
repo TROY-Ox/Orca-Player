@@ -148,6 +148,18 @@ class PlayerActivity : AppCompatActivity(), PlayerHost {
                     }
                 }
                 launch {
+                    // Tabletop posture (21.2): a half-folded screen with a horizontal hinge.
+                    androidx.window.layout.WindowInfoTracker.getOrCreate(this@PlayerActivity)
+                        .windowLayoutInfo(this@PlayerActivity)
+                        .collect { info ->
+                            val fold = info.displayFeatures.filterIsInstance<androidx.window.layout.FoldingFeature>().firstOrNull {
+                                it.state == androidx.window.layout.FoldingFeature.State.HALF_OPENED &&
+                                    it.orientation == androidx.window.layout.FoldingFeature.Orientation.HORIZONTAL
+                            }
+                            tabletop.value = fold?.let { Tabletop(it.bounds.top, it.bounds.bottom) }
+                        }
+                }
+                launch {
                     // Video quality: tone mapping and frame-rate matching follow Settings and the video.
                     combine(vm.settings, vm.stats.map { it.video?.frameRate ?: -1f }.distinctUntilChanged()) { s, fps -> s to fps }
                         .collect { (s, fps) -> applyVideoSettings(s, fps) }
@@ -168,9 +180,12 @@ class PlayerActivity : AppCompatActivity(), PlayerHost {
             val values by appVm.settings.collectAsStateWithLifecycle()
             val signals by appVm.signals.collectAsStateWithLifecycle()
             val inPip by pip.collectAsStateWithLifecycle()
+            val fold by tabletop.collectAsStateWithLifecycle()
             val isArabic = LocalConfiguration.current.locales[0]?.language == "ar"
             OrcaTheme(themeState(values ?: SettingsValues.Defaults, signals, isArabic)) {
-                PlayerScreen(vm, this, levels, inPip)
+                com.troy.orcaplayer.ui.tv.TenFootScale(signals.isTv) {
+                    PlayerScreen(vm, this, levels, inPip, if (inPip) null else fold)
+                }
             }
         }
     }
@@ -210,7 +225,22 @@ class PlayerActivity : AppCompatActivity(), PlayerHost {
         return true
     }
 
+    private val tabletop = kotlinx.coroutines.flow.MutableStateFlow<Tabletop?>(null)
+
+    /** False after keyboard F shows the bars, for example in a desktop window (21.3). */
+    private var fullScreen = true
+
+    override fun toggleFullScreen() {
+        fullScreen = !fullScreen
+        if (fullScreen) {
+            hideSystemBars()
+        } else {
+            WindowCompat.getInsetsController(window, window.decorView).show(WindowInsetsCompat.Type.systemBars())
+        }
+    }
+
     private fun hideSystemBars() {
+        if (!fullScreen) return
         WindowCompat.getInsetsController(window, window.decorView).apply {
             systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             hide(WindowInsetsCompat.Type.systemBars())

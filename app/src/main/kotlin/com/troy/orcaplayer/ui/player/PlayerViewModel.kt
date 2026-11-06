@@ -709,6 +709,48 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Keyboard C and A (21.3): step to the next subtitle or audio track. Subtitles go round
+     * through "off" after the last track.
+     */
+    fun cycleTrack(type: Int) {
+        val p = attached ?: return
+        val choices = p.currentTracks.groups.filter { it.type == type }.flatMap { g ->
+            (0 until g.length).filter { g.isTrackSupported(it) }.map { g to it }
+        }
+        if (choices.isEmpty()) return
+        val current = choices.indexOfFirst { (g, i) -> g.isTrackSelected(i) }
+        val off = type == C.TRACK_TYPE_TEXT && (_subtitlesOff.value || current < 0)
+        val next = when {
+            off -> 0
+            current + 1 < choices.size -> current + 1
+            type == C.TRACK_TYPE_TEXT -> -1
+            else -> 0
+        }
+        if (next < 0) subtitlesOff() else choices[next].let { (g, i) -> selectTrack(g, i) }
+    }
+
+    private var volumeBeforeMute = 1f
+
+    /** Keyboard M (21.3): mutes the player only, not the device. */
+    fun toggleMute() {
+        val p = attached ?: return
+        if (p.volume > 0f) {
+            volumeBeforeMute = p.volume
+            p.volume = 0f
+        } else {
+            p.volume = volumeBeforeMute.takeIf { it > 0f } ?: 1f
+        }
+    }
+
+    /** Keyboard [ and ] (21.3): the speed presets one step down or up. */
+    fun stepSpeed(direction: Int) {
+        val steps = listOf(0.25f, 0.5f, 0.75f, 1f, 1.25f, 1.5f, 1.75f, 2f, 3f, 4f)
+        val now = _ui.value.speed
+        val next = if (direction > 0) steps.firstOrNull { it > now + 0.01f } ?: 4f else steps.lastOrNull { it < now - 0.01f } ?: 0.25f
+        setSpeed(next)
+    }
+
     /** Track languages saved for this video win over the profile's preferred languages. */
     private fun applyTrackPrefs(p: ExoPlayer, prefs: MediaPrefs) {
         val b = p.trackSelectionParameters.buildUpon()

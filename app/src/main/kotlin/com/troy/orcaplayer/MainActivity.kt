@@ -90,7 +90,9 @@ private fun OrcaRoot(vm: AppViewModel) {
     val isArabic = LocalConfiguration.current.locales[0]?.language == "ar"
     val state = themeState(values ?: SettingsValues.Defaults, signals, isArabic)
     OrcaTheme(state) {
-        OrcaShell(navLayout = nav, isTv = signals.isTv)
+        com.troy.orcaplayer.ui.tv.TenFootHost(signals.isTv) {
+            OrcaShell(navLayout = nav, isTv = signals.isTv)
+        }
     }
 }
 

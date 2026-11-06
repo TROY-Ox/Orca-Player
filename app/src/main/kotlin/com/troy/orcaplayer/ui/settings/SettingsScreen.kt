@@ -116,7 +116,10 @@ fun SettingsScreen(
             )
         }
     }
-    val results = remember(query, entries) { SettingsSearch.search(query, entries) }
+    val tv = com.troy.orcaplayer.ui.tv.LocalIsTv.current
+    val results = remember(query, entries, tv) {
+        SettingsSearch.search(query, entries).filter { !(tv && com.troy.orcaplayer.ui.tv.TenFoot.hiddenOnTv(it.key)) }
+    }
 
     val onChoice: (ChoiceSetting, String) -> Unit = { def, value ->
         vm.set(def, value)
@@ -164,7 +167,7 @@ fun SettingsScreen(
             } else {
                 SettingsSection.entries.forEachIndexed { index, section ->
                     item(key = section.name) {
-                        val defs = Settings.inSection(section).filter { visible(it, values) }
+                        val defs = Settings.inSection(section).filter { visible(it, values, tv) }
                         Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp).widthIn(max = 720.dp).fillMaxWidth().materialize(index)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 SectionLabel(stringResource(section.titleRes), Modifier.weight(1f).padding(start = 4.dp))
@@ -240,8 +243,9 @@ fun SettingsScreen(
     }
 }
 
-private fun visible(def: SettingDef<*>, values: SettingsValues): Boolean =
-    def !== Settings.CustomAccent || values[Settings.Accent] == Settings.CUSTOM_ACCENT
+private fun visible(def: SettingDef<*>, values: SettingsValues, tv: Boolean): Boolean =
+    (def !== Settings.CustomAccent || values[Settings.Accent] == Settings.CUSTOM_ACCENT) &&
+        !(tv && com.troy.orcaplayer.ui.tv.TenFoot.hiddenOnTv(def.key))
 
 /** Per-app language API: applies without restarting the app. */
 private fun applyLanguage(value: String) {

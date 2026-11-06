@@ -1043,4 +1043,9 @@
     <string name="trakt_importing">جارٍ الاستيراد من Trakt…</string>
     <string name="trakt_disconnect">قطع الربط</string>
     <string name="trakt_keys_hint">تُخزَّن رموزك مشفّرة على هذا الجهاز ولا تُرسل إلا إلى Trakt.</string>
+    <string name="tv_send_from_phone">إرسال من الهاتف</string>
+    <string name="tv_send_message">امسح هذا الرمز بهاتف متصل بشبكة Wi-Fi نفسها، واملأ الصفحة واضغط إرسال. تعمل الصفحة فقط ما دامت هذه النافذة مفتوحة.</string>
+    <string name="tv_send_no_network">اربط التلفاز بشبكة محلية أولًا.</string>
+    <string name="tv_send_button">إرسال إلى التلفاز</string>
+    <string name="tv_send_done">تم الإرسال. يمكنك ترك هاتفك الآن.</string>
 </resources>

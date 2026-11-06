@@ -33,6 +33,8 @@ bouncycastle = "1.80"
 libvlc = "3.7.7"
 playServicesCast = "22.1.0"
 mediarouter = "1.7.0"
+androidx-window = "1.4.0"
+zxing = "3.5.3"
 androidxTestExt = "1.2.1"
 androidxTestRunner = "1.6.2"
 
@@ -46,6 +48,8 @@ commons-net = { module = "commons-net:commons-net", version.ref = "commonsNet" }
 libvlc = { module = "org.videolan.android:libvlc-all", version.ref = "libvlc" }
 media3-cast = { module = "androidx.media3:media3-cast", version.ref = "media3" }
 androidx-mediarouter = { module = "androidx.mediarouter:mediarouter", version.ref = "mediarouter" }
+androidx-window = { module = "androidx.window:window", version.ref = "androidx-window" }
+zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
 play-services-cast = { module = "com.google.android.gms:play-services-cast-framework", version.ref = "playServicesCast" }
 androidx-work-runtime = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }

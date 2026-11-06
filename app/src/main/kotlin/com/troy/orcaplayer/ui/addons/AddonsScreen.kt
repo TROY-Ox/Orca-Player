@@ -197,6 +197,10 @@ fun AddonsScreen(
                         TroyButton(stringResource(R.string.paste), { clipboardText(context)?.let { url = it.trim() } }, icon = Icons.Outlined.ContentPaste)
                         TroyButton(stringResource(R.string.addons_preview), { vm.openPreview(url) }, kind = ButtonKind.PRIMARY, enabled = url.isNotBlank())
                     }
+                    com.troy.orcaplayer.ui.tv.SendFromPhoneButton(
+                        stringResource(R.string.addons_add_by_url),
+                        listOf(com.troy.orcaplayer.ui.tv.SendField("url", stringResource(R.string.addons_url_hint), value = url)),
+                    ) { got -> got["url"]?.trim()?.takeIf { it.isNotEmpty() }?.let { url = it; vm.openPreview(it) } }
                 }
             }
             // Extended build: CloudStream repositories and extensions (19.2).

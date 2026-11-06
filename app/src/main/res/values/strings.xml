@@ -1001,4 +1001,9 @@
     <string name="trakt_importing">Importing from Trakt…</string>
     <string name="trakt_disconnect">Disconnect</string>
     <string name="trakt_keys_hint">Your tokens are stored encrypted on this device and are only sent to Trakt.</string>
+    <string name="tv_send_from_phone">Send from phone</string>
+    <string name="tv_send_message">Scan this code with a phone on the same Wi-Fi, fill in the page and tap Send. The page works only while this window is open.</string>
+    <string name="tv_send_no_network">Connect the TV to a local network first.</string>
+    <string name="tv_send_button">Send to TV</string>
+    <string name="tv_send_done">Sent. You can put your phone away.</string>
 </resources>
