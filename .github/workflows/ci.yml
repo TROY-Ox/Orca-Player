@@ -53,6 +53,16 @@ jobs:
           app/build/outputs/apk/standard/debug/*.apk
           app/build/outputs/apk/extended/debug/*.apk
 
+      - name: Upload debug APKs
+        uses: actions/upload-artifact@v6
+        with:
+          name: ORCA-Player-debug-apks-${{ github.run_number }}
+          path: |
+            app/build/outputs/apk/standard/debug/*.apk
+            app/build/outputs/apk/extended/debug/*.apk
+          retention-days: 7
+          if-no-files-found: ignore
+
       - name: Upload reports if something failed
         if: failure()
         uses: actions/upload-artifact@v6

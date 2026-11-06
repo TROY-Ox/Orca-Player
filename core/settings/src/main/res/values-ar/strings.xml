@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_section_appearance">المظهر</string>
+    <string name="settings_section_accessibility">إمكانية الوصول</string>
+    <string name="settings_section_language">اللغة والمنطقة</string>
+    <string name="settings_section_privacy">الخصوصية والحفظ</string>
+
+    <string name="setting_accent">لون التمييز</string>
+    <string name="setting_accent_summary">لون الأزرار والتركيز والإبراز</string>
+    <string name="setting_accent_keywords">لون ثيم سمة فيروزي أحمر أصفر أزرق سماوي فضي أخضر بنفسجي وردي برتقالي color theme</string>
+    <string name="accent_teal">فيروزي</string>
+    <string name="accent_red">أحمر</string>
+    <string name="accent_yellow">أصفر</string>
+    <string name="accent_blue">أزرق</string>
+    <string name="accent_cyan">سماوي</string>
+    <string name="accent_silver">فضي</string>
+    <string name="accent_green">أخضر نيون</string>
+    <string name="accent_violet">بنفسجي</string>
+    <string name="accent_pink">وردي فاقع</string>
+    <string name="accent_orange">برتقالي</string>
+    <string name="accent_custom">مخصص</string>
+    <string name="setting_custom_accent">لون تمييز مخصص</string>
+    <string name="setting_custom_accent_summary">اختر لونك الخاص، وتُحسب ألوان المرور والضغط والنص تلقائياً.</string>
+
+    <string name="setting_mode">الخلفية</string>
+    <string name="setting_mode_summary">داكنة، أو سوداء تماماً لشاشات AMOLED</string>
+    <string name="setting_mode_keywords">داكن أسود amoled وضع سمة</string>
+    <string name="mode_dark">داكنة</string>
+    <string name="mode_amoled">أسود AMOLED</string>
+
+    <string name="setting_frosted_glass">زجاج مصنفر</string>
+    <string name="setting_frosted_glass_summary">تمويه خلف اللوحات الزجاجية على أندرويد 12 وأحدث</string>
+    <string name="setting_glass_keywords">زجاج تمويه شفافية لوحات</string>
+
+    <string name="setting_reduce_motion">تقليل الحركة</string>
+    <string name="setting_reduce_motion_summary">إيقاف النوابض والحركة. يتبع أيضاً إعداد إزالة الرسوم المتحركة في النظام.</string>
+    <string name="setting_motion_keywords">حركة رسوم متحركة نوابض</string>
+    <string name="setting_high_contrast">تباين عالٍ</string>
+    <string name="setting_high_contrast_summary">حدود أقوى ولوحات أغمق. يتبع أيضاً إعداد التباين في النظام.</string>
+    <string name="setting_contrast_keywords">تباين حدود وضوح</string>
+    <string name="setting_solid_panels">لوحات مصمتة</string>
+    <string name="setting_solid_panels_summary">استبدال الزجاج الشفاف بلوحات مصمتة</string>
+
+    <string name="setting_language">لغة التطبيق</string>
+    <string name="setting_language_summary">تُطبَّق فوراً</string>
+    <string name="setting_language_keywords">لغة عربي إنجليزي language</string>
+    <string name="language_system">لغة النظام</string>
+    <string name="language_english">English</string>
+    <string name="language_arabic">العربية</string>
+    <string name="setting_digits">الأرقام</string>
+    <string name="setting_digits_summary">أرقام غربية (0123) أو هندية (٠١٢٣)</string>
+    <string name="setting_digits_keywords">أرقام أعداد</string>
+    <string name="digits_auto">حسب اللغة</string>
+    <string name="digits_western">غربية 0123</string>
+    <string name="digits_arabic">هندية ٠١٢٣</string>
+    <string name="setting_mirror_timeline">عكس شريط الوقت</string>
+    <string name="setting_mirror_timeline_summary">في العربية، يسير شريط التقدم من اليمين إلى اليسار. معطّل افتراضياً لأن أزرار الوسائط لا تُعكس.</string>
+    <string name="setting_timeline_keywords">شريط التقدم الوقت عكس</string>
+
+    <string name="setting_saving">السماح بحفظ البث</string>
+    <string name="setting_saving_summary">التنزيلات والمقاطع وتصدير الروابط وبث الإضافات. يمكن دائماً حفظ الملفات المحلية.</string>
+    <string name="setting_saving_keywords">تنزيل حفظ مقطع تصدير حقوق</string>
+</resources>

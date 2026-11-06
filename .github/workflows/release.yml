@@ -70,8 +70,12 @@ jobs:
           ORCA_KEYSTORE_BASE64: ${{ secrets.ORCA_KEYSTORE_BASE64 }}
         run: |
           if [ -z "$ORCA_KEYSTORE_BASE64" ]; then
-            echo "::error::The ORCA_KEYSTORE_BASE64 secret is missing (see Part 1 of the GitHub Actions guide)"
-            exit 1
+            # Until the owner adds the real key, sign with the committed TEST key (app/test-release.keystore).
+            # Test-signed builds can't be updated to real-key builds without uninstalling first.
+            echo "::warning::ORCA_KEYSTORE_BASE64 is not set, so this release is signed with the TEST key"
+            echo "ORCA_KEYSTORE_PATH=$GITHUB_WORKSPACE/app/test-release.keystore" >> "$GITHUB_ENV"
+            echo "ORCA_TEST_KEY=true" >> "$GITHUB_ENV"
+            exit 0
           fi
           printf '%s' "$ORCA_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/orca-release.jks"
           echo "ORCA_KEYSTORE_PATH=$RUNNER_TEMP/orca-release.jks" >> "$GITHUB_ENV"

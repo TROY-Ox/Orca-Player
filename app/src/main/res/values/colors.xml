@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- TROY Enhanced Theme tokens used outside Compose (window, launcher icon). -->
+    <color name="orca_bg">#0D0D0C</color>
+    <color name="orca_teal">#14B8A6</color>
+    <color name="orca_teal_pressed">#0E8F81</color>
+    <color name="orca_text">#F6F5F2</color>
+</resources>

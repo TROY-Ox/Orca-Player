@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">ORCA Player</string>
+
+    <string name="tab_home">Home</string>
+    <string name="tab_local">Local</string>
+    <string name="tab_addons">Addons</string>
+    <string name="tab_search">Search</string>
+    <string name="tab_tools">Tools</string>
+
+    <string name="cd_profile_menu">Profile and settings</string>
+    <string name="menu_settings">Settings</string>
+    <string name="menu_profiles">Switch profile</string>
+    <string name="nav_back">Back</string>
+    <string name="dialog_cancel">Cancel</string>
+    <string name="dialog_close">Close</string>
+
+    <string name="home_empty_title">Nothing here yet</string>
+    <string name="home_empty_message">Home fills up with Continue Watching, My List, downloads and rows from the sources you add. The local player arrives in the next update.</string>
+    <string name="local_empty_title">Your videos will show here</string>
+    <string name="local_empty_message">Folders, all videos, network shares, downloads and the private folder. Coming in the next update, together with the player.</string>
+    <string name="addons_empty_title">No sources added</string>
+    <string name="addons_empty_message">ORCA Player ships with no content sources. Later you can add Stremio-compatible addons by URL here.</string>
+    <string name="search_empty_title">Search everything</string>
+    <string name="search_empty_message">Search will cover your local files, library and every source you add.</string>
+    <string name="tools_empty_title">Tools for any file</string>
+    <string name="tools_empty_message">Equalizer, clip cutter, subtitle editor, converter, audio extractor, media info and more, without playing the file.</string>
+
+    <string name="settings_title">Settings</string>
+    <string name="settings_search_hint">Search settings</string>
+    <string name="settings_no_results">No settings match your search.</string>
+    <string name="settings_reset_section">Reset</string>
+    <string name="settings_about">About</string>
+    <string name="about_version">Version</string>
+    <string name="about_build">Build</string>
+    <string name="build_standard">Standard</string>
+    <string name="build_extended">Extended (sideload)</string>
+    <string name="about_licences">Licences</string>
+    <string name="about_licences_summary">Open source libraries and fonts used in ORCA Player</string>
+    <string name="setting_custom_accent_title">Choose an accent colour</string>
+    <string name="color_hue">Hue</string>
+    <string name="color_brightness">Brightness</string>
+    <string name="color_apply">Apply</string>
+
+    <string name="profiles_title">Profiles</string>
+    <string name="profiles_default_name">Main</string>
+    <string name="profiles_current">Current profile</string>
+    <string name="profiles_more_later">More profiles, PINs and kids mode come in a later update.</string>
+
+    <string name="licences_title">Licences</string>
+    <string name="licence_show_text">Show licence</string>
+    <string name="licences_extended_gpl">This extended build includes GPL-3.0 code. If you share it with anyone, you must offer its source code too.</string>
+</resources>

@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_section_appearance">Appearance</string>
+    <string name="settings_section_accessibility">Accessibility</string>
+    <string name="settings_section_language">Language and region</string>
+    <string name="settings_section_privacy">Privacy and saving</string>
+
+    <string name="setting_accent">Accent colour</string>
+    <string name="setting_accent_summary">Colour of buttons, focus and highlights</string>
+    <string name="setting_accent_keywords">color colour theme teal red yellow blue cyan silver green violet pink orange</string>
+    <string name="accent_teal">Teal</string>
+    <string name="accent_red">Red</string>
+    <string name="accent_yellow">Yellow</string>
+    <string name="accent_blue">Blue</string>
+    <string name="accent_cyan">Cyan</string>
+    <string name="accent_silver">Silver</string>
+    <string name="accent_green">Neon green</string>
+    <string name="accent_violet">Violet</string>
+    <string name="accent_pink">Hot pink</string>
+    <string name="accent_orange">Orange</string>
+    <string name="accent_custom">Custom</string>
+    <string name="setting_custom_accent">Custom accent</string>
+    <string name="setting_custom_accent_summary">Pick your own colour. Hover, pressed and text colours are worked out for you.</string>
+
+    <string name="setting_mode">Background</string>
+    <string name="setting_mode_summary">Dark, or pure black for AMOLED screens</string>
+    <string name="setting_mode_keywords">dark black amoled oled theme mode</string>
+    <string name="mode_dark">Dark</string>
+    <string name="mode_amoled">AMOLED black</string>
+
+    <string name="setting_frosted_glass">Frosted glass</string>
+    <string name="setting_frosted_glass_summary">Blur behind glass panels on Android 12 and newer</string>
+    <string name="setting_glass_keywords">glass blur transparency frosted panels</string>
+
+    <string name="setting_reduce_motion">Reduce motion</string>
+    <string name="setting_reduce_motion_summary">Turn off springs and movement. Also follows the system Remove animations setting.</string>
+    <string name="setting_motion_keywords">animation motion springs movement</string>
+    <string name="setting_high_contrast">High contrast</string>
+    <string name="setting_high_contrast_summary">Stronger borders and darker panels. Also follows the system contrast setting.</string>
+    <string name="setting_contrast_keywords">contrast borders visibility</string>
+    <string name="setting_solid_panels">Solid panels</string>
+    <string name="setting_solid_panels_summary">Replace see-through glass with solid panels</string>
+
+    <string name="setting_language">App language</string>
+    <string name="setting_language_summary">Applies straight away</string>
+    <string name="setting_language_keywords">language arabic english locale rtl</string>
+    <string name="language_system">System default</string>
+    <string name="language_english">English</string>
+    <string name="language_arabic">العربية</string>
+    <string name="setting_digits">Digits</string>
+    <string name="setting_digits_summary">Western (0123) or Arabic-Indic (٠١٢٣) digits</string>
+    <string name="setting_digits_keywords">numbers digits numerals</string>
+    <string name="digits_auto">Follow the language</string>
+    <string name="digits_western">Western 0123</string>
+    <string name="digits_arabic">Arabic-Indic ٠١٢٣</string>
+    <string name="setting_mirror_timeline">Mirror the media timeline</string>
+    <string name="setting_mirror_timeline_summary">In Arabic, run the seek bar right to left. Off by default, as media controls are not mirrored.</string>
+    <string name="setting_timeline_keywords">seek bar timeline rtl mirror progress</string>
+
+    <string name="setting_saving">Allow saving streams</string>
+    <string name="setting_saving_summary">Downloads, clips and exports of links and addon streams. Local files can always be saved.</string>
+    <string name="setting_saving_keywords">download save clip export rights</string>
+</resources>
