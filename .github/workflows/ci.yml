@@ -68,7 +68,7 @@ jobs:
 
       - name: Upload reports if something failed
         if: failure()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: reports-${{ github.run_number }}
           path: |
@@ -81,7 +81,7 @@ jobs:
       # GitHub Release. It is kept only as a workflow artifact for 3 days.
       - name: Keep the extended debug APK as a 3-day artifact
         if: github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: orca-extended-debug-${{ github.run_number }}
           path: app/build/outputs/apk/extended/debug/*.apk

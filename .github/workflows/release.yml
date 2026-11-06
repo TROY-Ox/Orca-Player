@@ -133,7 +133,7 @@ jobs:
           test "$(ls dist | wc -l)" -eq 3
 
       - name: Keep the extended APK and mapping files as a 3-day artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: orca-private-${{ env.TAG }}
           path: private/
