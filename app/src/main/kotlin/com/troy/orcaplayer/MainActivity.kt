@@ -64,10 +64,14 @@ class MainActivity : AppCompatActivity() {
     private fun takeInstallLink(intent: android.content.Intent?) {
         val link = intent?.getStringExtra(EXTRA_INSTALL_ADDON) ?: intent?.dataString?.takeIf { it.startsWith("stremio:", ignoreCase = true) }
         if (link != null) vm.pendingInstall.value = link
+        intent?.getStringExtra(EXTRA_SHARED_LINK)?.let { vm.pendingShare.value = it }
+        if (intent?.getBooleanExtra(com.troy.orcaplayer.downloads.DownloadNotifications.EXTRA_OPEN_DOWNLOADS, false) == true) vm.pendingDownloads.value = true
     }
 
     companion object {
         const val EXTRA_INSTALL_ADDON = "orca.install_addon"
+        /** A link shared from another app, offered as Play or Download. */
+        const val EXTRA_SHARED_LINK = "orca.shared_link"
     }
 
     override fun onResume() {

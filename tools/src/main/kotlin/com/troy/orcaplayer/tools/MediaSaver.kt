@@ -16,6 +16,7 @@ enum class SaveKind(val root: String, val folder: String) {
     AUDIO(Environment.DIRECTORY_MUSIC, "Audio"),
     SCREENSHOT(Environment.DIRECTORY_PICTURES, "Screenshots"),
     SUBTITLE(Environment.DIRECTORY_DOCUMENTS, "Subtitles"),
+    DOWNLOAD(Environment.DIRECTORY_MOVIES, "Downloads"),
 }
 
 /** Copies a finished file into the gallery (for example Movies/ORCA Player/Clips) and returns its URI. */

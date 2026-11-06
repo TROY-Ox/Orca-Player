@@ -12,7 +12,16 @@ import androidx.media3.common.Effect
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.ExperimentalApi
+import androidx.media3.common.util.Clock
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DataSourceBitmapLoader
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.transformer.DefaultAssetLoaderFactory
+import androidx.media3.transformer.DefaultDecoderFactory
+import com.troy.orcaplayer.player.engine.OfflineCache
+import com.troy.orcaplayer.player.engine.parseStreamKey
 import androidx.media3.effect.FrameDropEffect
 import androidx.media3.effect.Presentation
 import androidx.media3.transformer.Composition
@@ -165,6 +174,16 @@ class ToolRunner(private val context: Context, private val onIdle: () -> Unit) {
                     ext = "m4a"
                 }
             }
+            is ExportJob -> {
+                // Copy the stored tracks into MP4 without re-encoding where the codecs allow it.
+                mediaItem.setMimeType(spec.mimeType)
+                mediaItem.setStreamKeys(spec.streamKeys.mapNotNull(::parseStreamKey))
+                val http = DefaultHttpDataSource.Factory().setAllowCrossProtocolRedirects(true).setDefaultRequestProperties(spec.headers)
+                val sources = DefaultMediaSourceFactory(OfflineCache.readThrough(context, DefaultDataSource.Factory(context, http)))
+                builder.setAssetLoaderFactory(
+                    DefaultAssetLoaderFactory(context, DefaultDecoderFactory.Builder(context).build(), Clock.DEFAULT, sources, DataSourceBitmapLoader(context)),
+                )
+            }
             is CompressJob -> {
                 builder.setVideoMimeType(MimeTypes.VIDEO_H264)
                 builder.setEncoderFactory(
@@ -217,10 +236,12 @@ class ToolRunner(private val context: Context, private val onIdle: () -> Unit) {
                 is ExtractJob -> ToolMath.outputName(spec.title, "audio", ext)
                 is ConvertJob -> ToolMath.outputName(spec.title, "converted", ext)
                 is CompressJob -> ToolMath.outputName(spec.title, "compressed", ext)
+                is ExportJob -> ToolMath.outputName(spec.title, "export", ext)
             }
             val kind = when {
                 audio -> SaveKind.AUDIO
                 spec is ClipJob -> SaveKind.CLIP
+                spec is ExportJob -> SaveKind.DOWNLOAD
                 else -> SaveKind.VIDEO
             }
             val result = runCatching { MediaSaver.save(context, file, name, if (audio) "audio/mp4" else "video/mp4", kind) }

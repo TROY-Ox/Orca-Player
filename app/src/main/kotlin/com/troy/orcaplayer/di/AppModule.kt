@@ -65,4 +65,9 @@ object AppModule {
     @Provides
     @Singleton
     fun onlineSubtitles(@ApplicationContext context: Context): OnlineSubtitles = OnlineSubtitles(context.cacheDir)
+
+    @Provides
+    @Singleton
+    fun downloadPlanner(@ApplicationContext context: Context, hub: ContentHub): com.troy.orcaplayer.data.DownloadPlanner =
+        com.troy.orcaplayer.data.DownloadPlanner(context, hub)
 }

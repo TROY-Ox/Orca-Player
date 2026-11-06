@@ -21,6 +21,8 @@ android {
 dependencies {
     api(project(":core:model"))
     implementation(project(":player:subtitles"))
+    implementation(project(":player:engine"))
+    implementation(libs.media3.datasource)
     implementation(libs.media3.transformer)
     implementation(libs.media3.effect)
     implementation(libs.media3.exoplayer)

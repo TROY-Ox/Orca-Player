@@ -126,6 +126,8 @@ dependencies {
     implementation(project(":player:engine"))
     implementation(project(":player:subtitles"))
     implementation(project(":tools"))
+    implementation(project(":downloads"))
+    implementation(libs.androidx.work.runtime)
     "extendedImplementation"(project(":sources:cloudstream"))
 
     implementation(libs.androidx.core.ktx)

@@ -177,6 +177,21 @@ class PlayerActivity : AppCompatActivity(), PlayerHost {
 
     /** A Stremio manifest link shared or opened here goes to the Addon Manager's install preview (15.1). */
     private fun redirectAddonLink(intent: Intent): Boolean {
+        // A link shared as text is offered as Play or Download in the app (16.1).
+        if (intent.action == Intent.ACTION_SEND && !intent.hasExtra(Intent.EXTRA_STREAM)) {
+            val shared = intent.getStringExtra(Intent.EXTRA_TEXT)?.let { com.troy.orcaplayer.sources.api.MediaLinks.firstLink(it) }
+            if (shared != null && com.troy.orcaplayer.sources.api.MediaLinks.kindOf(shared) != com.troy.orcaplayer.sources.api.MediaLinks.Kind.STREMIO_MANIFEST &&
+                (shared.startsWith("http://", true) || shared.startsWith("https://", true))
+            ) {
+                startActivity(
+                    Intent(this, com.troy.orcaplayer.MainActivity::class.java)
+                        .putExtra(com.troy.orcaplayer.MainActivity.EXTRA_SHARED_LINK, shared)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+                )
+                finish()
+                return true
+            }
+        }
         val link = intent.dataString ?: intent.getStringExtra(Intent.EXTRA_TEXT)?.let { com.troy.orcaplayer.sources.api.MediaLinks.firstLink(it) ?: it.trim() }
         if (link == null || com.troy.orcaplayer.sources.api.MediaLinks.kindOf(link) != com.troy.orcaplayer.sources.api.MediaLinks.Kind.STREMIO_MANIFEST) return false
         startActivity(

@@ -50,6 +50,12 @@ class AppViewModel @Inject constructor(
     /** A manifest link that arrived from outside (stremio:// or a share), waiting for the install preview. */
     val pendingInstall = MutableStateFlow<String?>(null)
 
+    /** A link shared to the app, waiting for "Play" or "Download" (16.1). */
+    val pendingShare = MutableStateFlow<String?>(null)
+
+    /** Set when a download notification opened the app. */
+    val pendingDownloads = MutableStateFlow(false)
+
     init {
         viewModelScope.launch {
             settings.collect { v -> v?.let { addons.defaultTimeoutSec = it[SourceSettings.AddonTimeout].toIntOrNull() ?: 10 } }

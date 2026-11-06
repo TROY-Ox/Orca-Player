@@ -133,6 +133,22 @@ class UrlPlayerViewModel @Inject constructor(
         return u.takeIf { valid(it) }
     }
 
+    /** The link in the form as one item to download, or null when it isn't a web link (16.1). */
+    fun downloadable(input: LinkInput): PlayItem? {
+        val url = normalize(input.url) ?: return null
+        if (!(url.startsWith("http://", true) || url.startsWith("https://", true))) return null
+        if (MediaLinks.kindOf(url) == MediaLinks.Kind.STREMIO_MANIFEST) return null
+        val sub = input.subtitleUrl.trim().takeIf { it.startsWith("http", ignoreCase = true) }
+        return PlayItem(
+            uri = url,
+            title = input.name ?: Uri.parse(url).lastPathSegment?.substringBeforeLast('.')?.takeIf { it.isNotBlank() } ?: Uri.parse(url).host ?: url,
+            key = MediaKeys.forLink(url),
+            source = SourceRef(SourceKind.LINK, "link"),
+            headers = input.headerMap(),
+            subtitles = listOfNotNull(sub?.let { com.troy.orcaplayer.core.model.SubtitleOption(url = it, label = Uri.parse(it).lastPathSegment) }),
+        )
+    }
+
     fun playQueue() {
         val q = _queue.value
         if (q.isNotEmpty()) start(q, 0)

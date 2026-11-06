@@ -156,7 +156,7 @@ fun ToolsPanel(s: ToolsPanelState, a: ToolsPanelActions) {
                     ToolRow(tool, enabled = tool == ToolId.MEDIA_INFO || tool == ToolId.SUBTITLE_EDITOR || s.canSave) { a.openTool(tool) }
                 ToolId.SCREENSHOT -> ToolRow(tool, enabled = true, onClick = a::screenshot)
                 ToolId.EQUALIZER -> ToolRow(tool, enabled = true, onClick = a::equalizer)
-                ToolId.DOWNLOAD -> ToolRow(tool, enabled = false, summary = stringResource(R.string.tool_download_later)) {}
+                ToolId.DOWNLOAD -> ToolRow(tool, enabled = s.canSave) { a.openTool(tool) }
                 ToolId.AB_REPEAT -> {
                     SectionLabel(stringResource(R.string.tool_ab_repeat))
                     val status = when {

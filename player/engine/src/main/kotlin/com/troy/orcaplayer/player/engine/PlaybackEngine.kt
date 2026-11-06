@@ -130,7 +130,9 @@ class PlaybackEngine private constructor(context: Context) {
         val cached = streamCache()?.let { c ->
             CacheDataSource.Factory().setCache(c).setUpstreamDataSourceFactory(upstream).setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
         }
-        val resolving = ResolvingDataSource.Factory(cached ?: upstream) { spec: DataSpec -> withStreamHeaders(spec) }
+        // Downloaded HLS and DASH streams are read from the offline store first (16.4).
+        val offline = OfflineCache.readThrough(app, cached ?: upstream)
+        val resolving = ResolvingDataSource.Factory(offline) { spec: DataSpec -> withStreamHeaders(spec) }
         val extractors = DefaultExtractorsFactory()
             .setConstantBitrateSeekingEnabled(true)
         val sources = DefaultMediaSourceFactory(resolving, extractors)
@@ -352,6 +354,7 @@ class PlaybackEngine private constructor(context: Context) {
 }
 
 /** External subtitles are rendered by the app's own subtitle layer, so only the video goes to ExoPlayer. */
+@OptIn(UnstableApi::class)
 fun PlayItem.toMediaItem(index: Int): MediaItem {
     val builder = MediaItem.Builder()
         .setUri(uri)
@@ -365,8 +368,22 @@ fun PlayItem.toMediaItem(index: Int): MediaItem {
         )
     val lower = uri.substringBefore('?').lowercase()
     when {
+        mimeType != null -> builder.setMimeType(mimeType)
         lower.endsWith(".m3u8") -> builder.setMimeType(MimeTypes.APPLICATION_M3U8)
         lower.endsWith(".mpd") -> builder.setMimeType(MimeTypes.APPLICATION_MPD)
     }
+    // A downloaded stream plays only the tracks that were downloaded.
+    if (streamKeys.isNotEmpty()) builder.setStreamKeys(streamKeys.mapNotNull(::parseStreamKey))
     return builder.build()
+}
+
+/** "period.group.stream" as stored with a download. */
+@OptIn(UnstableApi::class)
+fun parseStreamKey(text: String): androidx.media3.common.StreamKey? {
+    val parts = text.split('.').mapNotNull { it.toIntOrNull() }
+    return when (parts.size) {
+        3 -> androidx.media3.common.StreamKey(parts[0], parts[1], parts[2])
+        2 -> androidx.media3.common.StreamKey(parts[0], parts[1])
+        else -> null
+    }
 }

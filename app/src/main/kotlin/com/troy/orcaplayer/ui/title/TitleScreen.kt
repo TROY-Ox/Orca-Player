@@ -29,6 +29,16 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import android.widget.Toast
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.filled.CheckCircle
+import com.troy.orcaplayer.core.design.component.TroyIconButton
+import com.troy.orcaplayer.core.settings.SourceSettings
+import com.troy.orcaplayer.downloads.logic.DownloadStatus
+import com.troy.orcaplayer.ui.downloads.BulkDownloadDialog
+import com.troy.orcaplayer.ui.downloads.DownloadOptionsDialog
+import com.troy.orcaplayer.ui.downloads.DownloadsViewModel
+import com.troy.orcaplayer.ui.downloads.rememberDownloadGuard
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.SmartDisplay
 import androidx.compose.material3.AlertDialog
@@ -88,6 +98,21 @@ fun TitleScreen(onBack: () -> Unit, vm: TitleViewModel = hiltViewModel()) {
     val event by vm.events.collectAsStateWithLifecycle()
     val progress by vm.progress.collectAsStateWithLifecycle()
     var confirmOpen by remember { mutableStateOf<TitleEvent.Open?>(null) }
+    val dl: DownloadsViewModel = hiltViewModel()
+    val guard = rememberDownloadGuard(dl)
+    val dlItems by dl.items.collectAsStateWithLifecycle()
+    val downloaded = remember(dlItems) {
+        dlItems.filter { it.status == DownloadStatus.COMPLETED && it.profileId == dl.profileId }.mapNotNull { it.meta.mediaKeyId }.toSet()
+    }
+    // Bulk: null episodes is the movie itself; a list is the episodes to choose from.
+    var bulk by remember { mutableStateOf<List<Episode>?>(null) }
+    var bulkMovie by remember { mutableStateOf(false) }
+    var streamDownload by remember { mutableStateOf<StreamEntry?>(null) }
+    val preferredHeight = vm.settings.collectAsStateWithLifecycle().value[SourceSettings.PreferredQuality].toIntOrNull()
+    fun queued(n: Int) {
+        val msg = if (n == 0) context.getString(R.string.dl_none_found) else context.resources.getQuantityString(R.plurals.dl_queued_count, n, n)
+        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+    }
 
     LaunchedEffect(event) {
         when (val e = event) {
@@ -131,14 +156,21 @@ fun TitleScreen(onBack: () -> Unit, vm: TitleViewModel = hiltViewModel()) {
                             t.genres.forEach { Badge(it) }
                         }
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (t.type != TitleType.SERIES || t.episodes.isEmpty()) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        val single = t.type != TitleType.SERIES || t.episodes.isEmpty()
+                        if (single) {
                             TroyButton(stringResource(R.string.player_play), { vm.openStreams(null) }, kind = ButtonKind.PRIMARY, icon = Icons.Outlined.PlayArrow)
+                            TroyButton(stringResource(R.string.dl_download), { guard(t.source, drm = false, downloadable = true) { bulkMovie = true } }, icon = Icons.Outlined.Download)
+                        } else {
+                            TroyButton(stringResource(R.string.dl_download_season), {
+                                guard(t.source, drm = false, downloadable = true) { bulk = t.episodes.filter { (it.season ?: 0) == season } }
+                            }, icon = Icons.Outlined.Download)
                         }
                         t.trailers.firstOrNull()?.let { yt ->
                             TroyButton(stringResource(R.string.title_trailer), { confirmOpen = TitleEvent.Open(yt, youtube = true) }, icon = Icons.Outlined.SmartDisplay)
                         }
                     }
+                    if (vm.progressKey(null) in downloaded) Badge(stringResource(R.string.dl_downloaded), tint = c.accent)
                     t.description?.let { Text(it, style = Troy.type.body, color = c.text) }
                     if (t.cast.isNotEmpty()) Text(stringResource(R.string.title_cast, t.cast.take(8).joinToString(", ")), style = Troy.type.bodySmall, color = c.text2)
                     if (t.directors.isNotEmpty()) Text(stringResource(R.string.title_directors, t.directors.joinToString(", ")), style = Troy.type.bodySmall, color = c.text2)
@@ -155,7 +187,12 @@ fun TitleScreen(onBack: () -> Unit, vm: TitleViewModel = hiltViewModel()) {
                     }
                 }
                 val eps = t.episodes.filter { (it.season ?: 0) == season }
-                items(eps, key = { "ep" + it.id }) { e -> EpisodeRow(e, progress[vm.progressKey(e)]) { vm.openStreams(e) } }
+                items(eps, key = { "ep" + it.id }) { e ->
+                    EpisodeRow(
+                        e, progress[vm.progressKey(e)], downloaded = vm.progressKey(e) in downloaded,
+                        onDownload = { guard(t.source, drm = false, downloadable = true) { dl.downloadBest(t, listOf(e), preferredHeight, ::queued) } },
+                    ) { vm.openStreams(e) }
+                }
             }
         }
 
@@ -198,11 +235,45 @@ fun TitleScreen(onBack: () -> Unit, vm: TitleViewModel = hiltViewModel()) {
                         if (ranked.isEmpty() && p.state.pending == 0) Text(stringResource(R.string.streams_none), style = Troy.type.body, color = c.text2)
                         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             if (ranked.isEmpty() && p.state.pending > 0) items(4) { ShimmerBlock(Modifier.fillMaxWidth().height(64.dp).clip(TroyShapes.Control)) }
-                            items(ranked, key = { it.option.source.sourceId + it.option.url + (it.option.name ?: "") }) { s -> StreamRow(s) { vm.play(s) } }
+                            items(ranked, key = { it.option.source.sourceId + it.option.url + (it.option.name ?: "") }) { s ->
+                                StreamRow(s, onDownload = { guard(s.option.source, s.option.drmProtected, s.option.downloadable) { streamDownload = s } }) { vm.play(s) }
+                            }
                         }
                     }
                 }
             }
+        }
+    }
+
+    val t = title
+    if (t != null && bulkMovie) {
+        BulkDownloadDialog(t.name, episodes = null, initialQuality = preferredHeight, smart = null, onDismiss = { bulkMovie = false }) { q, _, _ ->
+            bulkMovie = false
+            dl.downloadBest(t, listOf(null), q, ::queued)
+        }
+    }
+    val bulkList = bulk
+    if (t != null && bulkList != null) {
+        BulkDownloadDialog(
+            stringResource(R.string.dl_download_season), episodes = bulkList, initialQuality = preferredHeight, smart = dl.isSmart(t.id),
+            onDismiss = { bulk = null },
+        ) { q, chosen, smart ->
+            bulk = null
+            if (chosen.isNotEmpty()) dl.downloadBest(t, chosen, q, ::queued)
+            dl.setSmart(t, q, smart)
+        }
+    }
+    val sd = streamDownload
+    val pk = picker
+    if (t != null && sd != null) {
+        DownloadOptionsDialog(
+            vm = dl, name = sd.option.name ?: t.name, url = sd.option.url, headers = sd.option.headers,
+            subtitles = { dl.subtitlesFor(t, pk?.episode, sd) }, preferredLanguage = pk?.subtitleLanguage,
+            onDismiss = { streamDownload = null },
+        ) { choice ->
+            streamDownload = null
+            dl.downloadStream(t, pk?.episode, sd, choice.subtitles, choice.tracks, choice.startNow, choice.kind)
+            queued(1)
         }
     }
 
@@ -234,7 +305,7 @@ private fun StreamSort.label(): Int = when (this) {
 }
 
 @Composable
-private fun EpisodeRow(e: Episode, progress: Float?, onClick: () -> Unit) {
+private fun EpisodeRow(e: Episode, progress: Float?, downloaded: Boolean, onDownload: () -> Unit, onClick: () -> Unit) {
     val c = Troy.colors
     Row(
         Modifier.padding(horizontal = 16.dp, vertical = 6.dp).widthIn(max = 860.dp).fillMaxWidth().troyFocusRing().clip(TroyShapes.Control)
@@ -258,12 +329,17 @@ private fun EpisodeRow(e: Episode, progress: Float?, onClick: () -> Unit) {
             e.released?.take(10)?.let { Text(it, style = Troy.type.label, color = c.text3) }
             e.overview?.let { Text(it, style = Troy.type.bodySmall, color = c.text2, maxLines = 2, overflow = TextOverflow.Ellipsis) }
         }
+        if (downloaded) {
+            Icon(Icons.Filled.CheckCircle, contentDescription = stringResource(R.string.dl_downloaded), tint = c.accent, modifier = Modifier.padding(horizontal = 12.dp).size(22.dp))
+        } else {
+            TroyIconButton(Icons.Outlined.Download, stringResource(R.string.dl_download), onDownload)
+        }
     }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun StreamRow(s: StreamEntry, onClick: () -> Unit) {
+private fun StreamRow(s: StreamEntry, onDownload: () -> Unit, onClick: () -> Unit) {
     val c = Troy.colors
     val context = LocalContext.current
     val i = s.info
@@ -291,6 +367,9 @@ private fun StreamRow(s: StreamEntry, onClick: () -> Unit) {
             i.languages.take(4).forEach { Badge(if (it == "multi") stringResource(R.string.badge_multi) else it.uppercase()) }
             if (i.hasSubtitles) Badge(stringResource(R.string.badge_subs))
             Badge(s.option.source.sourceName)
+            if (s.playable && s.option.kind == StreamKind.URL && s.option.downloadable && !s.option.drmProtected) {
+                TroyIconButton(Icons.Outlined.Download, stringResource(R.string.dl_download), onDownload)
+            }
             if (i.insecure) Badge(stringResource(R.string.badge_insecure), tint = c.warn)
             when (s.option.kind) {
                 StreamKind.EXTERNAL -> Badge(stringResource(R.string.badge_external), tint = c.info)

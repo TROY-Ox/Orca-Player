@@ -32,11 +32,13 @@ object Routes {
     const val ADDON = "addon/{id}"
     const val DISCOVER = "discover?addon={addon}&catalog={catalog}"
     const val TITLE = "title/{type}/{id}"
+    const val DOWNLOADS = "downloads?tab={tab}"
 
     fun urlPlayer(url: String? = null) = "url_player?url=" + android.net.Uri.encode(url.orEmpty())
     fun addon(id: String) = "addon/" + android.net.Uri.encode(id)
     fun discover(addonId: String? = null, catalogKey: String? = null) =
         "discover?addon=" + android.net.Uri.encode(addonId.orEmpty()) + "&catalog=" + android.net.Uri.encode(catalogKey.orEmpty())
+    fun downloads(tab: String? = null) = "downloads?tab=" + android.net.Uri.encode(tab.orEmpty())
     fun title(type: String, id: String) = "title/" + android.net.Uri.encode(type) + "/" + android.net.Uri.encode(id)
 }
 

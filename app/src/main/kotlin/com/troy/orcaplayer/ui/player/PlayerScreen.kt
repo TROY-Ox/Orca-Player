@@ -127,6 +127,7 @@ interface PlayerHost {
 @Composable
 fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, isPip: Boolean) {
     val c = Troy.colors
+    val downloads: com.troy.orcaplayer.ui.downloads.DownloadsViewModel = androidx.hilt.navigation.compose.hiltViewModel()
     val ui by vm.ui.collectAsStateWithLifecycle()
     val player by vm.player.collectAsStateWithLifecycle()
     val settings by vm.settings.collectAsStateWithLifecycle()
@@ -219,6 +220,21 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
                 SaveDecision.DENIED_BY_SOURCE -> { Toast.makeText(context, R.string.save_denied_source, Toast.LENGTH_LONG).show(); return }
                 SaveDecision.DENIED_BY_SETTINGS -> { Toast.makeText(context, R.string.save_denied_settings, Toast.LENGTH_LONG).show(); return }
             }
+        }
+        if (tool == ToolId.DOWNLOAD) {
+            // Downloads the link that is playing now; local files are already on the device (16.1).
+            when {
+                !(item.uri.startsWith("http://", true) || item.uri.startsWith("https://", true)) ->
+                    Toast.makeText(context, R.string.dl_already_local, Toast.LENGTH_SHORT).show()
+                downloads.check(item.source, drm = false, downloadable = true) == com.troy.orcaplayer.ui.downloads.DownloadCheck.KIDS ->
+                    Toast.makeText(context, R.string.dl_kids_blocked, Toast.LENGTH_LONG).show()
+                else -> {
+                    downloads.downloadItem(item, kind = null)
+                    Toast.makeText(context, R.string.dl_queued, Toast.LENGTH_SHORT).show()
+                }
+            }
+            panel = PlayerPanel.NONE
+            return
         }
         if (tool == ToolId.SUBTITLE_EDITOR && external == null) {
             Toast.makeText(context, R.string.sub_editor_needs_file, Toast.LENGTH_LONG).show()

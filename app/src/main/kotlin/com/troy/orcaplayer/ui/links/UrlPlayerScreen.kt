@@ -102,6 +102,21 @@ fun UrlPlayerScreen(onBack: () -> Unit, onInstallAddon: (String) -> Unit, initia
     var exportFolder by remember { mutableStateOf<String?>(null) }
 
     fun input() = LinkInput(url, null, referer, agent, headers, subtitle)
+    val downloadsVm: com.troy.orcaplayer.ui.downloads.DownloadsViewModel = hiltViewModel()
+    val guard = com.troy.orcaplayer.ui.downloads.rememberDownloadGuard(downloadsVm)
+    var toDownload by remember { mutableStateOf<com.troy.orcaplayer.core.model.PlayItem?>(null) }
+    toDownload?.let { item ->
+        com.troy.orcaplayer.ui.downloads.DownloadOptionsDialog(
+            vm = downloadsVm, name = item.title, url = item.uri, headers = item.headers,
+            subtitles = { item.subtitles }, preferredLanguage = null,
+            onDismiss = { toDownload = null },
+            onConfirm = { choice ->
+                downloadsVm.downloadItem(item.copy(subtitles = choice.subtitles), choice.kind, choice.tracks, choice.startNow)
+                android.widget.Toast.makeText(context, R.string.dl_queued, android.widget.Toast.LENGTH_SHORT).show()
+                toDownload = null
+            },
+        )
+    }
 
     LaunchedEffect(event) {
         when (val e = event) {
@@ -159,6 +174,10 @@ fun UrlPlayerScreen(onBack: () -> Unit, onInstallAddon: (String) -> Unit, initia
                         TroyButton(stringResource(R.string.paste), { clipboardText(context)?.let { url = it.trim(); bad = false } }, icon = Icons.Outlined.ContentPaste)
                         TroyButton(stringResource(R.string.links_save), { draft = SaveDraft(input(), "", null, null) }, enabled = url.isNotBlank())
                         TroyButton(stringResource(R.string.links_queue_add), { vm.enqueue(input()); url = "" }, enabled = url.isNotBlank())
+                        TroyButton(stringResource(R.string.dl_download), {
+                            val item = vm.downloadable(input())
+                            if (item == null) bad = true else guard(item.source, drm = false, downloadable = true) { toDownload = item }
+                        }, enabled = url.isNotBlank() && !busy)
                         TroyButton(stringResource(R.string.player_play), { vm.play(input()) }, kind = ButtonKind.PRIMARY, enabled = url.isNotBlank() && !busy)
                     }
                     if (busy) Text(stringResource(R.string.links_checking), style = Troy.type.bodySmall, color = c.text2)

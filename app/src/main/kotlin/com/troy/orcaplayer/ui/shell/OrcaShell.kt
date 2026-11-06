@@ -96,6 +96,9 @@ fun OrcaShell(navLayout: NavLayout, isTv: Boolean) {
             onPlay = { link -> appVm.playLink(link)?.let { com.troy.orcaplayer.ui.player.PlayerLaunch.play(context, it) } },
             onInstall = { link -> appVm.pendingInstall.value = link },
         )
+        // A link shared to the app: play it or download it (16.1).
+        val shared by appVm.pendingShare.collectAsStateWithLifecycle()
+        shared?.let { link -> com.troy.orcaplayer.ui.downloads.SharedLinkDialog(link, appVm, onDone = { appVm.pendingShare.value = null }) }
     }
 }
 
@@ -128,6 +131,14 @@ private fun OrcaNavHost(nav: NavHostController, start: String) {
         nav.navigate(Routes.title(t.type.name, t.id))
     }
     val openDiscover: (String?, String?) -> Unit = { a, k -> nav.navigate(Routes.discover(a, k)) }
+    val openDownloads: (String?) -> Unit = { tab -> nav.navigate(Routes.downloads(tab)) { launchSingleTop = true } }
+    val showDownloads by appVm.pendingDownloads.collectAsStateWithLifecycle()
+    androidx.compose.runtime.LaunchedEffect(showDownloads) {
+        if (showDownloads) {
+            appVm.pendingDownloads.value = false
+            openDownloads(null)
+        }
+    }
     val pendingInstall by appVm.pendingInstall.collectAsStateWithLifecycle()
     androidx.compose.runtime.LaunchedEffect(pendingInstall) {
         if (pendingInstall != null && nav.currentDestination?.route != MainTab.ADDONS.spec().route) nav.navigateToTab(MainTab.ADDONS.spec().route)
@@ -149,6 +160,7 @@ private fun OrcaNavHost(nav: NavHostController, start: String) {
                         onOpenCatalog = { a, k -> openDiscover(a, k) },
                         onOpenUrlPlayer = openUrlPlayer,
                         onOpenAddons = { nav.navigateToTab(MainTab.ADDONS.spec().route) },
+                        onOpenDownloads = { openDownloads("COMPLETED") },
                     )
                     MainTab.ADDONS -> AddonsScreen(
                         openSettings, openProfiles,
@@ -158,7 +170,7 @@ private fun OrcaNavHost(nav: NavHostController, start: String) {
                         onInstallRequestHandled = { appVm.pendingInstall.value = null },
                     )
                     MainTab.SEARCH -> SearchScreen(openSettings, openProfiles, openTitle)
-                    MainTab.LOCAL -> LocalScreen(openSettings, openProfiles, openUrlPlayer)
+                    MainTab.LOCAL -> LocalScreen(openSettings, openProfiles, openUrlPlayer, onOpenDownloads = { openDownloads("COMPLETED") })
                     MainTab.TOOLS -> {
                         val layout by appVm.toolsLayout.collectAsStateWithLifecycle()
                         ToolsScreen(
@@ -167,6 +179,7 @@ private fun OrcaNavHost(nav: NavHostController, start: String) {
                             onOpenJobs = { nav.navigate(Routes.JOBS) { launchSingleTop = true } },
                             onCustomize = { nav.navigate(Routes.TOOLS_CUSTOMIZE) { launchSingleTop = true } },
                             onOpenUrlPlayer = openUrlPlayer,
+                            onOpenDownloads = { openDownloads(null) },
                         )
                     }
                     else -> TabPlaceholder(tab, openSettings, openProfiles)
@@ -207,5 +220,13 @@ private fun OrcaNavHost(nav: NavHostController, start: String) {
             arguments = listOf(navArgument("type") { type = NavType.StringType }, navArgument("id") { type = NavType.StringType }),
         ) { TitleScreen(onBack = back) }
         composable(Routes.LICENCES) { LicencesScreen(onBack = back) }
+        composable(Routes.DOWNLOADS, arguments = listOf(navArgument("tab") { type = NavType.StringType; defaultValue = "" })) { e ->
+            val ctx = LocalContext.current
+            com.troy.orcaplayer.ui.downloads.DownloadsScreen(
+                initialTab = e.arguments?.getString("tab")?.takeIf { it.isNotEmpty() },
+                onBack = back,
+                onPlay = { com.troy.orcaplayer.ui.player.PlayerLaunch.play(ctx, it) },
+            )
+        }
     }
 }

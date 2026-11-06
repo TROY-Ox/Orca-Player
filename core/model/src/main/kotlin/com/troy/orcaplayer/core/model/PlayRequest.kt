@@ -39,6 +39,10 @@ data class PlayItem(
      * the player moves to the next and continues from the same position (14.7).
      */
     val alternates: List<StreamAlternate> = emptyList(),
+    /** Set for downloaded HLS and DASH streams, which have no file extension to go by. */
+    val mimeType: String? = null,
+    /** The downloaded tracks of an HLS or DASH download, as "period.group.stream". */
+    val streamKeys: List<String> = emptyList(),
 ) {
     init {
         require(UriSchemes.isAllowed(uri)) { "Scheme not allowed: $uri" }
