@@ -1005,4 +1005,11 @@
     <string name="library_details">التفاصيل</string>
     <string name="network_in_library">الإظهار في المكتبة</string>
     <string name="network_in_library_summary">افحص هذه المشاركة بحثًا عن أفلام ومسلسلات.</string>
+    <string name="vlc_open">فتح بمحرك VLC</string>
+    <string name="vlc_limited">محرك VLC: تشغيل وإيقاف مؤقت وتنقل فقط. المسارات وتنسيق الترجمة والمعادل والمرشحات والأدوات والبث والاستئناف غير متاحة هنا.</string>
+    <string name="vlc_failed">تعذر على محرك VLC تشغيل هذا الملف أيضًا.</string>
+    <string name="vlc_play">تشغيل</string>
+    <string name="vlc_pause">إيقاف مؤقت</string>
+    <string name="vlc_back_10">رجوع 10 ثوانٍ</string>
+    <string name="vlc_forward_10">تقدم 10 ثوانٍ</string>
 </resources>

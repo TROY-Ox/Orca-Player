@@ -128,6 +128,10 @@ class PlayerActivity : AppCompatActivity(), PlayerHost {
                     vm.events.collect { e ->
                         when (e) {
                             PlayerEvent.Finish -> finish()
+                            is PlayerEvent.OpenInVlc -> {
+                                com.troy.orcaplayer.ui.vlc.VlcPlayerActivity.start(this@PlayerActivity, e.item, e.positionMs)
+                                finish()
+                            }
                             is PlayerEvent.Message -> Toast.makeText(
                                 this@PlayerActivity,
                                 when (e.text) {

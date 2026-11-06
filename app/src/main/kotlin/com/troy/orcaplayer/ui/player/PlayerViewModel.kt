@@ -118,6 +118,8 @@ data class ResumePill(val positionMs: Long, val ask: Boolean, val shownAt: Long 
 sealed interface PlayerEvent {
     data object Finish : PlayerEvent
     data class Message(val text: String) : PlayerEvent
+    /** Hand this item to the libVLC engine (20.8). */
+    data class OpenInVlc(val item: PlayItem, val positionMs: Long) : PlayerEvent
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -272,6 +274,8 @@ class PlayerViewModel @Inject constructor(
 
         override fun onPlayerError(error: PlaybackException) {
             if (tryFallback()) return
+            // Formats Media3 can't read go straight to the libVLC engine when that's on (3.5).
+            if (error.errorCode in VLC_ERRORS && settings.value[com.troy.orcaplayer.core.settings.ExtrasSettings.VlcFallback] && openInVlc()) return
             _ui.update { it.copy(error = error.errorCodeName) }
         }
     }
@@ -839,6 +843,19 @@ class PlayerViewModel @Inject constructor(
     }
 
     /** Moves to the next stream of the same video, from the same position. False when there's none to try. */
+    /** Opens the current item in the libVLC engine; false when it can't take it (the private folder). */
+    fun openInVlc(): Boolean {
+        val p = attached ?: return false
+        val item = currentItem() ?: return false
+        if (!com.troy.orcaplayer.ui.vlc.VlcPlayerActivity.canOpen(item.uri)) return false
+        val position = maxOf(p.currentPosition, lastGoodPosition)
+        saveNow()
+        p.pause()
+        _ui.update { it.copy(error = null) }
+        _events.tryEmit(PlayerEvent.OpenInVlc(item, position))
+        return true
+    }
+
     private fun tryFallback(): Boolean {
         val p = attached ?: return false
         val v = settings.value
@@ -991,5 +1008,13 @@ class PlayerViewModel @Inject constructor(
         const val MSG_DV5 = "dv5"
         const val MSG_LOAD_FAILED = "load_failed"
         const val MSG_FALLBACK = "fallback"
+        private val VLC_ERRORS = setOf(
+            PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED,
+            PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED,
+            PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED,
+            PlaybackException.ERROR_CODE_DECODING_FORMAT_EXCEEDS_CAPABILITIES,
+            PlaybackException.ERROR_CODE_DECODER_INIT_FAILED,
+            PlaybackException.ERROR_CODE_AUDIO_TRACK_INIT_FAILED,
+        )
     }
 }

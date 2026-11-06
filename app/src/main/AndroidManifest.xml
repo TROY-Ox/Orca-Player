@@ -125,6 +125,11 @@
 
         <!-- One tool on one file, from the Tools tab or the player's Tools panel. -->
         <activity
+            android:name=".ui.vlc.VlcPlayerActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|density"
+            android:theme="@style/Theme.Orca" />
+        <activity
             android:name=".ui.tools.ToolActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize"

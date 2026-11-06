@@ -132,6 +132,7 @@ dependencies {
     implementation(project(":vault"))
     implementation(project(":sources:network"))
     implementation(project(":library"))
+    implementation(libs.libvlc)
     implementation(libs.androidx.work.runtime)
     implementation(libs.androidx.biometric)
     "extendedImplementation"(project(":sources:cloudstream"))

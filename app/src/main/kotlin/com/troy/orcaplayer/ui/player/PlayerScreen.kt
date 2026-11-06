@@ -753,6 +753,7 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
                             { vm.setDecoder(other) },
                         )
                     }
+                    TroyButton(stringResource(R.string.vlc_open), { vm.openInVlc() }, kind = ButtonKind.GHOST)
                 }
             }
         }

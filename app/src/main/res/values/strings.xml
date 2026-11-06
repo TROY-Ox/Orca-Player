@@ -963,4 +963,11 @@
     <string name="library_details">Details</string>
     <string name="network_in_library">Show in library</string>
     <string name="network_in_library_summary">Scan this share for movies and series.</string>
+    <string name="vlc_open">Open with the VLC engine</string>
+    <string name="vlc_limited">VLC engine: play, pause and seek only. Tracks, subtitles styling, the equalizer, filters, tools, casting and resume aren\'t available here.</string>
+    <string name="vlc_failed">The VLC engine couldn\'t play this file either.</string>
+    <string name="vlc_play">Play</string>
+    <string name="vlc_pause">Pause</string>
+    <string name="vlc_back_10">Back 10 seconds</string>
+    <string name="vlc_forward_10">Forward 10 seconds</string>
 </resources>
