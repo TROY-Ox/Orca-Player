@@ -74,7 +74,7 @@ internal class DownloadEngine(private val context: Context) {
                 }
                 val parallel = config.parallel.coerceIn(1, 5)
                 for (item in Queue.runnable(store.items)) {
-                    if (item.id in running) continue
+                    if (running.containsKey(item.id)) continue
                     val reason = Gate.waitReason(item, config, conditions(item), open, now)
                     if (reason == null && running.size < parallel) {
                         store.update(item.id) { it.copy(status = DownloadStatus.RUNNING, waitReason = null, error = null, errorDetail = null) }
