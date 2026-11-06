@@ -122,6 +122,7 @@ dependencies {
     implementation(project(":core:data"))
     implementation(project(":sources:api"))
     implementation(project(":sources:local"))
+    implementation(project(":sources:stremio"))
     implementation(project(":player:engine"))
     implementation(project(":player:subtitles"))
     implementation(project(":tools"))
@@ -137,6 +138,8 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.media3.ui.compose)
+    implementation(libs.coil.compose)
+    implementation(libs.coil.network)
 
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)

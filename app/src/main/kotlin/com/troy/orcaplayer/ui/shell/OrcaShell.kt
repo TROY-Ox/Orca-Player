@@ -5,6 +5,18 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.troy.orcaplayer.AppViewModel
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
+import com.troy.orcaplayer.ui.addons.AddonDetailScreen
+import com.troy.orcaplayer.ui.addons.AddonsScreen
+import com.troy.orcaplayer.ui.addons.DiscoverScreen
+import com.troy.orcaplayer.ui.common.TitleMemory
+import com.troy.orcaplayer.ui.home.HomeScreen
+import com.troy.orcaplayer.ui.links.UrlPlayerScreen
+import com.troy.orcaplayer.ui.links.ClipboardOffer
+import com.troy.orcaplayer.ui.search.SearchScreen
+import com.troy.orcaplayer.ui.title.TitleScreen
+import com.troy.orcaplayer.core.model.Title
 import com.troy.orcaplayer.ui.tools.JobsScreen
 import com.troy.orcaplayer.ui.tools.ToolsCustomizeScreen
 import androidx.compose.animation.EnterTransition
@@ -64,6 +76,10 @@ fun OrcaShell(navLayout: NavLayout, isTv: Boolean) {
     val onSelect: (TabSpec) -> Unit = { spec -> nav.navigateToTab(spec.route) }
     val c = Troy.colors
 
+    val appVm: AppViewModel = hiltViewModel(LocalContext.current as ComponentActivity)
+    val values by appVm.settings.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+
     Box(Modifier.fillMaxSize().background(c.bg)) {
         when (style) {
             NavStyle.BOTTOM -> Column(Modifier.fillMaxSize()) {
@@ -75,6 +91,11 @@ fun OrcaShell(navLayout: NavLayout, isTv: Boolean) {
                 Box(Modifier.weight(1f)) { OrcaNavHost(nav, tabs.first().route) }
             }
         }
+        ClipboardOffer(
+            enabled = values?.get(com.troy.orcaplayer.core.settings.SourceSettings.ClipboardDetect) ?: false,
+            onPlay = { link -> appVm.playLink(link)?.let { com.troy.orcaplayer.ui.player.PlayerLaunch.play(context, it) } },
+            onInstall = { link -> appVm.pendingInstall.value = link },
+        )
     }
 }
 
@@ -101,6 +122,16 @@ private fun OrcaNavHost(nav: NavHostController, start: String) {
     val openProfiles = { nav.navigate(Routes.PROFILES) { launchSingleTop = true } }
     val back: () -> Unit = { nav.popBackStack() }
     val appVm: AppViewModel = hiltViewModel(LocalContext.current as ComponentActivity)
+    val openUrlPlayer = { nav.navigate(Routes.urlPlayer()) { launchSingleTop = true } }
+    val openTitle: (Title) -> Unit = { t ->
+        TitleMemory.put(t)
+        nav.navigate(Routes.title(t.type.name, t.id))
+    }
+    val openDiscover: (String?, String?) -> Unit = { a, k -> nav.navigate(Routes.discover(a, k)) }
+    val pendingInstall by appVm.pendingInstall.collectAsStateWithLifecycle()
+    androidx.compose.runtime.LaunchedEffect(pendingInstall) {
+        if (pendingInstall != null && nav.currentDestination?.route != MainTab.ADDONS.spec().route) nav.navigateToTab(MainTab.ADDONS.spec().route)
+    }
 
     NavHost(
         navController = nav,
@@ -113,7 +144,21 @@ private fun OrcaNavHost(nav: NavHostController, start: String) {
         MainTab.entries.forEach { tab ->
             composable(tab.spec().route) {
                 when (tab) {
-                    MainTab.LOCAL -> LocalScreen(openSettings, openProfiles)
+                    MainTab.HOME -> HomeScreen(
+                        openSettings, openProfiles, openTitle,
+                        onOpenCatalog = { a, k -> openDiscover(a, k) },
+                        onOpenUrlPlayer = openUrlPlayer,
+                        onOpenAddons = { nav.navigateToTab(MainTab.ADDONS.spec().route) },
+                    )
+                    MainTab.ADDONS -> AddonsScreen(
+                        openSettings, openProfiles,
+                        onOpenAddon = { nav.navigate(Routes.addon(it)) },
+                        onOpenDiscover = { openDiscover(null, null) },
+                        installRequest = pendingInstall,
+                        onInstallRequestHandled = { appVm.pendingInstall.value = null },
+                    )
+                    MainTab.SEARCH -> SearchScreen(openSettings, openProfiles, openTitle)
+                    MainTab.LOCAL -> LocalScreen(openSettings, openProfiles, openUrlPlayer)
                     MainTab.TOOLS -> {
                         val layout by appVm.toolsLayout.collectAsStateWithLifecycle()
                         ToolsScreen(
@@ -121,6 +166,7 @@ private fun OrcaNavHost(nav: NavHostController, start: String) {
                             onOpenDecoderCheck = { nav.navigate(Routes.DECODER_CHECK) { launchSingleTop = true } },
                             onOpenJobs = { nav.navigate(Routes.JOBS) { launchSingleTop = true } },
                             onCustomize = { nav.navigate(Routes.TOOLS_CUSTOMIZE) { launchSingleTop = true } },
+                            onOpenUrlPlayer = openUrlPlayer,
                         )
                     }
                     else -> TabPlaceholder(tab, openSettings, openProfiles)
@@ -141,6 +187,25 @@ private fun OrcaNavHost(nav: NavHostController, start: String) {
             ToolsCustomizeScreen(layout, appVm::setToolsLayout, onBack = back)
         }
         composable(Routes.PROFILES) { ProfilesScreen(onBack = back) }
+        composable(Routes.URL_PLAYER, arguments = listOf(navArgument("url") { type = NavType.StringType; defaultValue = "" })) { e ->
+            UrlPlayerScreen(
+                onBack = back,
+                onInstallAddon = { link -> appVm.pendingInstall.value = link },
+                initialUrl = e.arguments?.getString("url")?.takeIf { it.isNotEmpty() },
+            )
+        }
+        composable(Routes.ADDON, arguments = listOf(navArgument("id") { type = NavType.StringType })) { AddonDetailScreen(onBack = back) }
+        composable(
+            Routes.DISCOVER,
+            arguments = listOf(
+                navArgument("addon") { type = NavType.StringType; defaultValue = "" },
+                navArgument("catalog") { type = NavType.StringType; defaultValue = "" },
+            ),
+        ) { DiscoverScreen(onBack = back, onOpenTitle = openTitle) }
+        composable(
+            Routes.TITLE,
+            arguments = listOf(navArgument("type") { type = NavType.StringType }, navArgument("id") { type = NavType.StringType }),
+        ) { TitleScreen(onBack = back) }
         composable(Routes.LICENCES) { LicencesScreen(onBack = back) }
     }
 }

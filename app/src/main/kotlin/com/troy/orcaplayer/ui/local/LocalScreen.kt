@@ -32,6 +32,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.CreateNewFolder
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.MusicNote
@@ -96,7 +97,7 @@ import com.troy.orcaplayer.core.settings.R as SR
 /** Local tab: folders or all videos, as a list or grid, with sort, filter and search (section 6). */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun LocalScreen(onOpenSettings: () -> Unit, onOpenProfiles: () -> Unit, vm: LocalViewModel = hiltViewModel()) {
+fun LocalScreen(onOpenSettings: () -> Unit, onOpenProfiles: () -> Unit, onOpenUrlPlayer: () -> Unit = {}, vm: LocalViewModel = hiltViewModel()) {
     val c = Troy.colors
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -155,6 +156,7 @@ fun LocalScreen(onOpenSettings: () -> Unit, onOpenProfiles: () -> Unit, vm: Loca
         } else {
             MainTopBar(stringResource(R.string.tab_local), onOpenSettings, onOpenProfiles) {
                 actions()
+                TroyIconButton(Icons.Filled.Link, stringResource(R.string.url_player_title), onOpenUrlPlayer)
                 TroyIconButton(Icons.Filled.CreateNewFolder, stringResource(R.string.local_add_folder), { runCatching { pickFolder.launch(null) } })
             }
         }

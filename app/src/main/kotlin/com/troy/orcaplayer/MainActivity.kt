@@ -38,6 +38,7 @@ class MainActivity : AppCompatActivity() {
         )
         super.onCreate(savedInstanceState)
         vm.updateSignals(SystemSignals.read(this))
+        takeInstallLink(intent)
         setContent { OrcaRoot(vm) }
         // Menu orientation setting, phones only (tablets, foldables and TVs follow the screen).
         lifecycleScope.launch {
@@ -53,6 +54,20 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        takeInstallLink(intent)
+    }
+
+    private fun takeInstallLink(intent: android.content.Intent?) {
+        val link = intent?.getStringExtra(EXTRA_INSTALL_ADDON) ?: intent?.dataString?.takeIf { it.startsWith("stremio:", ignoreCase = true) }
+        if (link != null) vm.pendingInstall.value = link
+    }
+
+    companion object {
+        const val EXTRA_INSTALL_ADDON = "orca.install_addon"
     }
 
     override fun onResume() {

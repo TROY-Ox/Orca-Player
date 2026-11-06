@@ -116,6 +116,7 @@ class PlayerActivity : AppCompatActivity(), PlayerHost {
         // Binding a controller starts the service, which shows the media notification.
         controller = MediaController.Builder(this, SessionToken(this, ComponentName(this, PlaybackService::class.java))).buildAsync()
 
+        if (redirectAddonLink(intent)) return
         vm.start(intent)
 
         lifecycleScope.launch {
@@ -131,6 +132,7 @@ class PlayerActivity : AppCompatActivity(), PlayerHost {
                                     PlayerViewModel.MSG_DECODED_EFFECTS -> R.string.player_decoded_effects
                                     PlayerViewModel.MSG_DECODED_SPEED -> R.string.player_decoded_speed
                                     PlayerViewModel.MSG_DV5 -> R.string.player_dv5_warning
+                                    PlayerViewModel.MSG_FALLBACK -> R.string.player_fallback
                                     else -> R.string.player_load_failed
                                 },
                                 if (e.text == PlayerViewModel.MSG_DV5) Toast.LENGTH_LONG else Toast.LENGTH_SHORT,
@@ -168,8 +170,22 @@ class PlayerActivity : AppCompatActivity(), PlayerHost {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        if (redirectAddonLink(intent)) return
         setIntent(intent)
         vm.start(intent)
+    }
+
+    /** A Stremio manifest link shared or opened here goes to the Addon Manager's install preview (15.1). */
+    private fun redirectAddonLink(intent: Intent): Boolean {
+        val link = intent.dataString ?: intent.getStringExtra(Intent.EXTRA_TEXT)?.let { com.troy.orcaplayer.sources.api.MediaLinks.firstLink(it) ?: it.trim() }
+        if (link == null || com.troy.orcaplayer.sources.api.MediaLinks.kindOf(link) != com.troy.orcaplayer.sources.api.MediaLinks.Kind.STREMIO_MANIFEST) return false
+        startActivity(
+            Intent(this, com.troy.orcaplayer.MainActivity::class.java)
+                .putExtra(com.troy.orcaplayer.MainActivity.EXTRA_INSTALL_ADDON, link)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+        )
+        finish()
+        return true
     }
 
     private fun hideSystemBars() {

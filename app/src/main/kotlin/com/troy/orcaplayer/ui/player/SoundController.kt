@@ -206,7 +206,11 @@ class SoundController(
     companion object {
         const val NIGHT_COMPRESSOR = 0.7f
 
+        fun titleFolder(sourceId: String, titleId: String) = "title:$sourceId:$titleId"
+
         fun folderOf(item: PlayItem): String? {
+            // Addon titles: the "folder" is the title, so a series' episodes share its settings (14.6).
+            (item.key as? MediaKey.SourceContent)?.let { return titleFolder(it.sourceId, it.titleId) }
             val path = (item.key as? MediaKey.LocalFile)?.path
             if (!path.isNullOrEmpty() && path.contains('/')) return "dir:" + path.substringBeforeLast('/')
             val uri = item.uri.substringBefore('?')

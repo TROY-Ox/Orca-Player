@@ -76,6 +76,7 @@ import com.troy.orcaplayer.core.design.theme.TroyShapes
 import com.troy.orcaplayer.core.settings.BoolSetting
 import com.troy.orcaplayer.core.settings.ChoiceSetting
 import com.troy.orcaplayer.core.settings.ColorSetting
+import com.troy.orcaplayer.core.settings.TextSetting
 import com.troy.orcaplayer.core.settings.SearchEntry
 import com.troy.orcaplayer.core.settings.SettingDef
 import com.troy.orcaplayer.core.settings.Settings
@@ -194,6 +195,10 @@ fun SettingsScreen(onBack: () -> Unit, onOpenLicences: () -> Unit, onOpenDecoder
             vm.set(def, it)
             dialogKey = null
         }
+        is TextSetting -> TextDialog(def, values[def], onDismiss = { dialogKey = null }) {
+            vm.set(def, it)
+            dialogKey = null
+        }
         else -> Unit
     }
 }
@@ -250,7 +255,46 @@ private fun SettingRow(
                 modifier = Modifier.clickable(role = Role.Button) { onOpen(def) },
             ) { AccentDot(color) }
         }
+        is TextSetting -> {
+            val value = values[def]
+            val shown = when {
+                value.isEmpty() -> stringResource(R.string.text_setting_empty)
+                def.secret -> stringResource(R.string.text_setting_hidden)
+                else -> value.lineSequence().first().take(60)
+            }
+            RowShell(
+                title = stringResource(def.titleRes),
+                summary = shown,
+                modifier = Modifier.clickable(role = Role.Button) { onOpen(def) },
+            ) {}
+        }
     }
+}
+
+@Composable
+private fun TextDialog(def: TextSetting, current: String, onDismiss: () -> Unit, onApply: (String) -> Unit) {
+    val c = Troy.colors
+    var text by remember(current) { mutableStateOf(current) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(def.titleRes), style = Troy.type.title, color = c.text) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                def.summaryRes?.let { Text(stringResource(it), style = Troy.type.bodySmall, color = c.text2) }
+                TroyTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    singleLine = !def.multiline,
+                    modifier = Modifier.fillMaxWidth().then(if (def.multiline) Modifier.heightIn(min = 120.dp) else Modifier),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onApply(text.trim()) }) { Text(stringResource(R.string.color_apply), color = c.accent) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.dialog_cancel), color = c.text2) } },
+        containerColor = Troy.glass.panel.copy(alpha = 1f),
+    )
 }
 
 @Composable

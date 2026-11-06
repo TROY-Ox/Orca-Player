@@ -1,5 +1,10 @@
 package com.troy.orcaplayer.ui.player
 
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -43,7 +48,7 @@ import com.troy.orcaplayer.player.engine.DecoderMode
 import java.util.Locale
 import com.troy.orcaplayer.core.settings.R as SR
 
-enum class PlayerPanel { NONE, SPEED, TRACKS, SUBTITLES, TOOLS, QUEUE, AUDIO }
+enum class PlayerPanel { NONE, SPEED, TRACKS, SUBTITLES, TOOLS, QUEUE, AUDIO, ONLINE_SUBTITLES }
 
 enum class AspectMode(val ratio: Float?) {
     FIT(null), FILL(null), STRETCH(null), ORIGINAL(null), R16_9(16f / 9f), R4_3(4f / 3f), R21_9(21f / 9f);
@@ -197,6 +202,7 @@ fun TracksPanel(
     onAutoQuality: () -> Unit,
     onSubtitlesOff: () -> Unit,
     onPickFile: () -> Unit,
+    onSearchOnline: () -> Unit,
     onDelay: (Long) -> Unit,
     onSubtitleSpeed: (Double) -> Unit,
     onEncoding: (String) -> Unit,
@@ -231,6 +237,7 @@ fun TracksPanel(
             }
             if (external != null) PickRow(external.name, selected = true) {}
             TroyButton(stringResource(R.string.player_load_subtitle), onPickFile, icon = Icons.Filled.FileOpen, modifier = Modifier.padding(top = 6.dp))
+            TroyButton(stringResource(R.string.online_subs_search), onSearchOnline, icon = Icons.Filled.Search, modifier = Modifier.padding(top = 6.dp))
 
             SectionLabel(stringResource(R.string.player_subtitle_delay), Modifier.padding(top = 12.dp))
             Text(
@@ -300,3 +307,41 @@ fun QueuePanel(titles: List<String>, current: Int, repeatMode: Int, shuffle: Boo
 
 /** Shape used for side and bottom panels. */
 val PanelShape = TroyShapes.Panel
+
+private val onlineLanguages = listOf("ar", "en", "fr", "es", "de", "tr", "pt", "it", "ru", "hi", "ja", "ko", "zh", "fa", "ur", "id")
+
+/** Manual online subtitle search (9.6): stream subtitles, subtitle addons and OpenSubtitles, with match quality. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun OnlineSubtitlesPanel(state: OnlineSearch, preferred: String?, onSearch: (List<String>) -> Unit, onPick: (com.troy.orcaplayer.data.OnlineSubtitle) -> Unit) {
+    val c = Troy.colors
+    var langs by remember { mutableStateOf(state.languages.ifEmpty { listOfNotNull(preferred) }) }
+    androidx.compose.runtime.LaunchedEffect(Unit) { if (state.results.isEmpty() && !state.loading) onSearch(langs) }
+    Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        SectionLabel(stringResource(R.string.online_subs_title))
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            onlineLanguages.forEach { l ->
+                com.troy.orcaplayer.core.design.component.TroyChip(l.uppercase(), l in langs, {
+                    langs = if (l in langs) langs - l else langs + l
+                    onSearch(langs)
+                })
+            }
+        }
+        when {
+            state.loading -> Text(stringResource(R.string.loading), style = Troy.type.bodySmall, color = c.text2)
+            state.results.isEmpty() -> Text(stringResource(R.string.online_subs_none), style = Troy.type.bodySmall, color = c.text2)
+        }
+        if (state.keyMissing) Text(stringResource(R.string.online_subs_no_key), style = Troy.type.bodySmall, color = c.text3)
+        state.results.forEach { r ->
+            val quality = when {
+                r.match >= 90 -> stringResource(R.string.online_match_exact)
+                r.match >= 60 -> stringResource(R.string.online_match_good)
+                else -> stringResource(R.string.online_match_title)
+            }
+            PickRow(
+                listOfNotNull(r.language?.uppercase(), r.label, quality, r.source.sourceName).joinToString(" · "),
+                selected = false,
+            ) { onPick(r) }
+        }
+    }
+}

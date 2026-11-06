@@ -68,11 +68,11 @@ fun ToolsScreen(
     onOpenDecoderCheck: () -> Unit,
     onOpenJobs: () -> Unit,
     onCustomize: () -> Unit,
+    onOpenUrlPlayer: () -> Unit,
 ) {
     val c = Troy.colors
     val context = LocalContext.current
     var pendingTool by rememberSaveable { mutableStateOf<ToolId?>(null) }
-    var urlOpen by rememberSaveable { mutableStateOf(false) }
     val jobs by JobsRepository.jobs.collectAsStateWithLifecycle()
     val running = jobs.count { it.active }
 
@@ -94,7 +94,7 @@ fun ToolsScreen(
     fun open(tool: ToolId) {
         when (tool) {
             ToolId.DECODER_CHECK -> onOpenDecoderCheck()
-            ToolId.URL_PLAYER -> urlOpen = !urlOpen
+            ToolId.URL_PLAYER -> onOpenUrlPlayer()
             ToolId.DOWNLOAD -> Toast.makeText(context, R.string.tool_download_later, Toast.LENGTH_SHORT).show()
             ToolId.SUBTITLE_EDITOR -> { pendingTool = tool; picker.launch(arrayOf("application/x-subrip", "text/*", "application/octet-stream", "*/*")) }
             ToolId.AUDIO_EXTRACTOR, ToolId.MEDIA_INFO -> { pendingTool = tool; picker.launch(arrayOf("video/*", "audio/*")) }
@@ -136,46 +136,8 @@ fun ToolsScreen(
                             Text(stringResource(tool.summaryRes()), style = Troy.type.bodySmall, color = c.text2)
                         }
                     }
-                    if (tool == ToolId.URL_PLAYER && urlOpen) UrlPlayer()
                 }
             }
         }
-    }
-}
-
-/** Plays a pasted link, with optional Referer and User-Agent headers. */
-@Composable
-private fun UrlPlayer() {
-    val c = Troy.colors
-    val context = LocalContext.current
-    var url by rememberSaveable { mutableStateOf("") }
-    var referer by rememberSaveable { mutableStateOf("") }
-    var agent by rememberSaveable { mutableStateOf("") }
-    var bad by rememberSaveable { mutableStateOf(false) }
-    fun play() {
-        val u = url.trim()
-        if (UriSchemes.schemeOf(u) !in setOf("http", "https", "rtsp", "rtmp") || !u.contains("://")) {
-            bad = true
-            return
-        }
-        val headers = buildMap {
-            referer.trim().takeIf { it.isNotEmpty() }?.let { put("Referer", it) }
-            agent.trim().takeIf { it.isNotEmpty() }?.let { put("User-Agent", it) }
-        }
-        val item = PlayItem(
-            uri = u,
-            title = Uri.parse(u).lastPathSegment ?: u,
-            key = MediaKeys.forLink(u),
-            source = SourceRef(SourceKind.LINK, "link"),
-            headers = headers,
-        )
-        PlayerLaunch.play(context, PlayRequest(listOf(item)))
-    }
-    Column(Modifier.fillMaxWidth().padding(top = 8.dp).glass(TroyShapes.Panel).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        TroyTextField(url, { url = it; bad = false }, Modifier.fillMaxWidth(), placeholder = stringResource(R.string.url_hint), onImeAction = ::play)
-        TroyTextField(referer, { referer = it }, Modifier.fillMaxWidth(), placeholder = stringResource(R.string.url_referer))
-        TroyTextField(agent, { agent = it }, Modifier.fillMaxWidth(), placeholder = stringResource(R.string.url_agent))
-        if (bad) Text(stringResource(R.string.url_bad), style = Troy.type.bodySmall, color = c.danger)
-        TroyButton(stringResource(R.string.player_play), ::play, kind = ButtonKind.PRIMARY, enabled = url.isNotBlank())
     }
 }
