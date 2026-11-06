@@ -59,6 +59,8 @@ class TitleViewModel @Inject constructor(
 ) : ViewModel() {
     val type: TitleType = runCatching { TitleType.valueOf(saved.get<String>("type").orEmpty()) }.getOrDefault(TitleType.MOVIE)
     val id: String = saved.get<String>("id").orEmpty()
+    /** Continue Watching and Play buttons open the stream picker straight away. */
+    private var playOnLoad: String? = saved.get<String>("play")?.takeIf { it.isNotEmpty() }
 
     private val _title = MutableStateFlow(TitleMemory.get(type.name, id))
     val title: StateFlow<Title?> = _title.asStateFlow()
@@ -98,7 +100,11 @@ class TitleViewModel @Inject constructor(
             if (merged != null) _title.value = merged
             _loading.value = false
             val seasons = seasons()
-            if (_season.value == null) _season.value = seasons.firstOrNull { it > 0 } ?: seasons.firstOrNull()
+            val play = playOnLoad
+            playOnLoad = null
+            val ep = play?.let { p -> _title.value?.episodes?.firstOrNull { it.id == p } }
+            if (_season.value == null) _season.value = ep?.season ?: seasons.firstOrNull { it > 0 } ?: seasons.firstOrNull()
+            if (play != null && (ep != null || _title.value?.episodes.isNullOrEmpty())) openStreams(ep)
         }
     }
 

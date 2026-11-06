@@ -19,7 +19,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.util.Locale
 import javax.inject.Inject
@@ -39,6 +41,13 @@ class OrcaApp : Application() {
         Downloads.bridge = planner
         appScope.launch {
             profiles.ensureDefaultProfile(getString(R.string.profiles_default_name))
+        }
+        // New-episode alerts follow their (all-profiles) setting (17.8).
+        appScope.launch {
+            profiles.currentProfileId.flatMapLatest { settings.values(it) }
+                .map { it[com.troy.orcaplayer.core.settings.BrowsingSettings.NewEpisodeAlerts].toIntOrNull() }
+                .distinctUntilChanged()
+                .collect { hours -> runCatching { com.troy.orcaplayer.data.NewEpisodeAlerts.schedule(this@OrcaApp, hours) } }
         }
         // Downloader options follow Settings (16.8); downloads that were running continue.
         appScope.launch {

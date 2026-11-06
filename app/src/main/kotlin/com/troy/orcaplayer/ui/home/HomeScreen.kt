@@ -47,19 +47,45 @@ fun HomeScreen(
     onOpenUrlPlayer: () -> Unit,
     onOpenAddons: () -> Unit,
     onOpenDownloads: () -> Unit = {},
+    onOpenDetails: (type: String, id: String, play: String?) -> Unit = { _, _, _ -> },
+    onOpenMyList: () -> Unit = {},
     vm: HomeViewModel = hiltViewModel(),
+    browse: BrowseViewModel = hiltViewModel(),
 ) {
     val c = Troy.colors
+    val context = androidx.compose.ui.platform.LocalContext.current
     val rows by vm.rows.collectAsStateWithLifecycle()
     val states by vm.states.collectAsStateWithLifecycle()
     val hasAddons by vm.hasAddons.collectAsStateWithLifecycle()
+    val hero by vm.hero.collectAsStateWithLifecycle()
+    val v by browse.settings.collectAsStateWithLifecycle()
     val list = rememberLazyListState()
+    val openTarget: (OpenTarget?) -> Unit = { t ->
+        when (t) {
+            is OpenTarget.Play -> com.troy.orcaplayer.ui.player.PlayerLaunch.play(context, t.request)
+            is OpenTarget.Details -> onOpenDetails(t.type, t.id, t.play)
+            null -> android.widget.Toast.makeText(context, R.string.cw_unavailable, android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+    val playTitle: (Title) -> Unit = { t -> onOpenDetails(t.type.name, t.id, if (t.type == com.troy.orcaplayer.core.model.TitleType.SERIES) null else BrowseViewModel.PLAY_MOVIE) }
 
     Column(Modifier.fillMaxSize()) {
         MainTopBar(stringResource(R.string.tab_home), onOpenSettings, onOpenProfiles) {
             if (rows.isNotEmpty()) TroyIconButton(Icons.Outlined.Refresh, stringResource(R.string.refresh), vm::refresh)
         }
         LazyColumn(Modifier.fillMaxSize(), state = list) {
+            val heroItems = hero?.let { states[it.key]?.items }.orEmpty()
+            if (hero != null && v[com.troy.orcaplayer.core.settings.BrowsingSettings.Hero] != "off") {
+                item(key = "hero") {
+                    if (heroItems.isEmpty()) HeroPlaceholder() else HeroArea(heroItems, browse, onPlay = playTitle, onOpen = onOpenTitle)
+                }
+            }
+            if (v[com.troy.orcaplayer.core.settings.BrowsingSettings.ContinueRow]) {
+                item(key = "continue") { ContinueRow(browse, onOpen = { openTarget(browse.open(it)) }, openTitle = { t, play -> onOpenDetails(t.type.name, t.id, play) }) }
+            }
+            if (v[com.troy.orcaplayer.core.settings.BrowsingSettings.MyListRow]) {
+                item(key = "mylist") { MyListRow(browse, onOpenMyList) { openTarget(browse.open(it)) } }
+            }
             item(key = "url") {
                 Row(
                     Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth().glass(TroyShapes.Panel).troyFocusRing()
@@ -74,7 +100,7 @@ fun HomeScreen(
                     }
                 }
             }
-            item(key = "downloads") { DownloadsRow(onOpenDownloads) }
+            if (v[com.troy.orcaplayer.core.settings.BrowsingSettings.DownloadsRow]) item(key = "downloads") { DownloadsRow(onOpenDownloads) }
             if (!hasAddons) {
                 item(key = "empty") {
                     EmptyState(

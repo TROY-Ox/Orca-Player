@@ -31,7 +31,9 @@ object Routes {
     const val URL_PLAYER = "url_player?url={url}"
     const val ADDON = "addon/{id}"
     const val DISCOVER = "discover?addon={addon}&catalog={catalog}"
-    const val TITLE = "title/{type}/{id}"
+    const val TITLE = "title/{type}/{id}?play={play}"
+    const val MY_LIST = "my_list"
+    const val HOME_ROWS = "home_rows"
     const val DOWNLOADS = "downloads?tab={tab}"
 
     fun urlPlayer(url: String? = null) = "url_player?url=" + android.net.Uri.encode(url.orEmpty())
@@ -39,7 +41,9 @@ object Routes {
     fun discover(addonId: String? = null, catalogKey: String? = null) =
         "discover?addon=" + android.net.Uri.encode(addonId.orEmpty()) + "&catalog=" + android.net.Uri.encode(catalogKey.orEmpty())
     fun downloads(tab: String? = null) = "downloads?tab=" + android.net.Uri.encode(tab.orEmpty())
-    fun title(type: String, id: String) = "title/" + android.net.Uri.encode(type) + "/" + android.net.Uri.encode(id)
+    /** [play] opens the stream picker at once: an episode ID, or "movie". */
+    fun title(type: String, id: String, play: String? = null) =
+        "title/" + android.net.Uri.encode(type) + "/" + android.net.Uri.encode(id) + "?play=" + android.net.Uri.encode(play.orEmpty())
 }
 
 data class TabSpec(val tab: MainTab, val route: String, @StringRes val label: Int, val icon: ImageVector, val selectedIcon: ImageVector)

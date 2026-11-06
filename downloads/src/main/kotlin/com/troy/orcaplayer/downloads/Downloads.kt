@@ -327,6 +327,8 @@ object Downloads {
             downloadable = true,
             mimeType = if (item.isStream) item.mimeType ?: StreamFetcher.mimeOf(item.kind) else null,
             streamKeys = item.tracks?.keys.orEmpty(),
+            poster = m.poster ?: m.backdrop,
+            titleType = m.type,
         )
     }
 

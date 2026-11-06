@@ -130,6 +130,7 @@ class PlayerViewModel @Inject constructor(
     private val profiles: ProfileRepository,
     private val hub: ContentHub,
     private val online: OnlineSubtitles,
+    marks: com.troy.orcaplayer.core.data.PlaybackMarksRepository,
 ) : ViewModel() {
     /** Saves must finish even when the screen closes, so they don't use viewModelScope. */
     private val io = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -223,6 +224,14 @@ class PlayerViewModel @Inject constructor(
     private var handledIndex = -1
     private var explicitStart: Pair<Int, Long>? = null
     private var lastSaveAt = 0L
+
+    /** Skip buttons, next episode and the Kids watch limit (17.6, 18). */
+    val binge = PlayerBinge(viewModelScope, io, engine, hub, marks)
+
+    /** The profile watching, for Kids rules. */
+    val profile: StateFlow<com.troy.orcaplayer.core.model.Profile?> =
+        kotlinx.coroutines.flow.combine(profiles.profiles, profiles.currentProfileId) { l, id -> l.firstOrNull { it.id == id } }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, null)
     private var started = false
 
     private val listener = object : Player.Listener {
@@ -248,7 +257,7 @@ class PlayerViewModel @Inject constructor(
             if (playbackState == Player.STATE_ENDED) {
                 saveNow()
                 val p = attached ?: return
-                if (!p.hasNextMediaItem() && p.repeatMode == Player.REPEAT_MODE_OFF) _events.tryEmit(PlayerEvent.Finish)
+                if (!p.hasNextMediaItem() && p.repeatMode == Player.REPEAT_MODE_OFF && !binge.onEnded(p, settings.value)) _events.tryEmit(PlayerEvent.Finish)
             }
         }
 
@@ -293,6 +302,7 @@ class PlayerViewModel @Inject constructor(
                 if (p.isPlaying && System.currentTimeMillis() - lastSaveAt > 5_000) saveNow()
                 checkStall(p)
                 extras.tick(p)
+                binge.tick(p, engine.itemAt(p.currentMediaItemIndex), settings.value, profile.value)
                 _resumePill.value?.let { pill ->
                     if (System.currentTimeMillis() - pill.shownAt > if (pill.ask) 10_000 else 6_000) _resumePill.value = null
                 }
@@ -385,6 +395,7 @@ class PlayerViewModel @Inject constructor(
         )
         resetFallback(request.startIndex)
         _onlineNotice.value = null
+        binge.onItem(first, request.startIndex)
         engine.load(request.items, request.startIndex, startPos)
         refresh()
         // Subtitles sent by the calling app, then files next to the video.
@@ -439,6 +450,7 @@ class PlayerViewModel @Inject constructor(
         _subtitleDelayMs.value = 0
         _resumePill.value = null
         val item = engine.itemAt(index) ?: return
+        binge.onItem(item, index)
         viewModelScope.launch {
             val v = settings.value
             sound.onMediaStarted(item)
@@ -487,6 +499,13 @@ class PlayerViewModel @Inject constructor(
                         positionMs = stored,
                         durationMs = duration,
                         updatedAt = System.currentTimeMillis(),
+                        sourceKind = item.source.kind.name,
+                        titleType = item.titleType,
+                        titleId = item.episode?.titleId ?: (item.key as? com.troy.orcaplayer.core.model.MediaKey.SourceContent)?.titleId,
+                        episodeId = item.episode?.episodeId?.takeIf { it.isNotEmpty() },
+                        subtitle = item.subtitle,
+                        poster = item.poster,
+                        hidden = false,
                     ),
                 )
             }
@@ -533,7 +552,7 @@ class PlayerViewModel @Inject constructor(
     fun seekBy(deltaMs: Long) = seekTo((attached?.currentPosition ?: 0) + deltaMs)
 
     fun next() {
-        attached?.let { if (it.hasNextMediaItem()) it.seekToNextMediaItem() }
+        attached?.let { binge.playNext(it) }
     }
 
     fun previous() {
@@ -944,6 +963,7 @@ class PlayerViewModel @Inject constructor(
 
     override fun onCleared() {
         saveNow()
+        binge.flush(profiles.currentProfileId.value)
         extras.release()
         attached?.removeListener(listener)
         attached = null

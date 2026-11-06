@@ -31,6 +31,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import android.widget.Toast
 import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Done
 import androidx.compose.material.icons.filled.CheckCircle
 import com.troy.orcaplayer.core.design.component.TroyIconButton
 import com.troy.orcaplayer.core.settings.SourceSettings
@@ -99,6 +101,8 @@ fun TitleScreen(onBack: () -> Unit, vm: TitleViewModel = hiltViewModel()) {
     val progress by vm.progress.collectAsStateWithLifecycle()
     var confirmOpen by remember { mutableStateOf<TitleEvent.Open?>(null) }
     val dl: DownloadsViewModel = hiltViewModel()
+    val browse: com.troy.orcaplayer.ui.home.BrowseViewModel = hiltViewModel()
+    val myKeys by browse.myKeys.collectAsStateWithLifecycle()
     val guard = rememberDownloadGuard(dl)
     val dlItems by dl.items.collectAsStateWithLifecycle()
     val downloaded = remember(dlItems) {
@@ -165,6 +169,17 @@ fun TitleScreen(onBack: () -> Unit, vm: TitleViewModel = hiltViewModel()) {
                             TroyButton(stringResource(R.string.dl_download_season), {
                                 guard(t.source, drm = false, downloadable = true) { bulk = t.episodes.filter { (it.season ?: 0) == season } }
                             }, icon = Icons.Outlined.Download)
+                        }
+                        val listed = com.troy.orcaplayer.core.model.MyListKeys.forTitle(t.type, t.id) in myKeys
+                        TroyButton(
+                            stringResource(if (listed) R.string.mylist_remove else R.string.mylist_add), { browse.toggle(t) },
+                            icon = if (listed) Icons.Filled.CheckCircle else Icons.Outlined.Add,
+                        )
+                        if (single) {
+                            TroyButton(stringResource(R.string.mark_watched), {
+                                browse.markWatched(t)
+                                Toast.makeText(context, R.string.marked_watched, Toast.LENGTH_SHORT).show()
+                            }, icon = Icons.Outlined.Done)
                         }
                         t.trailers.firstOrNull()?.let { yt ->
                             TroyButton(stringResource(R.string.title_trailer), { confirmOpen = TitleEvent.Open(yt, youtube = true) }, icon = Icons.Outlined.SmartDisplay)

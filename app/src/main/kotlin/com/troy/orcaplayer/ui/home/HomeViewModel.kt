@@ -31,6 +31,11 @@ class HomeViewModel @Inject constructor(
         .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
+    /** The catalog the featured area shows (17.2). */
+    val hero: StateFlow<HomeRow?> = combine(addons.list, hub.profile) { l, p -> hub.heroRow(l, p) }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
     val hasAddons: StateFlow<Boolean> = combine(addons.list, hub.profile) { l, p -> l.addons.any { it.activeFor(p) } }
         .stateIn(viewModelScope, SharingStarted.Eagerly, true)
 
@@ -46,9 +51,13 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             rows.collect { list ->
                 val keys = list.map { it.key }.toSet()
-                _states.update { m -> m.filterKeys { it in keys } }
+                val keep = keys + listOfNotNull(hero.value?.key)
+                _states.update { m -> m.filterKeys { it in keep } }
                 list.forEach { if (it.key !in _states.value) load(it, reset = true) }
             }
+        }
+        viewModelScope.launch {
+            hero.collect { h -> if (h != null && h.key !in _states.value) load(h, reset = true) }
         }
     }
 
@@ -58,6 +67,7 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching { addons.refreshManifests(force = true) }
             rows.value.forEach { load(it, reset = true) }
+            hero.value?.takeIf { h -> rows.value.none { it.key == h.key } }?.let { load(it, reset = true) }
         }
     }
 
@@ -75,7 +85,10 @@ class HomeViewModel @Inject constructor(
                 next[key] = p.next
                 _states.update { m ->
                     val old = if (reset) emptyList() else m[key]?.items.orEmpty()
-                    val merged = (old + p.items).distinctBy { it.type.name + it.id }
+                    // Kids profiles limited to chosen titles see only those (18).
+                    val kid = hub.profile.value?.takeIf { it.isKids }
+                    val items = if (kid == null) p.items else p.items.filter { kid.kids.allowsTitle(it.type.name, it.id) }
+                    val merged = (old + items).distinctBy { it.type.name + it.id }
                     m + (key to RowState(merged, loading = false, error = null, hasMore = p.next != null && merged.size > old.size))
                 }
             }.onFailure { e ->

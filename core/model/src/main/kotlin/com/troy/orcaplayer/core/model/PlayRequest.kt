@@ -43,6 +43,9 @@ data class PlayItem(
     val mimeType: String? = null,
     /** The downloaded tracks of an HLS or DASH download, as "period.group.stream". */
     val streamKeys: List<String> = emptyList(),
+    /** For Continue Watching and My List: the title's poster and type (17.4, 17.5). */
+    val poster: String? = null,
+    val titleType: String? = null,
 ) {
     init {
         require(UriSchemes.isAllowed(uri)) { "Scheme not allowed: $uri" }

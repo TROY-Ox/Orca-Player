@@ -87,7 +87,14 @@ import com.troy.orcaplayer.core.settings.SettingsValues
 import com.troy.orcaplayer.ui.shell.BackTopBar
 
 @Composable
-fun SettingsScreen(onBack: () -> Unit, onOpenLicences: () -> Unit, onOpenDecoderCheck: () -> Unit, vm: SettingsViewModel = hiltViewModel()) {
+fun SettingsScreen(
+    onBack: () -> Unit,
+    onOpenLicences: () -> Unit,
+    onOpenDecoderCheck: () -> Unit,
+    onOpenHomeRows: () -> Unit = {},
+    onOpenProfiles: () -> Unit = {},
+    vm: SettingsViewModel = hiltViewModel(),
+) {
     val values by vm.values.collectAsStateWithLifecycle()
     var query by rememberSaveable { mutableStateOf("") }
     var dialogKey by rememberSaveable { mutableStateOf<String?>(null) }
@@ -169,6 +176,12 @@ fun SettingsScreen(onBack: () -> Unit, onOpenLicences: () -> Unit, onOpenDecoder
                                 if (section == SettingsSection.VIDEO) {
                                     NavRow(stringResource(R.string.dc_title), stringResource(R.string.dc_summary), onOpenDecoderCheck)
                                 }
+                                if (section == SettingsSection.HOME) {
+                                    NavRow(stringResource(R.string.home_rows_title), stringResource(R.string.home_rows_summary), onOpenHomeRows)
+                                }
+                                if (section == SettingsSection.PROFILES) {
+                                    NavRow(stringResource(R.string.profiles_manage), stringResource(R.string.profiles_manage_summary), onOpenProfiles)
+                                }
                             }
                         }
                     }
@@ -239,6 +252,23 @@ private fun SettingsCard(modifier: Modifier = Modifier, content: @Composable () 
 
 @Composable
 private fun SettingRow(
+    def: SettingDef<*>,
+    values: SettingsValues,
+    onBool: (BoolSetting, Boolean) -> Unit,
+    onOpen: (SettingDef<*>) -> Unit,
+) {
+    // Device-wide settings say so, since they apply to every profile (18).
+    if (def.scope == com.troy.orcaplayer.core.settings.SettingScope.GLOBAL) {
+        androidx.compose.runtime.CompositionLocalProvider(LocalGlobalSetting provides true) { SettingRowBody(def, values, onBool, onOpen) }
+    } else {
+        SettingRowBody(def, values, onBool, onOpen)
+    }
+}
+
+private val LocalGlobalSetting = androidx.compose.runtime.compositionLocalOf { false }
+
+@Composable
+private fun SettingRowBody(
     def: SettingDef<*>,
     values: SettingsValues,
     onBool: (BoolSetting, Boolean) -> Unit,
@@ -339,6 +369,7 @@ private fun RowShell(title: String, summary: String?, modifier: Modifier, traili
         Column(Modifier.weight(1f)) {
             Text(title, style = Troy.type.body, color = c.text)
             if (!summary.isNullOrEmpty()) Text(summary, style = Troy.type.bodySmall, color = c.text2)
+            if (LocalGlobalSetting.current) Text(stringResource(SR.string.setting_scope_all_profiles), style = Troy.type.label, color = c.text3)
         }
         Spacer(Modifier.size(12.dp))
         trailing()

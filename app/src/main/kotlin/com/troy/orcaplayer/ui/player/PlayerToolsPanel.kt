@@ -119,11 +119,16 @@ data class ToolsPanelState(
     val canSaveFolder: Boolean,
     val rememberPerVideo: Boolean,
     val canSave: Boolean,
+    /** Skip marks can be set: the item is an episode of a series. */
+    val canMark: Boolean = false,
+    val hasMarks: Boolean = false,
 )
 
 /** What the Tools panel can do. */
 interface ToolsPanelActions {
     fun openTool(tool: ToolId)
+    fun startMark(kind: com.troy.orcaplayer.core.model.SkipKind) = Unit
+    fun clearMarks() = Unit
     fun screenshot()
     fun equalizer()
     fun markA()
@@ -157,6 +162,21 @@ fun ToolsPanel(s: ToolsPanelState, a: ToolsPanelActions) {
                 ToolId.SCREENSHOT -> ToolRow(tool, enabled = true, onClick = a::screenshot)
                 ToolId.EQUALIZER -> ToolRow(tool, enabled = true, onClick = a::equalizer)
                 ToolId.DOWNLOAD -> ToolRow(tool, enabled = s.canSave) { a.openTool(tool) }
+                ToolId.SKIP_MARKS -> {
+                    SectionLabel(stringResource(R.string.tool_skip_marks))
+                    Text(
+                        stringResource(if (s.canMark) R.string.skip_marks_hint else R.string.skip_marks_series_only),
+                        style = Troy.type.bodySmall, color = c.text2,
+                    )
+                    if (s.canMark) {
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TroyButton(stringResource(R.string.mark_intro_start), { a.startMark(com.troy.orcaplayer.core.model.SkipKind.INTRO) })
+                            TroyButton(stringResource(R.string.mark_recap_start), { a.startMark(com.troy.orcaplayer.core.model.SkipKind.RECAP) })
+                            TroyButton(stringResource(R.string.mark_credits_start), { a.startMark(com.troy.orcaplayer.core.model.SkipKind.CREDITS) })
+                            if (s.hasMarks) TroyButton(stringResource(R.string.skip_marks_clear), a::clearMarks, kind = ButtonKind.GHOST)
+                        }
+                    }
+                }
                 ToolId.AB_REPEAT -> {
                     SectionLabel(stringResource(R.string.tool_ab_repeat))
                     val status = when {

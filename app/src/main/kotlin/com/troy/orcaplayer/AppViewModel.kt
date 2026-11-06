@@ -31,6 +31,17 @@ class AppViewModel @Inject constructor(
 ) : ViewModel() {
     val profileId: StateFlow<String> = profiles.currentProfileId
 
+    /** Every profile, or null until they have loaded. */
+    val allProfiles: StateFlow<List<com.troy.orcaplayer.core.model.Profile>?> = profiles.profiles
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    val currentProfile: StateFlow<com.troy.orcaplayer.core.model.Profile?> =
+        kotlinx.coroutines.flow.combine(profiles.profiles, profiles.currentProfileId) { l, id -> l.firstOrNull { it.id == id } }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    /** "Who's watching?" was answered, or skipped, for this launch. */
+    val profileChosen = MutableStateFlow(false)
+
     val settings: StateFlow<SettingsValues?> = profiles.currentProfileId
         .flatMapLatest { settingsRepo.values(it) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
@@ -52,6 +63,9 @@ class AppViewModel @Inject constructor(
 
     /** A link shared to the app, waiting for "Play" or "Download" (16.1). */
     val pendingShare = MutableStateFlow<String?>(null)
+
+    /** "TYPE/id" of a title to open, from a new-episode notification. */
+    val pendingTitle = MutableStateFlow<String?>(null)
 
     /** Set when a download notification opened the app. */
     val pendingDownloads = MutableStateFlow(false)

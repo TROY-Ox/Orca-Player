@@ -87,6 +87,7 @@ class AddonDetailViewModel @Inject constructor(
     fun editCatalog(key: String, change: (com.troy.orcaplayer.data.CatalogPref) -> com.troy.orcaplayer.data.CatalogPref) = repo.editCatalog(id, key, change)
     fun moveCatalog(key: String, delta: Int) = repo.moveCatalog(id, key, delta)
     fun setTrending(key: String?) = repo.setTrending(if (key == null) null else id, key)
+    fun setHero(key: String?) = repo.setHero(if (key == null) null else id, key)
     fun markSeen() = repo.markSeen(id)
     fun remove() = repo.remove(setOf(id))
     fun rawManifest(a: InstalledAddon): String =
@@ -202,6 +203,7 @@ fun AddonDetailScreen(onBack: () -> Unit, vm: AddonDetailViewModel = hiltViewMod
                                 }
                                 val trendingKey = "${a.id}|${decl.key}"
                                 Toggle(stringResource(R.string.addon_trending), list.trending == trendingKey) { v -> vm.setTrending(if (v) decl.key else null) }
+                                Toggle(stringResource(R.string.addon_hero), list.hero == trendingKey) { v -> vm.setHero(if (v) decl.key else null) }
                             }
                         }
                     }
@@ -279,6 +281,8 @@ private fun RowStyle.label(): Int = when (this) {
     RowStyle.POSTER -> R.string.row_style_poster
     RowStyle.LANDSCAPE -> R.string.row_style_landscape
     RowStyle.LARGE -> R.string.row_style_large
+    RowStyle.TOP10 -> R.string.row_style_top10
+    RowStyle.HERO -> R.string.row_style_hero
 }
 
 @Composable

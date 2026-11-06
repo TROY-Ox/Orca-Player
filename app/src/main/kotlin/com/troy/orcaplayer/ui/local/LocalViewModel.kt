@@ -61,7 +61,14 @@ class LocalViewModel @Inject constructor(
 
     val media: StateFlow<List<LocalMedia>?> = combine(_access, folderTick) { a, _ -> a }
         .flatMapLatest { a -> if (a == MediaAccess.NONE && repo.trees().isEmpty()) flowOf(emptyList()) else repo.observe() }
+        // Kids profiles see only the folders chosen for them (18).
+        .combine(combine(profiles.profiles, profiles.currentProfileId) { l, id -> l.firstOrNull { it.id == id } }) { list, p ->
+            if (p?.isKids == true) list.filter { p.kids.allowsFolder(it.folderId) } else list
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Every folder with videos, for choosing what a Kids profile may open. */
+    suspend fun allFolders(): List<Pair<String, String>> = repo.scan().map { it.folderId to it.folderName }.distinct().sortedBy { it.second.lowercase() }
 
     val progress: StateFlow<Map<String, Progress>> = profiles.currentProfileId
         .flatMapLatest { resume.all(it) }
