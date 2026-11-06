@@ -110,6 +110,10 @@ fun ExtensionsManagerScreen(onBack: () -> Unit) {
                 Column(Modifier.widthIn(max = 760.dp).fillMaxWidth().glass(TroyShapes.Panel).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     SectionLabel(stringResource(R.string.ext_add_repo))
                     TroyTextField(url, { url = it }, Modifier.fillMaxWidth(), placeholder = stringResource(R.string.ext_repo_hint))
+                    com.troy.orcaplayer.ui.tv.SendFromPhoneButton(
+                        stringResource(R.string.ext_repo_hint),
+                        listOf(com.troy.orcaplayer.ui.tv.SendField("url", stringResource(R.string.ext_repo_hint), value = url)),
+                    ) { got -> got["url"]?.trim()?.let { url = it } }
                     TroyButton(stringResource(R.string.ext_add), {
                         work("add") { pendingRepo = m.fetchRepo(url) }
                     }, kind = ButtonKind.PRIMARY, enabled = url.isNotBlank() && busy == null)

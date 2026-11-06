@@ -170,7 +170,7 @@ private fun MainShell(navLayout: NavLayout, isTv: Boolean, appVm: AppViewModel) 
                     }
                 }
                 ClipboardOffer(
-                    enabled = !kids && (values?.get(com.troy.orcaplayer.core.settings.SourceSettings.ClipboardDetect) ?: false),
+                    enabled = !kids && !isTv && (values?.get(com.troy.orcaplayer.core.settings.SourceSettings.ClipboardDetect) ?: false),
                     onPlay = { link -> appVm.playLink(link)?.let { com.troy.orcaplayer.ui.player.PlayerLaunch.play(context, it) } },
                     onInstall = { link -> appVm.pendingInstall.value = link },
                 )
@@ -363,7 +363,7 @@ private fun OrcaNavHost(nav: NavHostController, start: String) {
         composable(Routes.LICENCES) { LicencesScreen(onBack = back) }
         composable(Routes.PRIVATE_FOLDER) { com.troy.orcaplayer.ui.local.PrivateFolderScreen(onBack = back) }
         composable(Routes.LIBRARY) {
-            com.troy.orcaplayer.ui.library.LibraryScreen(
+            com.troy.orcaplayer.ui.library.LibraryPanes(
                 onBack = back,
                 onOpenMovie = { nav.navigate(Routes.libraryItem(it)) },
                 onOpenShow = { nav.navigate(Routes.libraryShow(it)) },
