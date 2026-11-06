@@ -56,6 +56,11 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun library(@ApplicationContext context: Context, db: OrcaDatabase): com.troy.orcaplayer.library.Library =
+        com.troy.orcaplayer.library.Library(context, db.library())
+
+    @Provides
+    @Singleton
     fun thumbnails(@ApplicationContext context: Context): Thumbnails = Thumbnails(context)
 
     @Provides

@@ -165,6 +165,7 @@ private fun ShareEditor(initial: ShareConnection, vm: NetworkViewModel, onDone: 
     var pass by rememberSaveable { mutableStateOf(initial.password) }
     var domain by rememberSaveable { mutableStateOf(initial.domain) }
     var secure by rememberSaveable { mutableStateOf(initial.secure) }
+    var inLibrary by rememberSaveable { mutableStateOf(initial.inLibrary) }
     var confirmDelete by remember { mutableStateOf(false) }
     val test by vm.test.collectAsStateWithLifecycle()
 
@@ -178,6 +179,7 @@ private fun ShareEditor(initial: ShareConnection, vm: NetworkViewModel, onDone: 
         password = pass,
         domain = domain.trim(),
         secure = secure,
+        inLibrary = inLibrary,
         hostKey = if (type == initial.type && host.trim() == initial.host && (port.trim().toIntOrNull() ?: 0) == initial.port) initial.hostKey else null,
     )
     fun close() { vm.clearTest(); onDone() }
@@ -221,6 +223,13 @@ private fun ShareEditor(initial: ShareConnection, vm: NetworkViewModel, onDone: 
                 }
                 Label(R.string.network_name)
                 TroyTextField(name, { name = it }, Modifier.fillMaxWidth(), placeholder = host.ifBlank { stringResource(R.string.network_name_hint) })
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(R.string.network_in_library), style = Troy.type.body, color = c.text)
+                        Text(stringResource(R.string.network_in_library_summary), style = Troy.type.bodySmall, color = c.text3)
+                    }
+                    TroyToggle(inLibrary, { inLibrary = it })
+                }
                 Text(stringResource(R.string.network_stored_safely), style = Troy.type.bodySmall, color = c.text3)
             }
             when (val t = test) {

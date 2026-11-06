@@ -15,7 +15,7 @@ internal object Xml {
         runCatching { f.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true) }
         runCatching { f.setFeature("http://xml.org/sax/features/external-general-entities", false) }
         runCatching { f.isExpandEntityReferences = false }
-        return f.newDocumentBuilder().parse(InputSource(StringReader(text.trimStart('﻿'))))
+        return f.newDocumentBuilder().parse(InputSource(StringReader(text.trimStart { it.code == 0xFEFF })))
     }
 
     fun Element.children(local: String): List<Element> {

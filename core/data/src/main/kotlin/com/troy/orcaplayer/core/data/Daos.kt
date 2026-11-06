@@ -108,3 +108,54 @@ interface ResumeDao {
     @Query("DELETE FROM resume_positions WHERE profileId = :profileId AND mediaKey = :mediaKey")
     suspend fun delete(profileId: String, mediaKey: String)
 }
+
+@Dao
+interface LibraryDao {
+    @Query("SELECT * FROM library_items")
+    fun observeItems(): Flow<List<LibraryItemEntity>>
+
+    @Query("SELECT * FROM library_shows")
+    fun observeShows(): Flow<List<LibraryShowEntity>>
+
+    @Query("SELECT * FROM library_items")
+    suspend fun items(): List<LibraryItemEntity>
+
+    @Query("SELECT * FROM library_items WHERE id = :id")
+    suspend fun item(id: String): LibraryItemEntity?
+
+    @Query("SELECT * FROM library_items WHERE showKey = :showKey")
+    suspend fun episodes(showKey: String): List<LibraryItemEntity>
+
+    @Query("SELECT * FROM library_shows WHERE showKey = :showKey")
+    suspend fun show(showKey: String): LibraryShowEntity?
+
+    @Query("SELECT * FROM library_shows")
+    suspend fun shows(): List<LibraryShowEntity>
+
+    @Upsert
+    suspend fun upsertItems(items: List<LibraryItemEntity>)
+
+    @Upsert
+    suspend fun upsertShow(show: LibraryShowEntity)
+
+    @Query("DELETE FROM library_items WHERE id IN (:ids)")
+    suspend fun deleteItems(ids: List<String>)
+
+    @Query("DELETE FROM library_shows WHERE showKey NOT IN (SELECT DISTINCT showKey FROM library_items WHERE showKey IS NOT NULL)")
+    suspend fun deleteEmptyShows()
+
+    @Query("DELETE FROM library_items")
+    suspend fun clearItems()
+
+    @Query("DELETE FROM library_shows")
+    suspend fun clearShows()
+
+    @Query("SELECT * FROM library_watched WHERE profileId = :profileId")
+    fun observeWatched(profileId: String): Flow<List<LibraryWatchedEntity>>
+
+    @Upsert
+    suspend fun markWatched(marks: List<LibraryWatchedEntity>)
+
+    @Query("DELETE FROM library_watched WHERE profileId = :profileId AND itemId IN (:ids)")
+    suspend fun unmarkWatched(profileId: String, ids: List<String>)
+}

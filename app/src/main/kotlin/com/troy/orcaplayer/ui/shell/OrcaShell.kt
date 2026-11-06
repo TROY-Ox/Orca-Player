@@ -301,6 +301,7 @@ private fun OrcaNavHost(nav: NavHostController, start: String) {
                         openSettings, openProfiles, openUrlPlayer,
                         onOpenDownloads = { openDownloads("COMPLETED") },
                         onOpenPrivate = { if (!guard.active) nav.navigate(Routes.PRIVATE_FOLDER) { launchSingleTop = true } },
+                        onOpenLibrary = { nav.navigate(Routes.LIBRARY) { launchSingleTop = true } },
                         onOpenNetwork = { if (!guard.active) nav.navigate(Routes.NETWORK_SHARES) { launchSingleTop = true } },
                     )
                     MainTab.TOOLS -> {
@@ -360,6 +361,23 @@ private fun OrcaNavHost(nav: NavHostController, start: String) {
         ) { TitleScreen(onBack = back) }
         composable(Routes.LICENCES) { LicencesScreen(onBack = back) }
         composable(Routes.PRIVATE_FOLDER) { com.troy.orcaplayer.ui.local.PrivateFolderScreen(onBack = back) }
+        composable(Routes.LIBRARY) {
+            com.troy.orcaplayer.ui.library.LibraryScreen(
+                onBack = back,
+                onOpenMovie = { nav.navigate(Routes.libraryItem(it)) },
+                onOpenShow = { nav.navigate(Routes.libraryShow(it)) },
+            )
+        }
+        composable(Routes.LIBRARY_MOVIE, arguments = listOf(navArgument("id") { type = NavType.StringType })) { e ->
+            com.troy.orcaplayer.ui.library.LibraryMovieScreen(id = e.arguments?.getString("id").orEmpty(), onBack = back)
+        }
+        composable(Routes.LIBRARY_SHOW, arguments = listOf(navArgument("id") { type = NavType.StringType })) { e ->
+            com.troy.orcaplayer.ui.library.LibraryShowScreen(
+                showKey = e.arguments?.getString("id").orEmpty(),
+                onBack = back,
+                onOpenItem = { nav.navigate(Routes.libraryItem(it)) },
+            )
+        }
         composable(Routes.NETWORK_SHARES) {
             com.troy.orcaplayer.ui.network.NetworkSharesScreen(onBack = back, onOpen = { nav.navigate(Routes.share(it)) })
         }

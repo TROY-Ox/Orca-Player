@@ -37,6 +37,8 @@ data class ShareConnection(
     val secure: Boolean = false,
     /** SFTP host key fingerprint, kept on first connect and checked after that. */
     val hostKey: String? = null,
+    /** Scanned into the media library (20.1). */
+    val inLibrary: Boolean = false,
 ) {
     val effectivePort: Int get() = if (port > 0) port else if (type == ShareType.WEBDAV && secure) 443 else type.defaultPort
     val anonymous: Boolean get() = username.isBlank()

@@ -105,6 +105,8 @@ licensee {
     allow("LGPL-2.1-or-later")
     allow("LGPL-3.0-only")
     allow("LGPL-3.0-or-later")
+    allowUrl("https://opensource.org/license/mit") { because("The MIT licence, published under another URL") }
+    allowUrl("https://www.bouncycastle.org/licence.html") { because("The Bouncy Castle licence is the MIT licence") }
 }
 
 // Alias used by CI: fails if any dependency of the standard release build is GPL-only
@@ -129,6 +131,7 @@ dependencies {
     implementation(project(":downloads"))
     implementation(project(":vault"))
     implementation(project(":sources:network"))
+    implementation(project(":library"))
     implementation(libs.androidx.work.runtime)
     implementation(libs.androidx.biometric)
     "extendedImplementation"(project(":sources:cloudstream"))
