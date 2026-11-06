@@ -219,7 +219,7 @@ private fun VaultList(ops: FileOpsViewModel) {
                     Text(item.name, style = Troy.type.body, color = c.text, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     val details = listOfNotNull(
                         Formatter.formatShortFileSize(context, item.sizeBytes),
-                        item.durationMs.takeIf { it > 0 }?.let(::timecode),
+                        item.durationMs.takeIf { it > 0 }?.let { timecode(it) },
                     ).joinToString(" · ")
                     Text(details, style = Troy.type.bodySmall, color = c.text2)
                 }

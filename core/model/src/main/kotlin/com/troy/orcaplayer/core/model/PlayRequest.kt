@@ -85,7 +85,7 @@ object UriSchemes {
     fun isAllowed(uri: String): Boolean = schemeOf(uri) in allowed
 
     /** Network shares and the private folder (20.2, 20.4). Only the app's own sources may use them, never addons or links. */
-    val own = setOf("smb", "sftp", "ftp", "ftps", "orcavault")
+    val own = setOf("smb", "sftp", "ftp", "ftps", "orcadav", "orcavault")
     val ownSources = setOf(SourceKind.LOCAL, SourceKind.NETWORK_SHARE)
 
     fun isOwn(uri: String): Boolean = schemeOf(uri) in own
