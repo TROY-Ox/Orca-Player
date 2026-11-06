@@ -62,6 +62,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.troy.orcaplayer.BuildConfig
 import com.troy.orcaplayer.R
+import com.troy.orcaplayer.core.settings.R as SR
 import com.troy.orcaplayer.core.design.component.ButtonKind
 import com.troy.orcaplayer.core.design.component.SectionLabel
 import com.troy.orcaplayer.core.design.component.TroyButton
@@ -258,8 +259,8 @@ private fun SettingRow(
         is TextSetting -> {
             val value = values[def]
             val shown = when {
-                value.isEmpty() -> stringResource(R.string.text_setting_empty)
-                def.secret -> stringResource(R.string.text_setting_hidden)
+                value.isEmpty() -> stringResource(SR.string.text_setting_empty)
+                def.secret -> stringResource(SR.string.text_setting_hidden)
                 else -> value.lineSequence().first().take(60)
             }
             RowShell(

@@ -43,6 +43,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.troy.orcaplayer.R
+import com.troy.orcaplayer.core.settings.R as SR
 import com.troy.orcaplayer.core.design.component.ButtonKind
 import com.troy.orcaplayer.core.design.component.SectionLabel
 import com.troy.orcaplayer.core.design.component.TroyButton
@@ -160,7 +161,7 @@ fun AddonDetailScreen(onBack: () -> Unit, vm: AddonDetailViewModel = hiltViewMod
                 Toggle(stringResource(R.string.addon_use_subtitles), a.useSubtitles) { v -> vm.edit { it.copy(useSubtitles = v) } }
                 Toggle(stringResource(R.string.addon_in_search), a.inSearch) { v -> vm.edit { it.copy(inSearch = v) } }
                 Toggle(stringResource(R.string.addon_allow_downloads), a.allowDownloads) { v -> vm.edit { it.copy(allowDownloads = v) } }
-                SectionLabel(stringResource(R.string.setting_addon_timeout))
+                SectionLabel(stringResource(SR.string.setting_addon_timeout))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     TroyChip(stringResource(R.string.timeout_default), a.timeoutSec == null, { vm.edit { it.copy(timeoutSec = null) } })
                     listOf(5, 10, 20, 30).forEach { s -> TroyChip(stringResource(R.string.seconds_n, s), a.timeoutSec == s, { vm.edit { it.copy(timeoutSec = s) } }) }
