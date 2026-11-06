@@ -268,6 +268,7 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
+    @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
     private suspend fun begin(request: PlayRequest, opts: LaunchOptions) {
         if (started) saveNow()
         started = true
