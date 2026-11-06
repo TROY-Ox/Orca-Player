@@ -73,6 +73,17 @@ data class CompressJob(
     override val headers: Map<String, String> = emptyMap(),
 ) : JobSpec
 
+/** Saves a downloaded HLS or DASH stream as one MP4 file (16.4). Reads only the stored download. */
+@Serializable
+@SerialName("export")
+data class ExportJob(
+    override val sourceUri: String,
+    override val title: String,
+    val mimeType: String,
+    val streamKeys: List<String> = emptyList(),
+    override val headers: Map<String, String> = emptyMap(),
+) : JobSpec
+
 enum class JobStatus { QUEUED, RUNNING, DONE, FAILED, CANCELLED }
 
 @Serializable

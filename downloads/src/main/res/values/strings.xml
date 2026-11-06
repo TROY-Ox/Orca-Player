@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dl_channel_progress">Download progress</string>
+    <string name="dl_channel_done">Finished downloads</string>
+    <string name="dl_notif_waiting">Downloads waiting: %1$d</string>
+    <plurals name="dl_notif_running">
+        <item quantity="one">Downloading %1$d file</item>
+        <item quantity="other">Downloading %1$d files</item>
+    </plurals>
+    <plurals name="dl_notif_paused">
+        <item quantity="one">%1$d download paused</item>
+        <item quantity="other">%1$d downloads paused</item>
+    </plurals>
+    <string name="dl_pause_all">Pause all</string>
+    <string name="dl_resume_all">Resume all</string>
+    <string name="dl_cancel_all">Cancel all</string>
+    <string name="dl_notif_done">Download finished</string>
+    <string name="dl_notif_failed">Download failed</string>
+    <string name="dl_notif_watched">Watched. Delete this episode?</string>
+    <string name="dl_delete">Delete</string>
+</resources>
