@@ -98,7 +98,7 @@ fun LibraryScreen(
         }
         scan?.let { s ->
             if (s.error != null) {
-                TroyAlert(stringResource(R.string.library_scan_failed, s.error), AlertKind.DANGER, Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp))
+                TroyAlert(stringResource(R.string.library_scan_failed, s.error.orEmpty()), AlertKind.DANGER, Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp))
             } else {
                 Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
                     val label = if (s.matching > 0) stringResource(R.string.library_matching, s.matched, s.matching)
