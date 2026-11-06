@@ -11,6 +11,7 @@ import androidx.annotation.OptIn
 import androidx.media3.common.Effect
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
+import androidx.media3.common.util.ExperimentalApi
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.effect.FrameDropEffect
 import androidx.media3.effect.Presentation
@@ -61,7 +62,7 @@ object Keyframes {
  * Runs queued jobs one at a time with Media3 Transformer (hardware encoders, and stream copy
  * when nothing needs re-encoding). Must be used from the main thread.
  */
-@OptIn(UnstableApi::class)
+@OptIn(UnstableApi::class, ExperimentalApi::class)
 class ToolRunner(private val context: Context, private val onIdle: () -> Unit) {
     private val main = Handler(Looper.getMainLooper())
     private val io = CoroutineScope(SupervisorJob() + Dispatchers.IO)
