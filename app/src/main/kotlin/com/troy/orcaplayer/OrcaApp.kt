@@ -50,6 +50,7 @@ class OrcaApp : Application() {
         JobsRepository.init(this)
         Downloads.bridge = planner
         registerSchemes()
+        appScope.launch { runCatching { com.troy.orcaplayer.trakt.Trakt.get(this@OrcaApp).load() } }
         appScope.launch {
             profiles.ensureDefaultProfile(getString(R.string.profiles_default_name))
         }

@@ -156,6 +156,11 @@ class LibraryViewModel @Inject constructor(
             episode = if (isEpisode) EpisodeInfo(titleId = e.showKey.orEmpty(), episodeId = e.id, season = e.season, number = e.episode, name = e.episodeTitle) else null,
             canSave = true,
             poster = e.poster,
+            titleType = if (isEpisode) "series" else "movie",
+            externalIds = buildMap {
+                e.tmdbId?.let { put("tmdb", it.toString()) }
+                if (!isEpisode) e.imdbId?.let { put("imdb", it) }
+            },
         )
     }
 

@@ -46,6 +46,8 @@ data class PlayItem(
     /** For Continue Watching and My List: the title's poster and type (17.4, 17.5). */
     val poster: String? = null,
     val titleType: String? = null,
+    /** Outside ids for watch-history sync (20.9), such as "tmdb" for matched library items. */
+    val externalIds: Map<String, String> = emptyMap(),
 ) {
     init {
         require(UriSchemes.isAllowed(uri) || (source.kind in UriSchemes.ownSources && UriSchemes.isOwn(uri))) { "Scheme not allowed: $uri" }

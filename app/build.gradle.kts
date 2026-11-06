@@ -136,6 +136,8 @@ dependencies {
     implementation(libs.libvlc)
     implementation(libs.play.services.cast)
     implementation(libs.androidx.mediarouter)
+    implementation(libs.tink.android)
+    implementation(libs.okhttp)
     implementation(libs.androidx.work.runtime)
     implementation(libs.androidx.biometric)
     "extendedImplementation"(project(":sources:cloudstream"))

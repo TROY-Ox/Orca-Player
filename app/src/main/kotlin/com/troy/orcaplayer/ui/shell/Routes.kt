@@ -37,6 +37,7 @@ object Routes {
     const val HOME_ROWS = "home_rows"
     const val PRIVATE_FOLDER = "private_folder"
     const val NETWORK_SHARES = "network_shares"
+    const val TRAKT = "trakt"
     const val SHARE_BROWSE = "share/{id}"
     const val LIBRARY = "library"
     const val LIBRARY_MOVIE = "library/item/{id}"

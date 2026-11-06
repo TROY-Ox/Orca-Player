@@ -262,6 +262,7 @@ class PlayerViewModel @Inject constructor(
         }
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            scrobbleStop()
             onItemChanged()
             // While casting, the TV follows the queue.
             if (cast.state.value != null && reason != Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED) handOverToCast(0)
@@ -269,11 +270,13 @@ class PlayerViewModel @Inject constructor(
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             if (!isPlaying) saveNow()
+            if (isPlaying) scrobble("start") else if (attached?.playbackState != Player.STATE_ENDED) scrobble("pause")
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
             if (playbackState == Player.STATE_ENDED) {
                 saveNow()
+                scrobble("stop", 100.0)
                 val p = attached ?: return
                 if (!p.hasNextMediaItem() && p.repeatMode == Player.REPEAT_MODE_OFF && !binge.onEnded(p, settings.value)) _events.tryEmit(PlayerEvent.Finish)
             }
@@ -885,6 +888,50 @@ class PlayerViewModel @Inject constructor(
         if (p.hasPreviousMediaItem()) p.seekToPreviousMediaItem()
     }
 
+    // Trakt scrobbling (20.9)
+
+    private val trakt = com.troy.orcaplayer.trakt.Trakt.get(context)
+    private var scrobbledItem: PlayItem? = null
+
+    private fun traktRef(item: PlayItem): com.troy.orcaplayer.trakt.TraktRef? {
+        val key = item.key as? com.troy.orcaplayer.core.model.MediaKey.SourceContent
+        return com.troy.orcaplayer.trakt.Trakt.refFor(
+            titleType = item.titleType,
+            titleId = item.externalIds["imdb"] ?: key?.titleId,
+            episodeId = key?.episodeId,
+            tmdb = item.externalIds["tmdb"]?.toIntOrNull(),
+            season = item.episode?.season,
+            episode = item.episode?.number,
+        )
+    }
+
+    private fun scrobble(action: String, progress: Double? = null) {
+        val v = settings.value
+        if (!v[com.troy.orcaplayer.core.settings.ExtrasSettings.TraktScrobble] || trakt.tokens.value == null) return
+        val clientId = v[com.troy.orcaplayer.core.settings.ExtrasSettings.TraktClientId].trim()
+        if (clientId.isEmpty()) return
+        val item = currentItem() ?: return
+        val ref = traktRef(item) ?: return
+        val p = attached ?: return
+        val pct = progress ?: if (p.duration > 0) p.currentPosition * 100.0 / p.duration else 0.0
+        scrobbledItem = if (action == "start") item else null
+        val secret = v[com.troy.orcaplayer.core.settings.ExtrasSettings.TraktClientSecret].trim()
+        viewModelScope.launch { trakt.scrobble(action, ref, pct, clientId, secret) }
+    }
+
+    /** The item that was playing has been left: tell Trakt where it stopped. */
+    private fun scrobbleStop() {
+        val item = scrobbledItem ?: return
+        scrobbledItem = null
+        val v = settings.value
+        val ref = traktRef(item) ?: return
+        val p = attached
+        val pct = if (p != null && p.duration > 0) p.currentPosition * 100.0 / p.duration else 0.0
+        val clientId = v[com.troy.orcaplayer.core.settings.ExtrasSettings.TraktClientId].trim()
+        val secret = v[com.troy.orcaplayer.core.settings.ExtrasSettings.TraktClientSecret].trim()
+        ((context.applicationContext as? com.troy.orcaplayer.OrcaApp)?.appScope ?: viewModelScope).launch { trakt.scrobble("stop", ref, pct, clientId, secret) }
+    }
+
     /** Opens the current item in the libVLC engine; false when it can't take it (the private folder). */
     fun openInVlc(): Boolean {
         val p = attached ?: return false
@@ -1035,6 +1082,7 @@ class PlayerViewModel @Inject constructor(
     }
 
     override fun onCleared() {
+        scrobbleStop()
         cast.onSessionStarted = null
         cast.onSessionEnded = null
         saveNow()

@@ -326,6 +326,7 @@ private fun OrcaNavHost(nav: NavHostController, start: String) {
                 onOpenDecoderCheck = { nav.navigate(Routes.DECODER_CHECK) { launchSingleTop = true } },
                 onOpenHomeRows = { nav.navigate(Routes.HOME_ROWS) { launchSingleTop = true } },
                 onOpenProfiles = { nav.navigate(Routes.PROFILES) { launchSingleTop = true } },
+                onOpenTrakt = { nav.navigate(Routes.TRAKT) { launchSingleTop = true } },
             )
         }
         composable(Routes.MY_LIST) { MyListScreen(onBack = back, onOpenDetails = openDetails) }
@@ -378,6 +379,7 @@ private fun OrcaNavHost(nav: NavHostController, start: String) {
                 onOpenItem = { nav.navigate(Routes.libraryItem(it)) },
             )
         }
+        composable(Routes.TRAKT) { com.troy.orcaplayer.trakt.TraktScreen(onBack = back) }
         composable(Routes.NETWORK_SHARES) {
             com.troy.orcaplayer.ui.network.NetworkSharesScreen(onBack = back, onOpen = { nav.navigate(Routes.share(it)) })
         }

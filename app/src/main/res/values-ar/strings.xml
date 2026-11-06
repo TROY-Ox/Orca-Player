@@ -1023,4 +1023,24 @@
     <string name="cast_subtitles_off">بلا ترجمة</string>
     <string name="cast_unavailable_features">المعادل وتعزيز الصوت والمرشحات وتأخير الصوت وقص المقاطع متوقفة أثناء البث.</string>
     <string name="cast_stop">إيقاف البث</string>
+    <string name="trakt_title">Trakt</string>
+    <string name="trakt_summary">سجّل الدخول وسجّل ما تشاهده واستورد قائمة المشاهدة والسجل</string>
+    <string name="trakt_intro">يستخدم ORCA Player تطبيق Trakt API الخاص بك. أنشئ تطبيقًا في trakt.tv/oauth/applications، والصق معرّف العميل والسر في الإعدادات، ثم اتصل.</string>
+    <string name="trakt_connect">ربط Trakt</string>
+    <string name="trakt_connected">تم الربط باسم %1$s</string>
+    <string name="trakt_denied">تم رفض تسجيل الدخول على Trakt.</string>
+    <string name="trakt_expired">انتهت صلاحية الرمز. حاول مرة أخرى.</string>
+    <string name="trakt_error">خطأ في Trakt: %1$s</string>
+    <string name="trakt_go_to">انتقل إلى %1$s وأدخل هذا الرمز:</string>
+    <string name="trakt_waiting">بانتظار موافقتك…</string>
+    <string name="trakt_open_site">فتح Trakt</string>
+    <string name="trakt_need_keys">أضف معرّف عميل Trakt والسر في الإعدادات أولًا.</string>
+    <string name="trakt_signed_in">مسجّل الدخول باسم %1$s</string>
+    <string name="trakt_import_watchlist">استيراد قائمة المشاهدة إلى قائمتي</string>
+    <string name="trakt_import_history">استيراد سجل المشاهدة</string>
+    <string name="trakt_imported_watchlist">تمت إضافة %1$s عنوانًا إلى قائمتي.</string>
+    <string name="trakt_imported_history">تم تعليم %1$s عنصرًا في المكتبة كمُشاهد.</string>
+    <string name="trakt_importing">جارٍ الاستيراد من Trakt…</string>
+    <string name="trakt_disconnect">قطع الربط</string>
+    <string name="trakt_keys_hint">تُخزَّن رموزك مشفّرة على هذا الجهاز ولا تُرسل إلا إلى Trakt.</string>
 </resources>
