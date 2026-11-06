@@ -49,6 +49,7 @@ private val standardLicences = listOf(
     LibraryLicence("OkHttp", "Apache-2.0"),
     LibraryLicence("Bouncy Castle", "MIT"),
     LibraryLicence("libVLC (VideoLAN)", "LGPL-2.1-or-later"),
+    LibraryLicence("Google Cast SDK (Google Play services)", "Android SDK License"),
     LibraryLicence("TMDB: This product uses the TMDB API but is not endorsed or certified by TMDB.", "Attribution"),
     LibraryLicence("Material icons", "Apache-2.0"),
     LibraryLicence("Roboto Mono", "OFL-1.1", "licences/OFL-1.1.txt"),

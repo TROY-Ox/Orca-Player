@@ -9,6 +9,9 @@ import androidx.lifecycle.viewModelScope
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
+import com.troy.orcaplayer.cast.CastController
+import com.troy.orcaplayer.cast.CastProblem
+import com.troy.orcaplayer.cast.CastState
 import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
@@ -66,8 +69,10 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -258,6 +263,8 @@ class PlayerViewModel @Inject constructor(
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             onItemChanged()
+            // While casting, the TV follows the queue.
+            if (cast.state.value != null && reason != Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED) handOverToCast(0)
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -280,6 +287,11 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
+    // Chromecast (20.7)
+    val cast: CastController = CastController.get(context)
+    val castState: StateFlow<CastState?> = cast.state
+    val castProblem: StateFlow<CastProblem?> = cast.problem
+
     init {
         viewModelScope.launch {
             engine.notices.collect { n ->
@@ -297,11 +309,19 @@ class PlayerViewModel @Inject constructor(
                 if (!withContext(Dispatchers.IO) { VideoCaps.hasDolbyVisionDecoder() }) _events.emit(PlayerEvent.Message(MSG_DV5))
             }
         }
+        cast.onSessionStarted = { handOverToCast(null) }
+        cast.onSessionEnded = { pos -> attached?.let { p -> if (pos > 0) p.seekTo(pos) } }
+        viewModelScope.launch {
+            settings.map { it[com.troy.orcaplayer.core.settings.ExtrasSettings.CastEnabled] }
+                .distinctUntilChanged()
+                .collect { on -> if (on) cast.start() }
+        }
         viewModelScope.launch {
             engine.playerFlow.collect { p ->
                 attached?.removeListener(listener)
                 p.addListener(listener)
                 attached = p
+                if (cast.state.value != null) handOverToCast(null)
                 extras.armLoop(p)
                 _tracks.value = p.currentTracks
                 refresh()
@@ -843,6 +863,28 @@ class PlayerViewModel @Inject constructor(
     }
 
     /** Moves to the next stream of the same video, from the same position. False when there's none to try. */
+    // Chromecast (20.7)
+
+    /** Sends what's playing to the TV, from [positionMs] or where the phone is, and pauses the phone. */
+    fun handOverToCast(positionMs: Long?) {
+        val p = attached ?: return
+        val item = currentItem() ?: return
+        val position = positionMs ?: p.currentPosition
+        saveNow()
+        p.pause()
+        viewModelScope.launch { cast.load(item, position) }
+    }
+
+    fun castNext() {
+        val p = attached ?: return
+        if (p.hasNextMediaItem()) p.seekToNextMediaItem()
+    }
+
+    fun castPrevious() {
+        val p = attached ?: return
+        if (p.hasPreviousMediaItem()) p.seekToPreviousMediaItem()
+    }
+
     /** Opens the current item in the libVLC engine; false when it can't take it (the private folder). */
     fun openInVlc(): Boolean {
         val p = attached ?: return false
@@ -993,6 +1035,8 @@ class PlayerViewModel @Inject constructor(
     }
 
     override fun onCleared() {
+        cast.onSessionStarted = null
+        cast.onSessionEnded = null
         saveNow()
         binge.flush(profiles.currentProfileId.value)
         extras.release()

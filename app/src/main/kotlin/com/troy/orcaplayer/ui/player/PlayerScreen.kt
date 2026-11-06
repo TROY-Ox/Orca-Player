@@ -134,6 +134,9 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
     val c = Troy.colors
     val downloads: com.troy.orcaplayer.ui.downloads.DownloadsViewModel = androidx.hilt.navigation.compose.hiltViewModel()
     val ui by vm.ui.collectAsStateWithLifecycle()
+    val castState by vm.castState.collectAsStateWithLifecycle()
+    val castProblem by vm.castProblem.collectAsStateWithLifecycle()
+    val casting = castState != null
     val player by vm.player.collectAsStateWithLifecycle()
     val settings by vm.settings.collectAsStateWithLifecycle()
     val layout by vm.layout.collectAsStateWithLifecycle()
@@ -737,6 +740,21 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
             }
         }
 
+        // Casting: the phone is the remote (20.7).
+        castState?.let { cs ->
+            Box(Modifier.fillMaxSize().background(c.scrim), contentAlignment = Alignment.Center) {
+                com.troy.orcaplayer.cast.CastRemote(
+                    state = cs,
+                    problem = castProblem,
+                    hasPrevious = ui.count > 1,
+                    hasNext = ui.hasNext,
+                    cast = vm.cast,
+                    onPrevious = vm::castPrevious,
+                    onNext = vm::castNext,
+                )
+            }
+        }
+
         // Error
         ui.error?.let { code ->
             GlassPanel(Modifier.align(Alignment.Center).widthIn(max = 420.dp).padding(24.dp)) {
@@ -904,7 +922,7 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
                         store = filterStore,
                         perVideo = filterPerVideo,
                         active = filtersActive,
-                        casting = host.casting,
+                        casting = casting,
                         a = object : FilterActions {
                             override fun set(f: com.troy.orcaplayer.core.model.VideoFilter) = vm.picture.set(f)
                             override fun reset() = vm.picture.reset()
@@ -915,7 +933,7 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
                             override fun deletePreset(name: String) { vm.picture.deletePreset(name) }
                         },
                     )
-                    PlayerPanel.AUDIO_DELAY -> AudioDelayPanel(audioDevice, audioDelay, host.casting, vm.picture::setAudioDelay)
+                    PlayerPanel.AUDIO_DELAY -> AudioDelayPanel(audioDevice, audioDelay, casting, vm.picture::setAudioDelay)
                     PlayerPanel.NONE -> Unit
                 }
             }
@@ -1039,6 +1057,12 @@ private fun ControlsOverlay(
 
     @Composable
     fun Control(cfg: com.troy.orcaplayer.core.model.PlayerControlConfig) {
+        if (cfg.control == PlayerControl.CAST) {
+            if (vm.cast.available && vm.settings.value[com.troy.orcaplayer.core.settings.ExtrasSettings.CastEnabled]) {
+                com.troy.orcaplayer.cast.CastButton()
+            }
+            return
+        }
         val spec = controlSpec(cfg.control, ui.playWhenReady && !ui.ended, skipSeconds) ?: return
         val enabled = when (cfg.control) {
             PlayerControl.NEXT -> ui.hasNext

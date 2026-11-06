@@ -1012,4 +1012,15 @@
     <string name="vlc_pause">إيقاف مؤقت</string>
     <string name="vlc_back_10">رجوع 10 ثوانٍ</string>
     <string name="vlc_forward_10">تقدم 10 ثوانٍ</string>
+    <string name="cast_button">بث</string>
+    <string name="cast_playing_on">يُعرض على %1$s</string>
+    <string name="cast_format">لا يمكن بث هذا الملف. يشغّل Chromecast ملفات MP4 وWebM وHLS وDASH (وMKV على Google TV).</string>
+    <string name="cast_no_network">اتصل بشبكة Wi-Fi نفسها التي يتصل بها التلفاز لبث الملفات من هذا الهاتف.</string>
+    <string name="cast_failed">تعذر على التلفاز تشغيل هذا. جرّب بثًا أو صيغة أخرى.</string>
+    <string name="cast_previous">السابق</string>
+    <string name="cast_next">التالي</string>
+    <string name="cast_volume">صوت التلفاز</string>
+    <string name="cast_subtitles_off">بلا ترجمة</string>
+    <string name="cast_unavailable_features">المعادل وتعزيز الصوت والمرشحات وتأخير الصوت وقص المقاطع متوقفة أثناء البث.</string>
+    <string name="cast_stop">إيقاف البث</string>
 </resources>

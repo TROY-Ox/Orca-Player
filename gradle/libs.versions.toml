@@ -32,6 +32,7 @@ okhttp = "4.12.0"
 bouncycastle = "1.80"
 libvlc = "3.7.7"
 playServicesCast = "22.1.0"
+mediarouter = "1.7.0"
 androidxTestExt = "1.2.1"
 androidxTestRunner = "1.6.2"
 
@@ -44,6 +45,7 @@ bouncycastle-prov = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = 
 commons-net = { module = "commons-net:commons-net", version.ref = "commonsNet" }
 libvlc = { module = "org.videolan.android:libvlc-all", version.ref = "libvlc" }
 media3-cast = { module = "androidx.media3:media3-cast", version.ref = "media3" }
+androidx-mediarouter = { module = "androidx.mediarouter:mediarouter", version.ref = "mediarouter" }
 play-services-cast = { module = "com.google.android.gms:play-services-cast-framework", version.ref = "playServicesCast" }
 androidx-work-runtime = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }

@@ -970,4 +970,15 @@
     <string name="vlc_pause">Pause</string>
     <string name="vlc_back_10">Back 10 seconds</string>
     <string name="vlc_forward_10">Forward 10 seconds</string>
+    <string name="cast_button">Cast</string>
+    <string name="cast_playing_on">Playing on %1$s</string>
+    <string name="cast_format">This file can\'t be cast. Chromecast plays MP4, WebM, HLS and DASH (MKV on Google TV).</string>
+    <string name="cast_no_network">Connect to the same Wi-Fi as the TV to cast files from this phone.</string>
+    <string name="cast_failed">The TV couldn\'t play this. Try another stream or format.</string>
+    <string name="cast_previous">Previous</string>
+    <string name="cast_next">Next</string>
+    <string name="cast_volume">TV volume</string>
+    <string name="cast_subtitles_off">Subtitles off</string>
+    <string name="cast_unavailable_features">The equalizer, volume boost, filters, audio delay and clip cutter are off while casting.</string>
+    <string name="cast_stop">Stop casting</string>
 </resources>
