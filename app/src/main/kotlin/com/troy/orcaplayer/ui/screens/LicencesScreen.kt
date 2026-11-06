@@ -50,7 +50,12 @@ private val standardLicences = listOf(
 )
 
 private val extendedLicences = listOf(
-    LibraryLicence("CloudStream extension support (extended build)", "GPL-3.0"),
+    LibraryLicence("CloudStream library (recloudstream), extension API", "GPL-3.0"),
+    LibraryLicence("NiceHttp", "GPL-3.0"),
+    LibraryLicence("Jsoup", "MIT"),
+    LibraryLicence("Jackson", "Apache-2.0"),
+    LibraryLicence("Mozilla Rhino", "MPL-2.0"),
+    LibraryLicence("NewPipe Extractor", "GPL-3.0"),
 )
 
 @Composable

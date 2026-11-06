@@ -284,6 +284,7 @@ class ContentHub(
             alternates = others.map { StreamAlternate(it.option.url, it.option.name, extraHeaders + it.option.headers, it.option.subtitles) },
             poster = title.poster ?: title.background,
             titleType = title.type.name,
+            mimeType = s.mimeType,
         )
         return PlayRequest(listOf(item), 0, profileId)
     }

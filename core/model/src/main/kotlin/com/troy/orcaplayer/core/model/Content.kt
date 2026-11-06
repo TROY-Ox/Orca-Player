@@ -66,6 +66,8 @@ data class StreamOption(
     val filename: String? = null,
     val videoSize: Long? = null,
     val videoHash: String? = null,
+    /** Set when the source says what the stream is (HLS or DASH) and the URL doesn't show it. */
+    val mimeType: String? = null,
 )
 
 @Serializable

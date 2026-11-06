@@ -124,6 +124,7 @@ fun AddonsScreen(
     onOpenDiscover: () -> Unit,
     installRequest: String?,
     onInstallRequestHandled: () -> Unit,
+    onOpenExtensions: (() -> Unit)? = null,
     vm: AddonsViewModel = hiltViewModel(),
 ) {
     val c = Troy.colors
@@ -198,12 +199,28 @@ fun AddonsScreen(
                     }
                 }
             }
+            // Extended build: CloudStream repositories and extensions (19.2).
+            if (onOpenExtensions != null) {
+                item(key = "extensions") {
+                    Row(
+                        Modifier.padding(horizontal = 16.dp, vertical = 4.dp).widthIn(max = 720.dp).fillMaxWidth().glass(TroyShapes.Panel).padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(stringResource(R.string.ext_entry_title), style = Troy.type.body, color = c.text)
+                            Text(stringResource(R.string.ext_entry_summary), style = Troy.type.bodySmall, color = c.text2)
+                        }
+                        TroyButton(stringResource(R.string.ext_entry_open), onOpenExtensions)
+                    }
+                }
+            }
             if (list.addons.isNotEmpty()) {
                 item(key = "search") {
                     Column(Modifier.padding(horizontal = 16.dp, vertical = 4.dp).widthIn(max = 720.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         TroyTextField(query, { query = it }, Modifier.fillMaxWidth(), placeholder = stringResource(R.string.addons_search_hint))
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            items(AddonFilter.entries) { f ->
+                            // Addons and Extensions only mean something when extensions exist.
+                            items(AddonFilter.entries.filter { com.troy.orcaplayer.flavor.Flavor.EXTENSIONS || (it != AddonFilter.ADDONS && it != AddonFilter.EXTENSIONS) }) { f ->
                                 TroyChip(stringResource(f.label()), selected = filter == f, onClick = { filter = f })
                             }
                         }
@@ -365,6 +382,8 @@ private fun Set<String>.toggle(id: String) = if (id in this) this - id else this
 
 private fun AddonFilter.label(): Int = when (this) {
     AddonFilter.ALL -> R.string.filter_all
+    AddonFilter.ADDONS -> R.string.filter_addons
+    AddonFilter.EXTENSIONS -> R.string.filter_extensions
     AddonFilter.ENABLED -> R.string.filter_enabled
     AddonFilter.DISABLED -> R.string.filter_disabled
     AddonFilter.ERRORS -> R.string.filter_errors
@@ -418,7 +437,7 @@ private fun AddonRow(
                 HealthDot(state)
                 Text(
                     listOfNotNull(
-                        stringResource(R.string.kind_addon),
+                        stringResource(if (com.troy.orcaplayer.data.ExtensionBridge.handles(addon.manifestUrl)) R.string.kind_extension else R.string.kind_addon),
                         "v${m.version}",
                         when (state) {
                             HealthState.SLOW -> stringResource(R.string.health_slow)

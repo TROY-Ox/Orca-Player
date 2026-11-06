@@ -25,6 +25,7 @@ object Routes {
     const val SETTINGS = "settings"
     const val PROFILES = "profiles"
     const val LICENCES = "licences"
+    const val EXTENSIONS = "extensions"
     const val DECODER_CHECK = "decoder_check"
     const val JOBS = "jobs"
     const val TOOLS_CUSTOMIZE = "tools_customize"

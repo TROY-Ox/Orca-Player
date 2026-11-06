@@ -17,6 +17,11 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // Only for the extended build's CloudStream library and the libraries it is built with.
+        exclusiveContent {
+            forRepository { maven("https://jitpack.io") { name = "JitPack" } }
+            filter { includeGroupByRegex("com\\.github\\..*") }
+        }
     }
 }
 

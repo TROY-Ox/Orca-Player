@@ -816,4 +816,10 @@
         <item quantity="many">%1$d حلقة جديدة</item>
         <item quantity="other">%1$d حلقة جديدة</item>
     </plurals>
+    <string name="filter_addons">الإضافات</string>
+    <string name="filter_extensions">الامتدادات</string>
+    <string name="kind_extension">امتداد</string>
+    <string name="ext_entry_title">امتدادات CloudStream</string>
+    <string name="ext_entry_summary">أضف المستودعات التي تثق بها وثبّت امتداداتها</string>
+    <string name="ext_entry_open">إدارة</string>
 </resources>

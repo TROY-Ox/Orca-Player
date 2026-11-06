@@ -31,12 +31,22 @@ class OrcaApp : Application() {
     @Inject lateinit var profiles: ProfileRepository
     @Inject lateinit var settings: SettingsRepository
     @Inject lateinit var planner: DownloadPlanner
+    @Inject lateinit var addons: com.troy.orcaplayer.data.AddonRepository
+
+    private fun processName(): String = if (android.os.Build.VERSION.SDK_INT >= 28) {
+        getProcessName()
+    } else {
+        runCatching { java.io.File("/proc/self/cmdline").readText().trim('\u0000', ' ') }.getOrDefault(packageName)
+    }
 
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun onCreate() {
         super.onCreate()
+        // The extended build's ":extensions" process only runs extension code (19.3).
+        if (processName().endsWith(":extensions")) return
+        com.troy.orcaplayer.flavor.Flavor.init(this, addons)
         JobsRepository.init(this)
         Downloads.bridge = planner
         appScope.launch {

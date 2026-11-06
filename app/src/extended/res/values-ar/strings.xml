@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ext_title">امتدادات CloudStream</string>
+    <string name="ext_refresh">التحقق من التحديثات</string>
+    <string name="ext_warning">الامتدادات شيفرة تعمل داخل ORCA Player بصلاحياته على الشبكة وملفاته. لا يوفّر ORCA Player أي مصادر ولا يقترح أيًّا منها.</string>
+    <string name="ext_add_repo">إضافة مستودع</string>
+    <string name="ext_repo_hint">رابط repo.json أو رابط cloudstreamrepo://</string>
+    <string name="ext_add">إضافة</string>
+    <string name="ext_repos">المستودعات</string>
+    <string name="ext_repo_error">فشل آخر تحقق: %1$s</string>
+    <string name="ext_auto_update">تحديث الامتدادات تلقائيًا</string>
+    <string name="ext_auto_update_summary">عند بدء التطبيق، عبر Wi-Fi فقط</string>
+    <string name="ext_search">البحث في الامتدادات</string>
+    <string name="ext_empty_title">لا توجد مستودعات</string>
+    <string name="ext_empty_message">الصق رابط مستودع تثق به لترى امتداداته</string>
+    <string name="ext_trust_title">أضف المستودعات التي تثق بها فقط</string>
+    <string name="ext_trust_message">تعمل امتدادات هذا المستودع داخل التطبيق بصلاحياته. أنت مسؤول عمّا تضيفه وعن حقك في مشاهدة ما يقدّمه.</string>
+    <string name="ext_trust_accept">أثق بهذا المستودع</string>
+    <string name="ext_remove_repo_title">إزالة %1$s؟</string>
+    <string name="ext_remove_repo_message">تُزال امتداداته أيضًا</string>
+    <string name="ext_failed">تعذّر ذلك: %1$s</string>
+    <string name="ext_status_down">لا يعمل</string>
+    <string name="ext_status_slow">بطيء</string>
+    <string name="ext_status_beta">تجريبي</string>
+    <string name="ext_authors">من %1$s</string>
+    <string name="ext_load_failed">تعذّر التحميل: %1$s</string>
+    <string name="ext_incompatible">يحتاج إلى إصدار أحدث من ORCA Player</string>
+    <string name="ext_working">جارٍ العمل…</string>
+    <string name="ext_install">تثبيت</string>
+    <string name="ext_update">تحديث</string>
+    <string name="ext_uninstall">إلغاء التثبيت</string>
+    <plurals name="ext_updates">
+        <item quantity="zero">لا تحديثات</item>
+        <item quantity="one">تحديث واحد</item>
+        <item quantity="two">تحديثان</item>
+        <item quantity="few">%1$d تحديثات</item>
+        <item quantity="many">%1$d تحديثًا</item>
+        <item quantity="other">%1$d تحديث</item>
+    </plurals>
+    <plurals name="ext_count">
+        <item quantity="zero">لا امتدادات</item>
+        <item quantity="one">امتداد واحد</item>
+        <item quantity="two">امتدادان</item>
+        <item quantity="few">%1$d امتدادات</item>
+        <item quantity="many">%1$d امتدادًا</item>
+        <item quantity="other">%1$d امتداد</item>
+    </plurals>
+    <plurals name="ext_update_all">
+        <item quantity="zero">لا شيء لتحديثه</item>
+        <item quantity="one">تحديث امتداد واحد</item>
+        <item quantity="two">تحديث الامتدادين</item>
+        <item quantity="few">تحديث الـ%1$d</item>
+        <item quantity="many">تحديث الـ%1$d</item>
+        <item quantity="other">تحديث الـ%1$d</item>
+    </plurals>
+</resources>

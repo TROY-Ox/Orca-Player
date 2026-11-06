@@ -35,7 +35,7 @@ class StremioAddon(
     private val refreshScope: CoroutineScope? = null,
     private val clock: () -> Long = System::currentTimeMillis,
     private val onRequest: (RequestResult) -> Unit = {},
-) : ContentSource {
+) : AddonClient {
 
     val base: String = StremioUrls.baseOf(manifestUrl)
 
@@ -51,7 +51,7 @@ class StremioAddon(
 
     override suspend fun catalogs(): List<Catalog> = manifest.catalogs.map { toCatalog(it) }
 
-    fun toCatalog(c: CatalogDecl) = Catalog(
+    override fun toCatalog(c: CatalogDecl) = Catalog(
         sourceId = manifest.id,
         id = c.key,
         type = StremioUrls.typeOf(c.type),
@@ -116,7 +116,7 @@ class StremioAddon(
     override suspend fun subtitles(type: TitleType, videoId: String): List<SubtitleOption> = subtitlesFor(type, videoId)
 
     /** Subtitles, sending the file's hash, size and name when known so the addon can match it (9.6). */
-    suspend fun subtitlesFor(type: TitleType, videoId: String, videoHash: String? = null, videoSize: Long? = null, filename: String? = null): List<SubtitleOption> {
+    override suspend fun subtitlesFor(type: TitleType, videoId: String, videoHash: String?, videoSize: Long?, filename: String?): List<SubtitleOption> {
         val t = typeFor(type, "subtitles", videoId) ?: return emptyList()
         val extras = buildMap {
             videoHash?.let { put("videoHash", it) }
@@ -127,10 +127,10 @@ class StremioAddon(
         return parse { StremioParse.subtitles(body, ref) }
     }
 
-    fun supports(resource: String, type: TitleType, id: String): Boolean = typeFor(type, resource, id) != null
+    override fun supports(resource: String, type: TitleType, id: String): Boolean = typeFor(type, resource, id) != null
 
     /** Lists from a directory addon's addon_catalog resource (15.5). */
-    suspend fun addonCatalog(catalog: CatalogDecl): List<StremioParse.AddonListing> {
+    override suspend fun addonCatalog(catalog: CatalogDecl): List<StremioParse.AddonListing> {
         val body = fetch(StremioUrls.resource(base, "addon_catalog", catalog.type, catalog.id), CacheClass.CATALOG)
         return parse { StremioParse.addonCatalog(body) }
     }
