@@ -44,21 +44,16 @@ for apk in "$@"; do
   done < <(find "$work" \( -path '*/lib/arm64-v8a/*' -o -path '*/lib/x86_64/*' \) -name '*.so' -print0)
   if [ "$found" -eq 0 ]; then echo "no 64-bit native libraries"; fi
 
-  # 2. Uncompressed libraries must also sit on 16 KB boundaries inside the APK (zipalign -P 16).
-  if [ "$found" -eq 1 ]; then
-    if [ -n "$zipalign" ] && [ -x "$zipalign" ]; then
-      if "$zipalign" -c -P 16 -v 4 "$apk" > /dev/null; then
-        echo "ok         zip alignment (16 KB)"
-      else
-        echo "NOT 16 KB  zip alignment, run: zipalign -c -P 16 -v 4 $apk"
-        status=1
-      fi
-    else
-      echo "skipped    zip alignment (zipalign not found, set ANDROID_HOME)"
+  # 2. Uncompressed libraries must also sit on 16 KB boundaries inside the APK (build-tools 35+).
+  if [ -n "$zipalign" ] && [ -x "$zipalign" ]; then
+    if ! "$zipalign" -c -P 16 -v 4 "$apk" > "$work/zipalign.log" 2>&1; then
+      grep -E 'BAD|ERROR|Usage' "$work/zipalign.log" || tail -n 5 "$work/zipalign.log"
+      echo "Zip alignment check failed for $apk (needs build-tools 35 or newer)"
+      status=1
     fi
+  else
+    echo "zipalign not found, skipped the zip alignment check"
   fi
-
   rm -rf "$work"
 done
-
 exit "$status"

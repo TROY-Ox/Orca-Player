@@ -1,36 +1,27 @@
-# ORCA Player v0.N.0: Phase N report
+# ORCA Player vX.Y.Z: Phase N, <phase name>
 
-Copy this file to `docs/releases/v0.N.0.md`, fill it in, then push the tag `v0.N.0`.
-The Release workflow uses that file as the release notes.
+Copy this file to docs/releases/vX.Y.Z.md before pushing the tag. It becomes the release notes.
 
-## What was built
+## What's new
 
 - 
 
 ## How it was tested
 
-| Device or emulator | Android version | Form factor | Result |
-|---|---|---|---|
-|  |  | phone / tablet / foldable / TV |  |
-
-Checks from the phase's "done when" list:
-
-- [ ] 
+- Devices and Android versions:
+- CI run:
+- Manual checks from the phase's "done when" list:
 
 ## Known issues
 
 - 
 
-## Decisions where the builder prompt is silent
+## Decisions made where the prompt was silent
 
 - 
 
-## Experimental or pre-release APIs used
-
-- None
-
 ## Install
 
-- Phones and TVs: `ORCA-Player-standard-v0.N.0.apk`
-- Sideload only (GPL-3.0, CloudStream extensions): `ORCA-Player-extended-v0.N.0.apk`
-- Checksums: `SHA256SUMS.txt`
+- Phone, tablet or TV: ORCA-Player-standard-vX.Y.Z.apk
+- Extended build (sideload only): ORCA-Player-extended-vX.Y.Z.apk
+- SHA256SUMS.txt lets you check the files were not changed.
