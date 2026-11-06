@@ -12,10 +12,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import android.os.Build
+import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
@@ -53,6 +55,10 @@ fun GlassPanel(
 /**
  * Panels materialize with fade, scale 0.96 to 1 and a 14dp rise (plus a 10dp blur on Android 12+
  * outside the lite tier), staggered by 70 ms per [index].
+ *
+ * Everything runs in one graphics layer: the blur is a render effect with decal edges (no hard,
+ * clipped rectangle around the content), it clears on an ease-out curve ahead of the fade, and it is
+ * dropped below half a pixel, so there is no shimmer or last-frame pop as it settles.
  */
 fun Modifier.materialize(index: Int = 0): Modifier = composed {
     val motion = Troy.motion
@@ -67,15 +73,17 @@ fun Modifier.materialize(index: Int = 0): Modifier = composed {
         }
     }
     val rise = with(density) { 14.dp.toPx() }
-    val p = progress.value
-    val blurred = if (motion.allowBlur && p < 1f) Modifier.blur((10f * (1f - p)).coerceAtLeast(0f).dp) else Modifier
-    this
-        .graphicsLayer {
-            alpha = p.coerceIn(0f, 1f)
-            val s = 0.96f + 0.04f * p
-            scaleX = s
-            scaleY = s
-            translationY = rise * (1f - p)
-        }
-        .then(blurred)
+    val maxBlur = with(density) { 10.dp.toPx() }
+    val blurOn = motion.allowBlur && Build.VERSION.SDK_INT >= 31
+    this.graphicsLayer {
+        val p = progress.value.coerceIn(0f, 1f)
+        alpha = p
+        val s = 0.96f + 0.04f * p
+        scaleX = s
+        scaleY = s
+        translationY = rise * (1f - p)
+        val remaining = 1f - p
+        val radius = maxBlur * remaining * remaining
+        renderEffect = if (blurOn && radius >= 0.5f) BlurEffect(radius, radius, TileMode.Decal) else null
+    }
 }

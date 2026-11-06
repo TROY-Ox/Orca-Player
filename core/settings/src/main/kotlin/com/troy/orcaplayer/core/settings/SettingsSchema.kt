@@ -5,6 +5,10 @@ import androidx.annotation.StringRes
 /** Sections of the Settings screen. Each one has its own "reset to defaults". */
 enum class SettingsSection(@StringRes val titleRes: Int) {
     APPEARANCE(R.string.settings_section_appearance),
+    PLAYER(R.string.settings_section_player),
+    GESTURES(R.string.settings_section_gestures),
+    SUBTITLES(R.string.settings_section_subtitles),
+    LIBRARY(R.string.settings_section_library),
     ACCESSIBILITY(R.string.settings_section_accessibility),
     LANGUAGE(R.string.settings_section_language),
     PRIVACY(R.string.settings_section_privacy),
@@ -206,6 +210,7 @@ object Settings {
 
     val all: List<SettingDef<*>> = listOf(
         Accent, CustomAccent, ThemeMode, FrostedGlass,
+        *PlayerSettings.all.toTypedArray(),
         ReduceMotion, HighContrast, SolidPanels,
         Language, Digits, MirrorTimeline,
         SavingEnabled,

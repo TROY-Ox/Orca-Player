@@ -20,10 +20,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.troy.orcaplayer.core.design.motion.SpringMath
 import com.troy.orcaplayer.core.design.motion.TroySprings
 import com.troy.orcaplayer.core.design.theme.Troy
 import com.troy.orcaplayer.core.model.MainTab
 import com.troy.orcaplayer.core.model.NavLayout
+import com.troy.orcaplayer.ui.local.LocalScreen
 import com.troy.orcaplayer.ui.screens.LicencesScreen
 import com.troy.orcaplayer.ui.screens.ProfilesScreen
 import com.troy.orcaplayer.ui.screens.TabPlaceholder
@@ -78,8 +80,14 @@ private fun NavHostController.navigateToTab(route: String) {
 @Composable
 private fun OrcaNavHost(nav: NavHostController, start: String) {
     val motion = Troy.motion
-    val enter: EnterTransition = if (motion.reduceMotion) EnterTransition.None else fadeIn(spring(stiffness = TroySprings.Default.stiffness))
-    val exit: ExitTransition = if (motion.reduceMotion) ExitTransition.None else fadeOut(spring(stiffness = TroySprings.Default.stiffness))
+    // Tab switches: the old screen fades out quickly while the new one materializes (fade, rise and
+    // blur in one layer), so the two never sit half-blurred on top of each other.
+    val enter: EnterTransition = if (motion.reduceMotion) EnterTransition.None else fadeIn(
+        spring(dampingRatio = 1f, stiffness = SpringMath.stiffness(TroySprings.Default.response)),
+    )
+    val exit: ExitTransition = if (motion.reduceMotion) ExitTransition.None else fadeOut(
+        spring(dampingRatio = 1f, stiffness = SpringMath.stiffness(TroySprings.LITE_RESPONSE_CAP)),
+    )
     val openSettings = { nav.navigate(Routes.SETTINGS) { launchSingleTop = true } }
     val openProfiles = { nav.navigate(Routes.PROFILES) { launchSingleTop = true } }
     val back: () -> Unit = { nav.popBackStack() }
@@ -93,7 +101,9 @@ private fun OrcaNavHost(nav: NavHostController, start: String) {
         popExitTransition = { exit },
     ) {
         MainTab.entries.forEach { tab ->
-            composable(tab.spec().route) { TabPlaceholder(tab, openSettings, openProfiles) }
+            composable(tab.spec().route) {
+                if (tab == MainTab.LOCAL) LocalScreen(openSettings, openProfiles) else TabPlaceholder(tab, openSettings, openProfiles)
+            }
         }
         composable(Routes.SETTINGS) { SettingsScreen(onBack = back, onOpenLicences = { nav.navigate(Routes.LICENCES) }) }
         composable(Routes.PROFILES) { ProfilesScreen(onBack = back) }

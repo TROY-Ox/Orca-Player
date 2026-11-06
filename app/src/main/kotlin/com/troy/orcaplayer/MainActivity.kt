@@ -1,5 +1,6 @@
 package com.troy.orcaplayer
 
+import android.content.pm.ActivityInfo
 import android.os.Bundle
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
@@ -10,16 +11,21 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.troy.orcaplayer.core.design.theme.OrcaTheme
 import com.troy.orcaplayer.core.design.theme.ThemeMode
 import com.troy.orcaplayer.core.design.theme.ThemeState
 import com.troy.orcaplayer.core.design.theme.TroyAccent
+import com.troy.orcaplayer.core.settings.PlayerSettings
 import com.troy.orcaplayer.core.settings.Settings
 import com.troy.orcaplayer.core.settings.SettingsValues
 import com.troy.orcaplayer.system.SystemSignals
 import com.troy.orcaplayer.ui.shell.OrcaShell
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -33,6 +39,20 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         vm.updateSignals(SystemSignals.read(this))
         setContent { OrcaRoot(vm) }
+        // Menu orientation setting, phones only (tablets, foldables and TVs follow the screen).
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                vm.settings.collect { v ->
+                    if (v == null || resources.configuration.smallestScreenWidthDp >= 600 || vm.signals.value.isTv) return@collect
+                    val wanted = when (v[PlayerSettings.MenuOrientation]) {
+                        "portrait" -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+                        "landscape" -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                        else -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                    }
+                    if (requestedOrientation != wanted) requestedOrientation = wanted
+                }
+            }
+        }
     }
 
     override fun onResume() {
