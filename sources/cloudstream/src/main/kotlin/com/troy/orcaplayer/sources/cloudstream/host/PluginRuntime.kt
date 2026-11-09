@@ -70,10 +70,20 @@ class PluginRuntime(private val context: Context) {
         val className = obj["pluginClassName"]?.jsonPrimitive?.content ?: error("No pluginClassName in the manifest")
         val loader = PathClassLoader(file.absolutePath, javaClass.classLoader)
         val instance = loader.loadClass(className).getDeclaredConstructor().newInstance()
-        val plugin = instance as? Plugin ?: error("$className is not a CloudStream plugin")
-        plugin.filename = file.absolutePath
         val before = APIHolder.allProviders.toList().toSet()
-        plugin.load(context)
+        // Older extensions extend the Android Plugin; newer ones, built against the cross-platform
+        // library, extend BasePlugin directly and have no load(Context).
+        when (instance) {
+            is Plugin -> {
+                instance.filename = file.absolutePath
+                instance.load(context)
+            }
+            is com.lagradost.cloudstream3.plugins.BasePlugin -> {
+                instance.filename = file.absolutePath
+                instance.load()
+            }
+            else -> error("$className is not a CloudStream plugin")
+        }
         val added = APIHolder.allProviders.toList().filter { it !in before }
         loaded[f.internalName] = f.path
         return added.map { api ->

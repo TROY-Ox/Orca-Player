@@ -202,6 +202,20 @@ private fun ShareEditor(initial: ShareConnection, vm: NetworkViewModel, onDone: 
                 }
                 Label(R.string.network_host)
                 TroyTextField(host, { host = it }, Modifier.fillMaxWidth(), placeholder = "192.168.1.10", keyboardType = KeyboardType.Uri)
+                com.troy.orcaplayer.ui.tv.SendFromPhoneButton(
+                    stringResource(R.string.network_title),
+                    listOf(
+                        com.troy.orcaplayer.ui.tv.SendField("host", stringResource(R.string.network_host), value = host),
+                        com.troy.orcaplayer.ui.tv.SendField("path", stringResource(if (type == ShareType.SMB) R.string.network_share_name else R.string.network_folder), value = path),
+                        com.troy.orcaplayer.ui.tv.SendField("user", stringResource(R.string.network_user), value = user),
+                        com.troy.orcaplayer.ui.tv.SendField("pass", stringResource(R.string.network_password), password = true),
+                    ),
+                ) { got ->
+                    got["host"]?.trim()?.let { host = it }
+                    got["path"]?.trim()?.let { path = it }
+                    got["user"]?.trim()?.let { user = it }
+                    got["pass"]?.takeIf { it.isNotEmpty() }?.let { pass = it }
+                }
                 Label(R.string.network_port)
                 TroyTextField(port, { port = it.filter(Char::isDigit).take(5) }, Modifier.fillMaxWidth(),
                     placeholder = stringResource(R.string.network_port_default, defaultPort(type, secure)), keyboardType = KeyboardType.Number)

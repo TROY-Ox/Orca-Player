@@ -32,6 +32,13 @@ class MainActivity : AppCompatActivity() {
     private val vm: AppViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // The last run crashed: show what happened first (plain screen, nothing else loads).
+        if (CrashReport.pending(this) != null) {
+            super.onCreate(savedInstanceState)
+            startActivity(android.content.Intent(this, CrashActivity::class.java))
+            finish()
+            return
+        }
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
@@ -64,6 +71,8 @@ class MainActivity : AppCompatActivity() {
     private fun takeInstallLink(intent: android.content.Intent?) {
         val link = intent?.getStringExtra(EXTRA_INSTALL_ADDON) ?: intent?.dataString?.takeIf { it.startsWith("stremio:", ignoreCase = true) }
         if (link != null) vm.pendingInstall.value = link
+        intent?.dataString?.takeIf { it.startsWith("magnet:", ignoreCase = true) && com.troy.orcaplayer.data.TorrentBridge.resolver != null }
+            ?.let { vm.pendingMagnet.value = it }
         intent?.getStringExtra(EXTRA_SHARED_LINK)?.let { vm.pendingShare.value = it }
         intent?.getStringExtra(com.troy.orcaplayer.data.NewEpisodeAlerts.EXTRA_OPEN_TITLE)?.let { vm.pendingTitle.value = it }
         if (intent?.getBooleanExtra(com.troy.orcaplayer.downloads.DownloadNotifications.EXTRA_OPEN_DOWNLOADS, false) == true) vm.pendingDownloads.value = true
@@ -90,7 +99,9 @@ private fun OrcaRoot(vm: AppViewModel) {
     val isArabic = LocalConfiguration.current.locales[0]?.language == "ar"
     val state = themeState(values ?: SettingsValues.Defaults, signals, isArabic)
     OrcaTheme(state) {
-        OrcaShell(navLayout = nav, isTv = signals.isTv)
+        com.troy.orcaplayer.ui.tv.TenFootHost(signals.isTv) {
+            OrcaShell(navLayout = nav, isTv = signals.isTv)
+        }
     }
 }
 

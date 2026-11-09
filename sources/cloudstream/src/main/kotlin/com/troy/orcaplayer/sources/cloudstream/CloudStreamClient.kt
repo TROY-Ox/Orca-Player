@@ -42,7 +42,8 @@ object CsTypes {
 object ProviderManifest {
     const val SEARCH_ID = "search"
 
-    fun build(p: ProviderInfo, plugin: PluginEntry?): AddonManifest {
+    /** [repoName]: the repository the extension came from, shown first in the Addon Manager subtitle. */
+    fun build(p: ProviderInfo, plugin: PluginEntry?, repoName: String? = null): AddonManifest {
         val types = p.types.map { StremioUrls.typeName(CsTypes.of(it)) }.distinct().ifEmpty { listOf("movie") }
         val main = types.first()
         val prefix = ExtensionIds.prefix(p.key)
@@ -52,7 +53,7 @@ object ProviderManifest {
             id = "cs3." + p.key,
             version = (plugin?.version ?: 0).toString(),
             name = p.name,
-            description = listOfNotNull(plugin?.description, p.language?.uppercase(), plugin?.authors?.takeIf { it.isNotEmpty() }?.joinToString()).joinToString(" · ").ifBlank { null },
+            description = listOfNotNull(repoName, plugin?.description, p.language?.uppercase(), plugin?.authors?.takeIf { it.isNotEmpty() }?.joinToString()).joinToString(" · ").ifBlank { null },
             logo = plugin?.iconUrl,
             types = types,
             resources = listOf(
@@ -126,7 +127,8 @@ class CloudStreamClient(
     }
 
     override suspend fun search(query: String, type: TitleType?): List<Title> {
-        val r = timed("search") { host.search(providerKey, query, timeoutMs) }
+        // Extensions scrape web pages, which is slower than an addon's JSON: allow twice the time.
+        val r = timed("search") { host.search(providerKey, query, timeoutMs * 2) }
         return r.items.map(::title).filter { type == null || it.type == type }
     }
 

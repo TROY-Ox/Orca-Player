@@ -77,6 +77,10 @@ object RepoFormat {
     fun providerKey(internalName: String, providerName: String): String =
         (internalName + "." + providerName).map { if (it.isLetterOrDigit() || it == '.' || it == '_' || it == '-') it else '_' }.joinToString("")
 
+    /** The SHA-256 a repository gives for a file ("sha256-…", "sha256:…" or bare hex), or null when it gives none or something else. */
+    fun expectedSha256(fileHash: String?): String? =
+        fileHash?.trim()?.lowercase()?.removePrefix("sha256:")?.removePrefix("sha256-")?.takeIf { h -> h.length == 64 && h.all { it.isDigit() || it.lowercaseChar() in 'a'..'f' } }
+
     fun sha256(bytes: ByteArray): String =
         java.security.MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
 }

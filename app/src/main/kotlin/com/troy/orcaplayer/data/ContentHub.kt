@@ -61,13 +61,34 @@ data class HomeRow(
 /** One title as shown in search, with every source that has it (14.4). */
 data class MergedTitle(val title: Title, val sources: List<SourceRef>)
 
-data class SearchResults(val items: List<MergedTitle> = emptyList(), val pending: Int = 0, val failed: List<String> = emptyList())
+data class SearchResults(
+    val items: List<MergedTitle> = emptyList(),
+    val pending: Int = 0,
+    val failed: List<String> = emptyList(),
+    /** How many sources were asked; 0 means none of the active sources can search. -1 before a search ran. */
+    val asked: Int = -1,
+)
 
 data class StreamEntry(val option: StreamOption, val info: StreamInfo, val sourceIndex: Int) {
     val playable: Boolean get() = option.kind == StreamKind.URL && UriSchemes.isAllowed(option.url)
+
+    /** A torrent stream the torrent streamer can play (extended build). */
+    val viaTorrent: Boolean get() = option.kind == StreamKind.TORRENT && TorrentBridge.resolver != null
 }
 
-data class StreamsState(val entries: List<StreamEntry> = emptyList(), val pending: Int = 0, val failed: List<String> = emptyList())
+data class StreamsState(val entries: List<StreamEntry> = emptyList(), val pending: Int = 0, val failed: List<String> = emptyList()) {
+    /** Torrent (infoHash) streams found; they don't play here, so they are hidden by default. */
+    val torrents: Int get() = entries.count { it.option.kind == StreamKind.TORRENT }
+}
+
+/**
+ * IMDb-style IDs to ask stream addons with as well, for titles whose own ID isn't an IMDb ID
+ * (TMDB or extension catalogs): most stream addons only answer "tt…" IDs.
+ */
+fun altStreamIds(imdbId: String?, season: Int?, episode: Int?): List<String> {
+    val tt = imdbId?.takeIf { it.startsWith("tt") } ?: return emptyList()
+    return if (season != null && episode != null) listOf("$tt:$season:$episode") else listOf(tt)
+}
 
 /** How the player can ask for a fresh link for a title it is playing (14.7 and resuming). */
 data class StreamTarget(
@@ -142,14 +163,18 @@ class ContentHub(
         val perSource = LinkedHashMap<String, List<Title>>()
         val failed = mutableListOf<String>()
         var pending = targets.size
-        send(SearchResults(pending = pending))
+        val asked = targets.size
+        send(SearchResults(pending = pending, asked = asked))
         targets.forEach { (a, client) ->
             launch {
                 val result = runCatching { client.search(query, type) }
                 lock.withLock {
                     pending--
-                    result.onSuccess { perSource[a.id] = it }.onFailure { failed += a.manifest.name }
-                    send(SearchResults(merge(perSource), pending, failed.toList()))
+                    result.onSuccess { perSource[a.id] = it }.onFailure { e ->
+                        val why = e.message?.takeIf { it.isNotBlank() }?.take(80)
+                        failed += if (why != null) "${a.manifest.name} ($why)" else a.manifest.name
+                    }
+                    send(SearchResults(merge(perSource), pending, failed.toList(), asked))
                 }
             }
         }
@@ -201,16 +226,21 @@ class ContentHub(
 
     // Streams (14.6)
 
-    fun streams(type: TitleType, videoId: String): Flow<StreamsState> = channelFlow {
-        val targets = active().filter { it.useStreams }.map { it to addons.client(it) }.filter { it.second.supports("stream", type, videoId) }
+    fun streams(type: TitleType, videoId: String, altIds: List<String> = emptyList()): Flow<StreamsState> = channelFlow {
+        val ids = (listOf(videoId) + altIds).distinct()
+        // Each source is asked once, with the first ID it says it supports.
+        val targets = active().filter { it.useStreams }.mapNotNull { a ->
+            val c = addons.client(a)
+            ids.firstOrNull { c.supports("stream", type, it) }?.let { Triple(a, c, it) }
+        }
         val lock = Mutex()
         val all = mutableListOf<StreamEntry>()
         val failed = mutableListOf<String>()
         var pending = targets.size
         send(StreamsState(pending = pending))
-        targets.forEach { (a, client) ->
+        targets.forEach { (a, client, id) ->
             launch {
-                val result = runCatching { client.streams(type, videoId) }
+                val result = runCatching { client.streams(type, id) }
                 lock.withLock {
                     pending--
                     result.onSuccess { list ->

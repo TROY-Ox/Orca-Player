@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -98,6 +99,8 @@ import com.troy.orcaplayer.core.design.theme.Troy
 import com.troy.orcaplayer.core.design.theme.TroyShapes
 import com.troy.orcaplayer.core.design.util.formatNumber
 import com.troy.orcaplayer.core.model.ControlSlot
+import com.troy.orcaplayer.core.model.Gesture
+import com.troy.orcaplayer.core.model.GestureAction
 import com.troy.orcaplayer.core.model.PlayerControl
 import com.troy.orcaplayer.core.settings.PlayerSettings
 import com.troy.orcaplayer.core.settings.AudioVideoSettings as AV
@@ -110,6 +113,9 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /** What the screen needs from its activity. */
+/** A horizontal hinge of a half-folded device, in pixels from the top of the window (21.2). */
+data class Tabletop(val hingeTop: Int, val hingeBottom: Int)
+
 interface PlayerHost {
     fun close()
     fun enterPip()
@@ -125,12 +131,14 @@ interface PlayerHost {
     val canFloat: Boolean get() = false
     /** True while the video plays on a Cast device (20.7). */
     val casting: Boolean get() = false
+    /** Keyboard F (21.3): show or hide the system bars and window chrome. */
+    fun toggleFullScreen() = Unit
 }
 
 @OptIn(UnstableApi::class)
 @kotlin.OptIn(kotlinx.coroutines.FlowPreview::class)
 @Composable
-fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, isPip: Boolean) {
+fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, isPip: Boolean, tabletop: Tabletop? = null) {
     val c = Troy.colors
     val downloads: com.troy.orcaplayer.ui.downloads.DownloadsViewModel = androidx.hilt.navigation.compose.hiltViewModel()
     val ui by vm.ui.collectAsStateWithLifecycle()
@@ -349,8 +357,22 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
     val state = rememberUpdatedState(
         GestureDeps(ui, sliderPrefs, seekMsPerDp, longPressSpeed, skipSeconds, controlsVisible, aspect),
     )
+    val gestureMapState by vm.gestureMap.collectAsStateWithLifecycle()
+    val gestures = rememberUpdatedState(gestureMapState)
     val handler = remember(vm, levels) {
         object : GestureHandler {
+            var pressAction = GestureAction.NONE
+            var seeking = false
+            var pinching = false
+
+            fun act(g: Gesture) = gestures.value.actionFor(g)
+
+            /** The vertical swipe on this side: brightness, volume or nothing; Swap sides swaps them. */
+            fun sideAction(leftHalf: Boolean): GestureAction {
+                val start = leftHalf != state.value.sliders.swap
+                return act(if (start) Gesture.SWIPE_VERTICAL_START else Gesture.SWIPE_VERTICAL_END)
+            }
+
             var seekBase = 0L
             var drag: SliderDrag? = null
             var kind: SliderKind? = null
@@ -371,48 +393,83 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
 
             override fun onMultiTap(zone: TapZone, streak: Int) {
                 val s = state.value.skipSeconds * 1000L
-                when (zone) {
-                    TapZone.START -> vm.seekBy(-s)
-                    TapZone.END -> vm.seekBy(s)
-                    TapZone.CENTER -> if (streak == 1) vm.togglePlay()
-                }
-                if (zone != TapZone.CENTER) {
-                    skipFeedback = zone to state.value.skipSeconds * streak
-                    skipAt = System.currentTimeMillis()
+                val action = act(
+                    when (zone) {
+                        TapZone.START -> Gesture.DOUBLE_TAP_START
+                        TapZone.END -> Gesture.DOUBLE_TAP_END
+                        TapZone.CENTER -> Gesture.DOUBLE_TAP_CENTER
+                    },
+                )
+                when (action) {
+                    GestureAction.SEEK_BACK -> {
+                        vm.seekBy(-s)
+                        skipFeedback = TapZone.START to state.value.skipSeconds * streak
+                        skipAt = System.currentTimeMillis()
+                    }
+                    GestureAction.SEEK_FORWARD -> {
+                        vm.seekBy(s)
+                        skipFeedback = TapZone.END to state.value.skipSeconds * streak
+                        skipAt = System.currentTimeMillis()
+                    }
+                    GestureAction.PLAY_PAUSE -> if (streak == 1) vm.togglePlay()
+                    GestureAction.SHOW_CONTROLS -> if (streak == 1) { controlsVisible = true; touch() }
+                    else -> Unit
                 }
             }
 
             override fun onLongPressStart() {
-                speedBefore = state.value.ui.speed
-                boosting = true
-                vm.setSpeed(state.value.longPressSpeed)
+                pressAction = act(Gesture.LONG_PRESS)
+                when (pressAction) {
+                    GestureAction.SPEED_BOOST -> {
+                        speedBefore = state.value.ui.speed
+                        boosting = true
+                        vm.setSpeed(state.value.longPressSpeed)
+                    }
+                    GestureAction.PLAY_PAUSE -> vm.togglePlay()
+                    GestureAction.SHOW_CONTROLS -> { controlsVisible = true; touch() }
+                    GestureAction.SEEK_BACK -> vm.seekBy(-state.value.skipSeconds * 1000L)
+                    GestureAction.SEEK_FORWARD -> vm.seekBy(state.value.skipSeconds * 1000L)
+                    else -> return
+                }
                 view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
             }
 
             override fun onLongPressEnd() {
-                boosting = false
-                vm.setSpeed(speedBefore)
+                if (pressAction == GestureAction.SPEED_BOOST) {
+                    boosting = false
+                    vm.setSpeed(speedBefore)
+                }
+                pressAction = GestureAction.NONE
             }
 
             override fun onSeekStart() {
+                seeking = act(Gesture.SWIPE_HORIZONTAL) == GestureAction.SEEK
+                if (!seeking) return
                 seekBase = state.value.ui.positionMs
                 seekPreview = seekBase
             }
 
             override fun onSeekDrag(totalDp: Float) {
+                if (!seeking) return
                 val d = state.value.ui.durationMs
                 val target = seekBase + (totalDp * state.value.seekMsPerDp).toLong()
                 seekPreview = if (d > 0) target.coerceIn(0, d) else target.coerceAtLeast(0)
             }
 
             override fun onSeekEnd() {
+                if (!seeking) return
+                seeking = false
                 seekPreview?.let { vm.seekTo(it) }
                 seekPreview = null
             }
 
             override fun onVerticalStart(leftHalf: Boolean) {
                 val p = state.value.sliders
-                val k = if (leftHalf != p.swap) SliderKind.BRIGHTNESS else SliderKind.VOLUME
+                val k = when (sideAction(leftHalf)) {
+                    GestureAction.BRIGHTNESS -> SliderKind.BRIGHTNESS
+                    GestureAction.VOLUME -> SliderKind.VOLUME
+                    else -> return
+                }
                 kind = k
                 levels.activeKind = k
                 drag = when (k) {
@@ -442,11 +499,15 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
             }
 
             override fun onPinch(zoom: Float, pan: Offset) {
+                pinching = act(Gesture.PINCH) == GestureAction.ZOOM
+                if (!pinching) return
                 val z = (zoomState() * zoom).coerceIn(0.5f, 4f)
                 setZoom(z, pan)
             }
 
             override fun onPinchEnd() {
+                if (!pinching) return
+                pinching = false
                 if (zoomState() < 0.9f) {
                     // Pinch in: back to fit. Pinch out from fit past 1.15: fill.
                     aspect = AspectMode.FIT
@@ -497,7 +558,35 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
             .onPreviewKeyEvent { e ->
                 if (e.type != KeyEventType.KeyDown || locked) return@onPreviewKeyEvent false
                 touch()
+                // A physical keyboard's arrows always seek and change volume (21.3);
+                // Tab moves the focus. A remote's D-pad moves the focus while the controls show.
+                val keyboard = e.nativeKeyEvent.device?.keyboardType == android.view.InputDevice.KEYBOARD_TYPE_ALPHABETIC
+                if (keyboard && panel == PlayerPanel.NONE) {
+                    when (e.key) {
+                        Key.DirectionLeft -> { vm.seekBy(-skipSeconds * 1000L); return@onPreviewKeyEvent true }
+                        Key.DirectionRight -> { vm.seekBy(skipSeconds * 1000L); return@onPreviewKeyEvent true }
+                        Key.DirectionUp -> { levels.volumeStep(+1); return@onPreviewKeyEvent true }
+                        Key.DirectionDown -> { levels.volumeStep(-1); return@onPreviewKeyEvent true }
+                        else -> Unit
+                    }
+                }
                 when (e.key) {
+                    Key.F -> { host.toggleFullScreen(); true }
+                    Key.M, Key.VolumeMute -> { vm.toggleMute(); true }
+                    Key.C, Key.Captions -> { vm.cycleTrack(androidx.media3.common.C.TRACK_TYPE_TEXT); true }
+                    Key.A -> { vm.cycleTrack(androidx.media3.common.C.TRACK_TYPE_AUDIO); true }
+                    Key.LeftBracket -> { vm.stepSpeed(-1); true }
+                    Key.RightBracket -> { vm.stepSpeed(+1); true }
+                    Key.N -> { vm.next(); true }
+                    Key.P -> { vm.previous(); true }
+                    // Game controllers (21.3): A selects, B goes back, the shoulder buttons seek.
+                    Key.ButtonL1 -> { vm.seekBy(-skipSeconds * 1000L); true }
+                    Key.ButtonR1 -> { vm.seekBy(skipSeconds * 1000L); true }
+                    Key.ButtonA -> if (!controlsVisible) { controlsVisible = true; vm.togglePlay(); true } else false
+                    Key.ButtonB, Key.Escape -> {
+                        if (panel != PlayerPanel.NONE) panel = PlayerPanel.NONE else host.close()
+                        true
+                    }
                     Key.Spacebar, Key.MediaPlayPause, Key.K -> { vm.togglePlay(); true }
                     Key.MediaPlay -> { vm.player.value.play(); true }
                     Key.MediaPause -> { vm.pause(); true }
@@ -509,13 +598,23 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
                     Key.DirectionLeft -> if (!controlsVisible) { vm.seekBy(-skipSeconds * 1000L); true } else false
                     Key.DirectionRight -> if (!controlsVisible) { vm.seekBy(skipSeconds * 1000L); true } else false
                     Key.DirectionUp, Key.DirectionDown, Key.Menu -> if (!controlsVisible) { controlsVisible = true; true } else false
-                    Key.Back, Key.Escape -> if (panel != PlayerPanel.NONE) { panel = PlayerPanel.NONE; true } else false
+                    Key.Back -> if (panel != PlayerPanel.NONE) { panel = PlayerPanel.NONE; true } else false
                     else -> false
                 }
             },
     ) {
         // Video
-        BoxWithConstraints(Modifier.fillMaxSize().clipToBounds().playerGestures(gestureConfig, handler), contentAlignment = Alignment.Center) {
+        // In tabletop posture the video and subtitles use the top half, the controls the bottom.
+        val topHalf = tabletop?.let { with(density) { Modifier.fillMaxWidth().height(it.hingeTop.toDp()) } } ?: Modifier.fillMaxSize()
+        val bottomHalf = tabletop?.let { with(density) { Modifier.fillMaxSize().padding(top = it.hingeBottom.toDp()) } } ?: Modifier.fillMaxSize()
+        BoxWithConstraints(topHalf.clipToBounds().playerGestures(gestureConfig, handler).mouseControls(
+            enabled = !locked && !isPip,
+            onHover = { if (!controlsVisible) controlsVisible = true; touch() },
+            onWheel = { left, steps ->
+                touch()
+                if (left) levels.setBrightnessPercent(levels.brightness - steps * 5f) else levels.volumeStep(-steps)
+            },
+        ), contentAlignment = Alignment.Center) {
             val cw = maxWidth.value
             val ch = maxHeight.value
             val a = aspect.ratio ?: ui.aspect
@@ -560,7 +659,7 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
             subsOff -> emptyList()
             else -> embedded.toDrawn().map { it.copy(text = it.text?.let(vm::textFor)) }
         }
-        SubtitleLayer(drawn, subtitleStyle(settings), controlsVisible && !isPip)
+        Box(topHalf) { SubtitleLayer(drawn, subtitleStyle(settings), controlsVisible && !isPip && tabletop == null) }
 
         if (isPip) return@Box
 
@@ -656,7 +755,8 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
 
         // Controls
         AnimatedVisibility(
-            controlsVisible && !locked,
+            (controlsVisible || tabletop != null) && !locked,
+            modifier = bottomHalf,
             enter = fadeIn(fadeSpec()),
             exit = fadeOut(fadeSpec()),
         ) {
@@ -1170,3 +1270,29 @@ private fun ControlsOverlay(
         }
     }
 }
+
+/**
+ * Mouse (21.3): moving the pointer shows the controls, and the scroll wheel over the left or right
+ * half changes brightness or volume (mirrored in right-to-left layouts by the caller's sides).
+ */
+private fun Modifier.mouseControls(enabled: Boolean, onHover: () -> Unit, onWheel: (left: Boolean, steps: Int) -> Unit): Modifier =
+    if (!enabled) this else pointerInput(Unit) {
+        awaitPointerEventScope {
+            while (true) {
+                val event = awaitPointerEvent()
+                val change = event.changes.firstOrNull() ?: continue
+                if (change.type != androidx.compose.ui.input.pointer.PointerType.Mouse) continue
+                when (event.type) {
+                    androidx.compose.ui.input.pointer.PointerEventType.Move -> onHover()
+                    androidx.compose.ui.input.pointer.PointerEventType.Scroll -> {
+                        val dy = change.scrollDelta.y
+                        if (dy != 0f) {
+                            onWheel(change.position.x < size.width / 2f, if (dy > 0) 1 else -1)
+                            change.consume()
+                        }
+                    }
+                    else -> Unit
+                }
+            }
+        }
+    }

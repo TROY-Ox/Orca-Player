@@ -38,6 +38,10 @@ object Routes {
     const val PRIVATE_FOLDER = "private_folder"
     const val NETWORK_SHARES = "network_shares"
     const val TRAKT = "trakt"
+    const val TABS_EDITOR = "editor/tabs"
+    const val PLAYER_LAYOUT_EDITOR = "editor/player"
+    const val GESTURE_EDITOR = "editor/gestures"
+    const val BACKUP = "backup"
     const val SHARE_BROWSE = "share/{id}"
     const val LIBRARY = "library"
     const val LIBRARY_MOVIE = "library/item/{id}"
@@ -57,7 +61,15 @@ object Routes {
         "title/" + android.net.Uri.encode(type) + "/" + android.net.Uri.encode(id) + "?play=" + android.net.Uri.encode(play.orEmpty())
 }
 
-data class TabSpec(val tab: MainTab, val route: String, @StringRes val label: Int, val icon: ImageVector, val selectedIcon: ImageVector)
+data class TabSpec(
+    val tab: MainTab,
+    val route: String,
+    @StringRes val label: Int,
+    val icon: ImageVector,
+    val selectedIcon: ImageVector,
+    /** The user's own name for the tab (22, tabs editor). */
+    val customLabel: String? = null,
+)
 
 fun MainTab.spec(): TabSpec = when (this) {
     MainTab.HOME -> TabSpec(this, Routes.HOME, R.string.tab_home, Icons.Outlined.Home, Icons.Filled.Home)

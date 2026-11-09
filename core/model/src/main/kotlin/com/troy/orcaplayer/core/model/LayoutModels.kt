@@ -171,3 +171,49 @@ data class ToolsLayout(
         val Default = ToolsLayout(DefaultTab, DefaultPanel)
     }
 }
+
+/** A player layout the user saved under a name, for quick switching (22). */
+@Serializable
+data class NamedPlayerLayout(val name: String, val layout: PlayerLayout)
+
+@Serializable
+data class SavedPlayerLayouts(val items: List<NamedPlayerLayout> = emptyList())
+
+/** Editing helpers shared by the touch and the remote editors, so both give the same results. */
+object PlayerLayoutEdits {
+    /** Moves [control] to the end of [slot]. */
+    fun moveToSlot(layout: PlayerLayout, control: PlayerControl, slot: ControlSlot): PlayerLayout {
+        val item = layout.controls.firstOrNull { it.control == control } ?: return layout
+        return PlayerLayout(layout.controls.filter { it.control != control } + item.copy(slot = slot, visible = true))
+    }
+
+    /** Moves [control] one place earlier (-1) or later (+1) among the controls of its slot. */
+    fun shift(layout: PlayerLayout, control: PlayerControl, direction: Int): PlayerLayout {
+        val list = layout.controls.toMutableList()
+        val i = list.indexOfFirst { it.control == control }
+        if (i < 0) return layout
+        val slot = list[i].slot
+        val sameSlot = list.indices.filter { list[it].slot == slot }
+        val pos = sameSlot.indexOf(i)
+        val target = sameSlot.getOrNull(pos + direction) ?: return layout
+        val tmp = list[target]
+        list[target] = list[i]
+        list[i] = tmp
+        return PlayerLayout(list)
+    }
+
+    fun update(layout: PlayerLayout, control: PlayerControl, change: (PlayerControlConfig) -> PlayerControlConfig): PlayerLayout =
+        PlayerLayout(layout.controls.map { if (it.control == control) change(it) else it })
+
+    /**
+     * Adds controls missing from an older saved layout: in their default place when the default
+     * layout has them, otherwise hidden, so the editor can place them.
+     */
+    fun complete(layout: PlayerLayout): PlayerLayout {
+        val have = layout.controls.map { it.control }.toSet()
+        val missing = PlayerControl.entries.filter { it !in have }.map { c ->
+            PlayerLayout.Default.controls.firstOrNull { it.control == c } ?: PlayerControlConfig(c, ControlSlot.BOTTOM_END, visible = false)
+        }
+        return PlayerLayout(layout.controls + missing)
+    }
+}

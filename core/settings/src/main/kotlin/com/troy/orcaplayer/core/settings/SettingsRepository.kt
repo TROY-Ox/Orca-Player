@@ -17,6 +17,7 @@ import com.troy.orcaplayer.core.model.PlayerLayout
 import com.troy.orcaplayer.core.model.MediaPrefsStore
 import com.troy.orcaplayer.core.model.ToolsLayout
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
@@ -100,6 +101,25 @@ class SettingsRepository(context: Context) {
 
     suspend fun resetAll(profileId: String) {
         store.edit { prefs -> Settings.all.forEach { prefs.remove(storageKey(profileId, it)) } }
+    }
+
+    // Backup (22): every stored text value with its storage key, for all profiles.
+
+    suspend fun exportAll(includeSecrets: Boolean): Map<String, String> =
+        store.data.first().asMap().mapNotNull { (k, v) ->
+            val value = v as? String ?: return@mapNotNull null
+            if (!includeSecrets && isSecretKey(k.name)) null else k.name to value
+        }.toMap()
+
+    /** Writes backed-up values over the current ones. Keys this version doesn't know are kept for later. */
+    suspend fun importAll(values: Map<String, String>) {
+        store.edit { prefs -> values.forEach { (k, v) -> prefs[stringPreferencesKey(k)] = v } }
+    }
+
+    companion object {
+        /** Passwords, keys and tokens, left out of backups that have no password. */
+        fun isSecretKey(name: String): Boolean =
+            Settings.all.any { it is TextSetting && it.secret && (name == "global/${it.key}" || name.endsWith("/${it.key}")) }
     }
 
     // Layout models. The UI is built from these from day one, so the Phase 11 editors need no rewrite.

@@ -203,11 +203,18 @@ class PlayerBinge(
                     val title = hub.details(TitleType.SERIES, ep.titleId, null) ?: return@runCatching null
                     val nextEp = NextUp.nextEpisode(title.episodes, ep.episodeId) ?: return@runCatching null
                     var entries = emptyList<com.troy.orcaplayer.data.StreamEntry>()
-                    hub.streams(TitleType.SERIES, nextEp.id).collect { entries = it.entries }
+                    hub.streams(TitleType.SERIES, nextEp.id, com.troy.orcaplayer.data.altStreamIds(title.imdbId, nextEp.season, nextEp.number)).collect { entries = it.entries }
                     val sort = runCatching { StreamSort.valueOf(v[SourceSettings.StreamSort].uppercase()) }.getOrDefault(StreamSort.QUALITY)
                     val ranked = hub.rank(entries.filter { it.playable }, sort, null, null)
-                    val chosen = target.bingeGroup?.let { g -> ranked.firstOrNull { it.option.bingeGroup == g } } ?: ranked.firstOrNull()
-                        ?: return@runCatching null
+                    val direct = target.bingeGroup?.let { g -> ranked.firstOrNull { it.option.bingeGroup == g } } ?: ranked.firstOrNull()
+                    // No direct link: a torrent stream, when the torrent streamer is there and its notice was accepted.
+                    val chosen = direct ?: run {
+                        val resolver = com.troy.orcaplayer.data.TorrentBridge.resolver?.takeIf { !it.needsNotice() } ?: return@run null
+                        val torrents = hub.rank(entries.filter { it.viaTorrent }, sort, null, null)
+                        val t = target.bingeGroup?.let { g -> torrents.firstOrNull { it.option.bingeGroup == g } } ?: torrents.firstOrNull() ?: return@run null
+                        val url = resolver.resolve(t.option)
+                        t.copy(option = t.option.copy(url = url, kind = com.troy.orcaplayer.core.model.StreamKind.URL, downloadable = false, mimeType = null))
+                    } ?: return@runCatching null
                     hub.request(
                         title, nextEp, chosen, ranked, profileId,
                         SourceSettings.parseHeaders(v[SourceSettings.DefaultHeaders]),

@@ -55,7 +55,7 @@ private fun NavItem(
     val source = remember { MutableInteractionSource() }
     val tint by animateColorAsState(if (selected) c.accent else c.text2, Troy.motion.spec(), label = "navTint")
     val bg by animateColorAsState(if (selected) c.accent.copy(alpha = 0.14f) else Color.Transparent, Troy.motion.spec(), label = "navBg")
-    val label = stringResource(spec.label)
+    val label = spec.customLabel?.takeIf { it.isNotBlank() } ?: stringResource(spec.label)
     val itemModifier = modifier
         .pressScale(source)
         .troyFocusRing(12.dp)

@@ -1,6 +1,12 @@
 package com.troy.orcaplayer.flavor
 
 import android.widget.Toast
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.outlined.ExpandLess
+import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.ui.semantics.Role
+import com.troy.orcaplayer.core.design.component.troyFocusRing
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -74,6 +80,8 @@ fun ExtensionsManagerScreen(onBack: () -> Unit) {
     var busy by remember { mutableStateOf<String?>(null) }
     var pendingRepo by remember { mutableStateOf<RepoState?>(null) }
     var removeRepo by remember { mutableStateOf<RepoState?>(null) }
+    var repoFilter by rememberSaveable { mutableStateOf<String?>(null) }
+    var collapsed by rememberSaveable { mutableStateOf(setOf<String>()) }
 
     fun toast(text: String) = Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
     fun work(key: String, block: suspend () -> Unit) {
@@ -106,10 +114,15 @@ fun ExtensionsManagerScreen(onBack: () -> Unit) {
             item {
                 TroyAlert(stringResource(R.string.ext_warning), AlertKind.WARN, Modifier.widthIn(max = 760.dp).fillMaxWidth())
             }
+            item { TorrentSettingsPanel() }
             item {
                 Column(Modifier.widthIn(max = 760.dp).fillMaxWidth().glass(TroyShapes.Panel).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     SectionLabel(stringResource(R.string.ext_add_repo))
                     TroyTextField(url, { url = it }, Modifier.fillMaxWidth(), placeholder = stringResource(R.string.ext_repo_hint))
+                    com.troy.orcaplayer.ui.tv.SendFromPhoneButton(
+                        stringResource(R.string.ext_repo_hint),
+                        listOf(com.troy.orcaplayer.ui.tv.SendField("url", stringResource(R.string.ext_repo_hint), value = url)),
+                    ) { got -> got["url"]?.trim()?.let { url = it } }
                     TroyButton(stringResource(R.string.ext_add), {
                         work("add") { pendingRepo = m.fetchRepo(url) }
                     }, kind = ButtonKind.PRIMARY, enabled = url.isNotBlank() && busy == null)
@@ -156,6 +169,12 @@ fun ExtensionsManagerScreen(onBack: () -> Unit) {
                                 items(languages) { l -> TroyChip(l.uppercase(), language == l, { language = l }) }
                             }
                         }
+                        if (state.repos.size > 1) {
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                item { TroyChip(stringResource(R.string.ext_all_repos), repoFilter == null, { repoFilter = null }) }
+                                items(state.repos, key = { it.url }) { r -> TroyChip(r.name, repoFilter == r.url, { repoFilter = r.url }) }
+                            }
+                        }
                         if (types.size > 1) {
                             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 item { TroyChip(stringResource(R.string.filter_all), type == null, { type = null }) }
@@ -173,10 +192,37 @@ fun ExtensionsManagerScreen(onBack: () -> Unit) {
                     )
                 }
             }
-            items(shown, key = { "p:" + it.first.url + "|" + it.second.internalName }) { (repo, p) ->
+            // Extensions under a header for each repository, which folds open and closed.
+            val byRepo = shown.filter { repoFilter == null || it.first.url == repoFilter }.groupBy { it.first.url }
+            state.repos.filter { it.url in byRepo }.forEach { repo ->
+                val list = byRepo.getValue(repo.url)
+                val open = repo.url !in collapsed
+                item(key = "rh:" + repo.url) {
+                    Row(
+                        Modifier.widthIn(max = 760.dp).fillMaxWidth().clip(TroyShapes.Control).troyFocusRing()
+                            .clickable(role = Role.Button) { collapsed = if (open) collapsed + repo.url else collapsed - repo.url }
+                            .padding(horizontal = 4.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(repo.name, style = Troy.type.title, color = c.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(
+                                stringResource(R.string.ext_repo_summary, list.size, list.count { it.second.internalName in installed }),
+                                style = Troy.type.bodySmall, color = c.text2,
+                            )
+                        }
+                        androidx.compose.material3.Icon(
+                            if (open) androidx.compose.material.icons.Icons.Outlined.ExpandLess else androidx.compose.material.icons.Icons.Outlined.ExpandMore,
+                            contentDescription = stringResource(if (open) R.string.ext_collapse else R.string.ext_expand),
+                            tint = c.text2,
+                        )
+                    }
+                }
+                if (open) items(list, key = { "p:" + it.first.url + "|" + it.second.internalName }) { (repo, p) ->
                 val mine = installed[p.internalName]
                 PluginRow(
                     p = p,
+                    repoName = repo.name,
                     installedVersion = mine?.entry?.version,
                     enabled = mine?.enabled,
                     failure = failures[p.internalName],
@@ -190,6 +236,7 @@ fun ExtensionsManagerScreen(onBack: () -> Unit) {
                         }
                     },
                 )
+                }
             }
         }
     }
@@ -230,6 +277,7 @@ fun ExtensionsManagerScreen(onBack: () -> Unit) {
 @Composable
 private fun PluginRow(
     p: PluginEntry,
+    repoName: String,
     installedVersion: Int?,
     enabled: Boolean?,
     failure: String?,
@@ -258,6 +306,11 @@ private fun PluginRow(
                     },
                 ).joinToString(" · ")
                 Text(meta, style = Troy.type.label, color = c.text3, maxLines = 2)
+                // Which repository it comes from, as a small badge.
+                Text(
+                    repoName, style = Troy.type.label, color = c.accent, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 4.dp).clip(TroyShapes.Control).background(c.controlFill).padding(horizontal = 6.dp, vertical = 2.dp),
+                )
             }
             if (enabled != null) TroyToggle(enabled, onCheckedChange = onEnable, enabled = !busy)
         }

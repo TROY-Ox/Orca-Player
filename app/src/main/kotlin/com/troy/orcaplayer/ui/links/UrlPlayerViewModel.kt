@@ -61,6 +61,7 @@ sealed interface UrlEvent {
     data class Install(val url: String) : UrlEvent
     data class PlaylistFound(val url: String, val entries: List<PlaylistEntry>) : UrlEvent
     data object Bad : UrlEvent
+    data class Failed(val message: String) : UrlEvent
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -96,6 +97,24 @@ class UrlPlayerViewModel @Inject constructor(
 
     /** Plays a link; playlists are offered for import and addon links for install. */
     fun play(input: LinkInput) {
+        // Magnet links play through the torrent streamer (extended build).
+        val resolver = com.troy.orcaplayer.data.TorrentBridge.resolver
+        if (input.url.trim().startsWith("magnet:", ignoreCase = true) && resolver != null) {
+            val magnet = input.url.trim()
+            // magnet: links are opaque URIs, so Uri.getQueryParameter can't read them.
+            val name = input.name ?: Regex("[?&]dn=([^&]+)").find(magnet)?.groupValues?.get(1)
+                ?.let { runCatching { java.net.URLDecoder.decode(it, "UTF-8") }.getOrDefault(it) }
+            _busy.value = true
+            viewModelScope.launch {
+                val local = runCatching {
+                    resolver.resolve(com.troy.orcaplayer.core.model.StreamOption(url = magnet, source = SourceRef(SourceKind.LINK, "link"), name = name, kind = com.troy.orcaplayer.core.model.StreamKind.TORRENT))
+                }
+                _busy.value = false
+                local.onSuccess { start(listOf(LinkInput(it, name)), 0) }
+                    .onFailure { _events.value = UrlEvent.Failed(it.message ?: it.javaClass.simpleName) }
+            }
+            return
+        }
         val url = normalize(input.url)
         if (url == null) {
             if (MediaLinks.kindOf(input.url.trim()) == MediaLinks.Kind.STREMIO_MANIFEST) _events.value = UrlEvent.Install(input.url.trim())

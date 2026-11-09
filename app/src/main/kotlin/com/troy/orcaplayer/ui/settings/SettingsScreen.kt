@@ -31,8 +31,24 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.Accessibility
+import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Extension
+import androidx.compose.material.icons.outlined.GraphicEq
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Language
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Subtitles
+import androidx.compose.material.icons.outlined.TouchApp
+import androidx.compose.material.icons.outlined.VideoLibrary
+import androidx.compose.material.icons.outlined.Videocam
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Slider
@@ -94,6 +110,10 @@ fun SettingsScreen(
     onOpenHomeRows: () -> Unit = {},
     onOpenProfiles: () -> Unit = {},
     onOpenTrakt: () -> Unit = {},
+    onOpenTabs: () -> Unit = {},
+    onOpenPlayerLayout: () -> Unit = {},
+    onOpenGestures: () -> Unit = {},
+    onOpenBackup: () -> Unit = {},
     vm: SettingsViewModel = hiltViewModel(),
 ) {
     val values by vm.values.collectAsStateWithLifecycle()
@@ -116,7 +136,10 @@ fun SettingsScreen(
             )
         }
     }
-    val results = remember(query, entries) { SettingsSearch.search(query, entries) }
+    val tv = com.troy.orcaplayer.ui.tv.LocalIsTv.current
+    val results = remember(query, entries, tv) {
+        SettingsSearch.search(query, entries).filter { !(tv && com.troy.orcaplayer.ui.tv.TenFoot.hiddenOnTv(it.key)) }
+    }
 
     val onChoice: (ChoiceSetting, String) -> Unit = { def, value ->
         vm.set(def, value)
@@ -127,79 +150,152 @@ fun SettingsScreen(
         if (section == SettingsSection.LANGUAGE) applyLanguage(Settings.Language.default)
     }
 
-    Column(Modifier.fillMaxSize()) {
-        BackTopBar(stringResource(R.string.settings_title), onBack)
-        TroyTextField(
-            value = query,
-            onValueChange = { query = it },
-            placeholder = stringResource(R.string.settings_search_hint),
-            leading = { Icon(Icons.Outlined.Search, contentDescription = null, tint = Troy.colors.text3) },
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).widthIn(max = 720.dp).fillMaxWidth().align(Alignment.CenterHorizontally),
-        )
+    // The settings home lists categories in groups; a category opens a page with only its settings.
+    // On wide screens both show side by side.
+    var openName by rememberSaveable { mutableStateOf<String?>(null) }
+    val open: SettingsSection? = openName?.let { n -> SettingsSection.entries.firstOrNull { it.name == n } }
+    val aboutOpen = openName == ABOUT
+
+    fun navRows(section: SettingsSection): List<Triple<Int, Int, () -> Unit>> = buildList {
+        when (section) {
+            SettingsSection.VIDEO -> add(Triple(R.string.dc_title, R.string.dc_summary, onOpenDecoderCheck))
+            SettingsSection.HOME -> {
+                add(Triple(R.string.home_rows_title, R.string.home_rows_summary, onOpenHomeRows))
+                add(Triple(R.string.editor_tabs, R.string.editor_tabs_summary, onOpenTabs))
+            }
+            SettingsSection.PLAYER -> add(Triple(R.string.editor_player, R.string.editor_player_summary, onOpenPlayerLayout))
+            SettingsSection.GESTURES -> if (!tv) add(Triple(R.string.editor_gestures, R.string.editor_gestures_summary, onOpenGestures))
+            SettingsSection.PRIVACY -> add(Triple(R.string.backup_title, R.string.backup_summary, onOpenBackup))
+            SettingsSection.PROFILES -> add(Triple(R.string.profiles_manage, R.string.profiles_manage_summary, onOpenProfiles))
+            SettingsSection.SOURCES -> add(Triple(R.string.trakt_title, R.string.trakt_summary, onOpenTrakt))
+            else -> Unit
+        }
+    }
+    fun defsOf(section: SettingsSection) = Settings.inSection(section).filter { visible(it, values, tv) }
+    // A category with nothing to show (for example on TV) is left out.
+    fun hasContent(section: SettingsSection) = defsOf(section).isNotEmpty() || navRows(section).isNotEmpty()
+
+    val sectionPage: @Composable (SettingsSection, Modifier) -> Unit = { section, modifier ->
         LazyColumn(
-            state = listState,
-            modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.navigationBars),
+            modifier = modifier.windowInsetsPadding(WindowInsets.navigationBars),
             contentPadding = PaddingValues(bottom = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            if (query.isNotBlank()) {
-                if (results.isEmpty()) {
-                    item {
-                        Text(
-                            stringResource(R.string.settings_no_results),
-                            style = Troy.type.body,
-                            color = Troy.colors.text2,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(32.dp),
-                        )
+            item(key = "section:" + section.name) {
+                Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp).widthIn(max = 720.dp).fillMaxWidth().materialize(0)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(stringResource(SECTION_SUMMARY.getValue(section)), style = Troy.type.bodySmall, color = Troy.colors.text2, modifier = Modifier.weight(1f).padding(start = 4.dp))
+                        TroyButton(stringResource(R.string.settings_reset_section), { onReset(section) }, kind = ButtonKind.GHOST)
+                    }
+                    SettingsCard {
+                        defsOf(section).forEach { def ->
+                            SettingRow(def, values, onBool = { d, v -> vm.set(d, v) }, onOpen = { dialogKey = it.key })
+                        }
+                        navRows(section).forEach { (t, s, go) -> NavRow(stringResource(t), stringResource(s), go) }
                     }
                 }
-                items(results, key = { it.key }) { entry ->
-                    val def = Settings.byKey(entry.key) ?: return@items
-                    SettingsCard(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
-                        SectionLabel(entry.section, Modifier.padding(start = 16.dp, top = 12.dp))
-                        SettingRow(def, values, onBool = { d, v -> vm.set(d, v) }, onOpen = { dialogKey = it.key })
-                    }
-                }
-            } else {
-                SettingsSection.entries.forEachIndexed { index, section ->
-                    item(key = section.name) {
-                        val defs = Settings.inSection(section).filter { visible(it, values) }
-                        Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp).widthIn(max = 720.dp).fillMaxWidth().materialize(index)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                SectionLabel(stringResource(section.titleRes), Modifier.weight(1f).padding(start = 4.dp))
-                                TroyButton(stringResource(R.string.settings_reset_section), { onReset(section) }, kind = ButtonKind.GHOST)
+            }
+        }
+    }
+    val aboutPage: @Composable (Modifier) -> Unit = { modifier ->
+        Column(modifier.padding(horizontal = 16.dp, vertical = 10.dp).widthIn(max = 720.dp).fillMaxWidth()) {
+            SettingsCard {
+                InfoRow(stringResource(R.string.about_version), BuildConfig.VERSION_NAME)
+                InfoRow(
+                    stringResource(R.string.about_build),
+                    stringResource(if (BuildConfig.EXTENDED) R.string.build_extended else R.string.build_standard),
+                )
+                NavRow(stringResource(R.string.about_licences), stringResource(R.string.about_licences_summary), onOpenLicences)
+            }
+        }
+    }
+
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
+        val wide = maxWidth >= 840.dp
+        // Narrow screens: a category page replaces the home; back returns to it.
+        if (!wide && openName != null && query.isBlank()) {
+            androidx.activity.compose.BackHandler { openName = null }
+            Column(Modifier.fillMaxSize()) {
+                BackTopBar(if (aboutOpen) stringResource(R.string.settings_about) else stringResource(open!!.titleRes), { openName = null })
+                if (aboutOpen) aboutPage(Modifier.align(Alignment.CenterHorizontally)) else sectionPage(open!!, Modifier.fillMaxSize())
+            }
+        } else Column(Modifier.fillMaxSize()) {
+            BackTopBar(stringResource(R.string.settings_title), onBack)
+            Row(Modifier.fillMaxSize()) {
+                Column(if (wide) Modifier.widthIn(max = 380.dp).weight(0.42f) else Modifier.fillMaxWidth()) {
+                    TroyTextField(
+                        value = query,
+                        onValueChange = { query = it },
+                        placeholder = stringResource(R.string.settings_search_hint),
+                        leading = { Icon(Icons.Outlined.Search, contentDescription = null, tint = Troy.colors.text3) },
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).widthIn(max = 720.dp).fillMaxWidth().align(Alignment.CenterHorizontally),
+                    )
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.navigationBars),
+                        contentPadding = PaddingValues(bottom = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        if (query.isNotBlank()) {
+                            if (results.isEmpty()) {
+                                item {
+                                    Text(
+                                        stringResource(R.string.settings_no_results),
+                                        style = Troy.type.body,
+                                        color = Troy.colors.text2,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.padding(32.dp),
+                                    )
+                                }
                             }
-                            SettingsCard {
-                                defs.forEach { def ->
+                            items(results, key = { it.key }) { entry ->
+                                val def = Settings.byKey(entry.key) ?: return@items
+                                SettingsCard(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                                    SectionLabel(entry.section, Modifier.padding(start = 16.dp, top = 12.dp))
                                     SettingRow(def, values, onBool = { d, v -> vm.set(d, v) }, onOpen = { dialogKey = it.key })
                                 }
-                                if (section == SettingsSection.VIDEO) {
-                                    NavRow(stringResource(R.string.dc_title), stringResource(R.string.dc_summary), onOpenDecoderCheck)
+                            }
+                        } else {
+                            var index = 0
+                            SETTINGS_GROUPS.forEach { (groupRes, sections) ->
+                                val shown = sections.filter { hasContent(it) }
+                                if (shown.isEmpty()) return@forEach
+                                val at = index++
+                                item(key = "group:$groupRes") {
+                                    Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp).widthIn(max = 720.dp).fillMaxWidth().materialize(at)) {
+                                        SectionLabel(stringResource(groupRes), Modifier.padding(start = 4.dp, bottom = 6.dp))
+                                        SettingsCard {
+                                            shown.forEach { s ->
+                                                CategoryRow(SECTION_ICON.getValue(s), stringResource(s.titleRes), stringResource(SECTION_SUMMARY.getValue(s)), selected = wide && open == s) {
+                                                    openName = s.name
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
-                                if (section == SettingsSection.HOME) {
-                                    NavRow(stringResource(R.string.home_rows_title), stringResource(R.string.home_rows_summary), onOpenHomeRows)
-                                }
-                                if (section == SettingsSection.PROFILES) {
-                                    NavRow(stringResource(R.string.profiles_manage), stringResource(R.string.profiles_manage_summary), onOpenProfiles)
-                                }
-                                if (section == SettingsSection.SOURCES) {
-                                    NavRow(stringResource(R.string.trakt_title), stringResource(R.string.trakt_summary), onOpenTrakt)
+                            }
+                            item(key = "about") {
+                                Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp).widthIn(max = 720.dp).fillMaxWidth().materialize(index)) {
+                                    SettingsCard {
+                                        CategoryRow(Icons.Outlined.Info, stringResource(R.string.settings_about), BuildConfig.VERSION_NAME, selected = wide && aboutOpen) {
+                                            openName = ABOUT
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
                 }
-                item(key = "about") {
-                    Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp).widthIn(max = 720.dp).fillMaxWidth().materialize(SettingsSection.entries.size)) {
-                        SectionLabel(stringResource(R.string.settings_about), Modifier.padding(start = 4.dp, bottom = 8.dp))
-                        SettingsCard {
-                            InfoRow(stringResource(R.string.about_version), BuildConfig.VERSION_NAME)
-                            InfoRow(
-                                stringResource(R.string.about_build),
-                                stringResource(if (BuildConfig.EXTENDED) R.string.build_extended else R.string.build_standard),
-                            )
-                            NavRow(stringResource(R.string.about_licences), stringResource(R.string.about_licences_summary), onOpenLicences)
+                if (wide) {
+                    // Wide screens: the chosen category (the first one until one is picked) on the right.
+                    val shownSection = open ?: if (aboutOpen) null else SETTINGS_GROUPS.flatMap { it.second }.firstOrNull { hasContent(it) }
+                    Column(Modifier.weight(0.58f).fillMaxSize()) {
+                        if (aboutOpen) {
+                            SectionLabel(stringResource(R.string.settings_about), Modifier.padding(start = 20.dp, top = 8.dp))
+                            aboutPage(Modifier)
+                        } else if (shownSection != null) {
+                            SectionLabel(stringResource(shownSection.titleRes), Modifier.padding(start = 20.dp, top = 8.dp))
+                            sectionPage(shownSection, Modifier.fillMaxSize())
                         }
                     }
                 }
@@ -240,8 +336,81 @@ fun SettingsScreen(
     }
 }
 
-private fun visible(def: SettingDef<*>, values: SettingsValues): Boolean =
-    def !== Settings.CustomAccent || values[Settings.Accent] == Settings.CUSTOM_ACCENT
+private const val ABOUT = "ABOUT"
+
+/** The settings home: categories in groups. */
+private val SETTINGS_GROUPS: List<Pair<Int, List<SettingsSection>>> = listOf(
+    R.string.settings_group_general to listOf(SettingsSection.APPEARANCE, SettingsSection.LANGUAGE, SettingsSection.ACCESSIBILITY),
+    R.string.settings_group_playback to listOf(SettingsSection.PLAYER, SettingsSection.GESTURES, SettingsSection.SUBTITLES, SettingsSection.AUDIO, SettingsSection.VIDEO),
+    R.string.settings_group_content to listOf(SettingsSection.HOME, SettingsSection.SOURCES, SettingsSection.LIBRARY, SettingsSection.DOWNLOADS),
+    R.string.settings_group_profiles to listOf(SettingsSection.PROFILES, SettingsSection.PRIVACY),
+    R.string.settings_group_tools to listOf(SettingsSection.TOOLS),
+)
+
+private val SECTION_ICON: Map<SettingsSection, androidx.compose.ui.graphics.vector.ImageVector> = mapOf(
+    SettingsSection.APPEARANCE to Icons.Outlined.Palette,
+    SettingsSection.LANGUAGE to Icons.Outlined.Language,
+    SettingsSection.ACCESSIBILITY to Icons.Outlined.Accessibility,
+    SettingsSection.PLAYER to Icons.Outlined.PlayCircle,
+    SettingsSection.GESTURES to Icons.Outlined.TouchApp,
+    SettingsSection.SUBTITLES to Icons.Outlined.Subtitles,
+    SettingsSection.AUDIO to Icons.Outlined.GraphicEq,
+    SettingsSection.VIDEO to Icons.Outlined.Videocam,
+    SettingsSection.HOME to Icons.Outlined.Home,
+    SettingsSection.SOURCES to Icons.Outlined.Extension,
+    SettingsSection.LIBRARY to Icons.Outlined.VideoLibrary,
+    SettingsSection.DOWNLOADS to Icons.Outlined.Download,
+    SettingsSection.PROFILES to Icons.Outlined.Person,
+    SettingsSection.PRIVACY to Icons.Outlined.Lock,
+    SettingsSection.TOOLS to Icons.Outlined.Build,
+)
+
+private val SECTION_SUMMARY: Map<SettingsSection, Int> = mapOf(
+    SettingsSection.APPEARANCE to R.string.settings_summary_appearance,
+    SettingsSection.LANGUAGE to R.string.settings_summary_language,
+    SettingsSection.ACCESSIBILITY to R.string.settings_summary_accessibility,
+    SettingsSection.PLAYER to R.string.settings_summary_player,
+    SettingsSection.GESTURES to R.string.settings_summary_gestures,
+    SettingsSection.SUBTITLES to R.string.settings_summary_subtitles,
+    SettingsSection.AUDIO to R.string.settings_summary_audio,
+    SettingsSection.VIDEO to R.string.settings_summary_video,
+    SettingsSection.HOME to R.string.settings_summary_home,
+    SettingsSection.SOURCES to R.string.settings_summary_sources,
+    SettingsSection.LIBRARY to R.string.settings_summary_library,
+    SettingsSection.DOWNLOADS to R.string.settings_summary_downloads,
+    SettingsSection.PROFILES to R.string.settings_summary_profiles,
+    SettingsSection.PRIVACY to R.string.settings_summary_privacy,
+    SettingsSection.TOOLS to R.string.settings_summary_tools,
+)
+
+/** One category on the settings home: icon, name and what's inside. Focusable for the D-pad. */
+@Composable
+private fun CategoryRow(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, summary: String, selected: Boolean, onClick: () -> Unit) {
+    val c = Troy.colors
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 60.dp)
+            .troyFocusRing()
+            .clip(TroyShapes.Control)
+            .then(if (selected) Modifier.background(c.controlFill) else Modifier)
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, contentDescription = null, tint = c.accent, modifier = Modifier.size(24.dp))
+        Spacer(Modifier.size(16.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, style = Troy.type.body, color = c.text)
+            Text(summary, style = Troy.type.bodySmall, color = c.text2, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+        }
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = c.text3)
+    }
+}
+
+private fun visible(def: SettingDef<*>, values: SettingsValues, tv: Boolean): Boolean =
+    (def !== Settings.CustomAccent || values[Settings.Accent] == Settings.CUSTOM_ACCENT) &&
+        !(tv && com.troy.orcaplayer.ui.tv.TenFoot.hiddenOnTv(def.key))
 
 /** Per-app language API: applies without restarting the app. */
 private fun applyLanguage(value: String) {

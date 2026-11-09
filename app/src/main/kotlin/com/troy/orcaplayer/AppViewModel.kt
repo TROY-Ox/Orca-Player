@@ -66,6 +66,8 @@ class AppViewModel @Inject constructor(
 
     /** "TYPE/id" of a title to open, from a new-episode notification. */
     val pendingTitle = MutableStateFlow<String?>(null)
+    /** A magnet link opened from another app (extended build). */
+    val pendingMagnet = MutableStateFlow<String?>(null)
 
     /** Set when a download notification opened the app. */
     val pendingDownloads = MutableStateFlow(false)

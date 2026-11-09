@@ -1,5 +1,6 @@
 package com.troy.orcaplayer.ui.addons
 
+import com.troy.orcaplayer.ui.common.keyed
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -82,7 +83,7 @@ fun DiscoverScreen(onBack: () -> Unit, onOpenTitle: (Title) -> Unit, vm: Discove
             verticalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier.fillMaxWidth().weight(1f),
         ) {
-            items(s.items, key = { it.type.name + it.id }) { t -> TitleCard(t, style, { onOpenTitle(t) }, Modifier.fillMaxWidth()) }
+            items(s.items.keyed { it.type.name + it.id }, key = { it.first }) { (_, t) -> TitleCard(t, style, { onOpenTitle(t) }, Modifier.fillMaxWidth()) }
             if (s.loading) items(if (s.items.isEmpty()) 12 else 3) { ShimmerBlock(Modifier.fillMaxWidth().aspectRatio(2f / 3f).clip(TroyShapes.Control)) }
         }
     }

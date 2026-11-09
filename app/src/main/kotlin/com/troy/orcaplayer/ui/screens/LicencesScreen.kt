@@ -64,6 +64,8 @@ private val extendedLicences = listOf(
     LibraryLicence("Jackson", "Apache-2.0"),
     LibraryLicence("Mozilla Rhino", "MPL-2.0"),
     LibraryLicence("NewPipe Extractor", "GPL-3.0"),
+    LibraryLicence("libtorrent4j (Alden Torres), torrent streaming", "MIT"),
+    LibraryLicence("libtorrent (Arvid Norberg), used by libtorrent4j", "BSD-3-Clause"),
 )
 
 @Composable

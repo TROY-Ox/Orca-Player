@@ -1,5 +1,6 @@
 package com.troy.orcaplayer.ui.links
 
+import com.troy.orcaplayer.ui.common.keyed
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -86,6 +87,8 @@ fun UrlPlayerScreen(onBack: () -> Unit, onInstallAddon: (String) -> Unit, initia
     val queue by vm.queue.collectAsStateWithLifecycle()
     val event by vm.events.collectAsStateWithLifecycle()
     val busy by vm.busy.collectAsStateWithLifecycle()
+    val torrentProgress by (com.troy.orcaplayer.data.TorrentBridge.resolver?.progress
+        ?: remember { kotlinx.coroutines.flow.MutableStateFlow<com.troy.orcaplayer.data.TorrentProgress?>(null) }).collectAsStateWithLifecycle()
 
     var url by rememberSaveable { mutableStateOf(initialUrl.orEmpty()) }
     var more by rememberSaveable { mutableStateOf(false) }
@@ -124,6 +127,7 @@ fun UrlPlayerScreen(onBack: () -> Unit, onInstallAddon: (String) -> Unit, initia
             is UrlEvent.Install -> onInstallAddon(e.url)
             is UrlEvent.PlaylistFound -> playlist = e
             UrlEvent.Bad -> bad = true
+            is UrlEvent.Failed -> android.widget.Toast.makeText(context, context.getString(R.string.torrent_failed, e.message), android.widget.Toast.LENGTH_LONG).show()
             null -> Unit
         }
         if (event != null) vm.consume()
@@ -163,6 +167,21 @@ fun UrlPlayerScreen(onBack: () -> Unit, onInstallAddon: (String) -> Unit, initia
                 Column(Modifier.widthIn(max = 720.dp).fillMaxWidth().glass(TroyShapes.Panel).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     TroyTextField(url, { url = it; bad = false }, Modifier.fillMaxWidth(), placeholder = stringResource(R.string.url_hint), imeAction = ImeAction.Go, onImeAction = { vm.play(input()) })
                     if (bad) Text(stringResource(R.string.url_bad), style = Troy.type.bodySmall, color = c.danger)
+                    com.troy.orcaplayer.ui.tv.SendFromPhoneButton(
+                        stringResource(R.string.url_hint),
+                        listOf(
+                            com.troy.orcaplayer.ui.tv.SendField("url", stringResource(R.string.url_hint), value = url),
+                            com.troy.orcaplayer.ui.tv.SendField("referer", stringResource(R.string.url_referer), value = referer),
+                            com.troy.orcaplayer.ui.tv.SendField("agent", stringResource(R.string.url_agent), value = agent),
+                            com.troy.orcaplayer.ui.tv.SendField("subtitle", stringResource(R.string.links_subtitle_hint), value = subtitle),
+                        ),
+                    ) { got ->
+                        got["url"]?.trim()?.let { url = it; bad = false }
+                        got["referer"]?.trim()?.let { referer = it }
+                        got["agent"]?.trim()?.let { agent = it }
+                        got["subtitle"]?.trim()?.let { subtitle = it }
+                        if (referer.isNotBlank() || agent.isNotBlank() || subtitle.isNotBlank()) more = true
+                    }
                     TroyChip(stringResource(if (more) R.string.links_fewer_options else R.string.links_more_options), more, { more = !more })
                     if (more) {
                         TroyTextField(referer, { referer = it }, Modifier.fillMaxWidth(), placeholder = stringResource(R.string.url_referer))
@@ -180,7 +199,14 @@ fun UrlPlayerScreen(onBack: () -> Unit, onInstallAddon: (String) -> Unit, initia
                         }, enabled = url.isNotBlank() && !busy)
                         TroyButton(stringResource(R.string.player_play), { vm.play(input()) }, kind = ButtonKind.PRIMARY, enabled = url.isNotBlank() && !busy)
                     }
-                    if (busy) Text(stringResource(R.string.links_checking), style = Troy.type.bodySmall, color = c.text2)
+                    if (busy) {
+                    // A magnet link: show what the torrent streamer is doing.
+                    val tp = torrentProgress
+                    Text(
+                        if (tp != null) com.troy.orcaplayer.ui.title.torrentStatus(tp) else stringResource(R.string.links_checking),
+                        style = Troy.type.bodySmall, color = c.text2,
+                    )
+                }
                 }
             }
             if (queue.isNotEmpty()) {
@@ -241,7 +267,7 @@ fun UrlPlayerScreen(onBack: () -> Unit, onInstallAddon: (String) -> Unit, initia
                         TroyButton(stringResource(R.string.clear), vm::clearHistory, kind = ButtonKind.GHOST)
                     }
                 }
-                items(data.history, key = { "h" + it.url }) { h ->
+                items(data.history.keyed { "h" + it.url }, key = { it.first }) { (_, h) ->
                     LinkRow(h.title ?: h.url, h.url, Icons.Outlined.History, onClick = { vm.playHistory(h) }) {
                         TroyIconButton(Icons.Outlined.Close, stringResource(R.string.remove), { vm.removeHistory(h.url) })
                     }

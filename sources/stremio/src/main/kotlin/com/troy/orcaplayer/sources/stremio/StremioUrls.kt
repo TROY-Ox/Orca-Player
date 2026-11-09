@@ -13,7 +13,10 @@ object StremioUrls {
         var s = input.trim().trim('"', '\'', '<', '>')
         if (s.isEmpty() || s.any { it.isWhitespace() }) return null
         s = when {
-            s.startsWith("stremio://", ignoreCase = true) -> "https://" + s.substring("stremio://".length)
+            // Addons on this device or the home network rarely have certificates: use http for them.
+            s.startsWith("stremio://", ignoreCase = true) -> s.substring("stremio://".length).let { rest ->
+                (if (isLocalHost(rest.substringBefore('/').substringBefore('?'))) "http://" else "https://") + rest
+            }
             s.startsWith("https://", ignoreCase = true) || s.startsWith("http://", ignoreCase = true) -> s
             s.contains("://") -> return null
             else -> "https://$s"
@@ -25,6 +28,15 @@ object StremioUrls {
             s = noQuery.trimEnd('/') + "/manifest.json"
         }
         return s
+    }
+
+    /** localhost, a loopback or private (LAN) IPv4 address, or a .local name, with or without a port. */
+    fun isLocalHost(hostPort: String): Boolean {
+        val host = hostPort.substringAfterLast('@').let { if (it.startsWith("[")) it.substringBefore(']').removePrefix("[") else it.substringBefore(':') }.lowercase()
+        if (host == "localhost" || host.endsWith(".localhost") || host.endsWith(".local") || host == "::1") return true
+        val p = host.split('.').map { it.toIntOrNull() ?: return false }
+        if (p.size != 4 || p.any { it !in 0..255 }) return false
+        return p[0] == 10 || p[0] == 127 || (p[0] == 192 && p[1] == 168) || (p[0] == 172 && p[1] in 16..31) || (p[0] == 169 && p[1] == 254)
     }
 
     /** The base every resource URL is built on: the manifest URL without `/manifest.json`. */

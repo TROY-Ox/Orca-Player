@@ -1,5 +1,6 @@
 package com.troy.orcaplayer.ui.search
 
+import com.troy.orcaplayer.ui.common.keyed
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -54,7 +55,13 @@ import com.troy.orcaplayer.ui.shell.MainTopBar
 import kotlinx.coroutines.launch
 
 @Composable
-fun SearchScreen(onOpenSettings: () -> Unit, onOpenProfiles: () -> Unit, onOpenTitle: (Title) -> Unit, vm: SearchViewModel = hiltViewModel()) {
+fun SearchScreen(
+    onOpenSettings: () -> Unit,
+    onOpenProfiles: () -> Unit,
+    onOpenTitle: (Title) -> Unit,
+    onOpenAddons: (() -> Unit)? = null,
+    vm: SearchViewModel = hiltViewModel(),
+) {
     val c = Troy.colors
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -109,7 +116,7 @@ fun SearchScreen(onOpenSettings: () -> Unit, onOpenProfiles: () -> Unit, onOpenT
                 }
                 if (trending.isNotEmpty()) {
                     item(span = { GridItemSpan(maxLineSpan) }) { SectionLabel(stringResource(R.string.search_trending), Modifier.padding(top = 8.dp)) }
-                    items(trending, key = { "tr" + it.type + it.id }) { t -> TitleCard(t, RowStyle.POSTER, { onOpenTitle(t) }, Modifier.fillMaxWidth()) }
+                    items(trending.keyed { "tr" + it.type + it.id }, key = { it.first }) { (_, t) -> TitleCard(t, RowStyle.POSTER, { onOpenTitle(t) }, Modifier.fillMaxWidth()) }
                 }
                 if (recent.isEmpty() && trending.isEmpty()) {
                     item(span = { GridItemSpan(maxLineSpan) }) {
@@ -156,12 +163,18 @@ fun SearchScreen(onOpenSettings: () -> Unit, onOpenProfiles: () -> Unit, onOpenT
                     if (results.failed.isNotEmpty()) {
                         Text(stringResource(R.string.search_failed, results.failed.joinToString(", ")), style = Troy.type.bodySmall, color = c.text3)
                     }
-                    if (shown.isEmpty() && results.pending == 0 && localResults.isEmpty()) {
+                    if (results.asked == 0) {
+                        // Nothing installed can search: say so instead of "nothing found".
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 8.dp)) {
+                            Text(stringResource(R.string.search_no_sources), style = Troy.type.body, color = c.text2)
+                            if (onOpenAddons != null) TroyButton(stringResource(R.string.search_add_sources), onOpenAddons, kind = ButtonKind.SECONDARY)
+                        }
+                    } else if (shown.isEmpty() && results.pending == 0 && localResults.isEmpty()) {
                         Text(stringResource(R.string.search_nothing, query.trim()), style = Troy.type.body, color = c.text2, modifier = Modifier.padding(vertical = 16.dp))
                     }
                 }
             }
-            items(shown, key = { it.title.type.name + it.title.id + it.title.source.sourceId }) { m ->
+            items(shown.keyed { it.title.type.name + it.title.id + it.title.source.sourceId }, key = { it.first }) { (_, m) ->
                 Column {
                     TitleCard(m.title, RowStyle.POSTER, { onOpenTitle(m.title) }, Modifier.fillMaxWidth())
                     if (m.sources.size > 1) Text(m.sources.joinToString(" · ") { it.sourceName }, style = Troy.type.label, color = c.text3, maxLines = 1, overflow = TextOverflow.Ellipsis)

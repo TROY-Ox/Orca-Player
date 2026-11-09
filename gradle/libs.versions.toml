@@ -12,6 +12,8 @@ appcompat = "1.7.0"
 biometric = "1.1.0"
 # CloudStream library module (GPL-3.0), extended build only. Resolved from JitPack.
 cloudstream = "4.8.0"
+# Torrent streaming (MIT; libtorrent is BSD-3-Clause), extended build only.
+libtorrent4j = "2.1.0-39"
 core = "1.15.0"
 lifecycle = "2.10.0"
 navigation = "2.8.5"
@@ -33,6 +35,8 @@ bouncycastle = "1.80"
 libvlc = "3.7.7"
 playServicesCast = "22.1.0"
 mediarouter = "1.7.0"
+androidx-window = "1.4.0"
+zxing = "3.5.3"
 androidxTestExt = "1.2.1"
 androidxTestRunner = "1.6.2"
 
@@ -46,12 +50,19 @@ commons-net = { module = "commons-net:commons-net", version.ref = "commonsNet" }
 libvlc = { module = "org.videolan.android:libvlc-all", version.ref = "libvlc" }
 media3-cast = { module = "androidx.media3:media3-cast", version.ref = "media3" }
 androidx-mediarouter = { module = "androidx.mediarouter:mediarouter", version.ref = "mediarouter" }
+androidx-window = { module = "androidx.window:window", version.ref = "androidx-window" }
+zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
 play-services-cast = { module = "com.google.android.gms:play-services-cast-framework", version.ref = "playServicesCast" }
 androidx-work-runtime = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
 coil-network = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coil" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity" }
 androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
+libtorrent4j = { module = "org.libtorrent4j:libtorrent4j", version.ref = "libtorrent4j" }
+libtorrent4j-android-arm64 = { module = "org.libtorrent4j:libtorrent4j-android-arm64", version.ref = "libtorrent4j" }
+libtorrent4j-android-arm = { module = "org.libtorrent4j:libtorrent4j-android-arm", version.ref = "libtorrent4j" }
+libtorrent4j-android-x86 = { module = "org.libtorrent4j:libtorrent4j-android-x86", version.ref = "libtorrent4j" }
+libtorrent4j-android-amd64 = { module = "org.libtorrent4j:libtorrent4j-android-x86_64", version.ref = "libtorrent4j" }
 cloudstream-library = { module = "com.github.recloudstream.cloudstream:library", version.ref = "cloudstream" }
 androidx-biometric = { module = "androidx.biometric:biometric", version.ref = "biometric" }
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "core" }

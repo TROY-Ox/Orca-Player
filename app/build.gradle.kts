@@ -108,6 +108,7 @@ licensee {
     allowUrl("https://opensource.org/license/mit") { because("The MIT licence, published under another URL") }
     allowUrl("https://developer.android.com/studio/terms.html") { because("Google Play services Cast SDK, for Chromecast (20.7)") }
     allowUrl("https://www.gnu.org/licenses/old-licenses/lgpl-2.1.en.html") { because("libVLC for Android, LGPL-2.1-or-later, loaded as a separate library (20.8)") }
+    allowUrl("https://github.com/aldenml/libtorrent4j/blob/master/LICENSE.md") { because("libtorrent4j, MIT, torrent streaming in the extended build") }
     allowUrl("https://www.bouncycastle.org/licence.html") { because("The Bouncy Castle licence is the MIT licence") }
 }
 
@@ -137,11 +138,19 @@ dependencies {
     implementation(libs.libvlc)
     implementation(libs.play.services.cast)
     implementation(libs.androidx.mediarouter)
+    implementation(libs.androidx.window)
+    implementation(libs.zxing.core)
     implementation(libs.tink.android)
     implementation(libs.okhttp)
     implementation(libs.androidx.work.runtime)
     implementation(libs.androidx.biometric)
     "extendedImplementation"(project(":sources:cloudstream"))
+    // Torrent streaming, extended build only (MIT).
+    "extendedImplementation"(libs.libtorrent4j)
+    "extendedImplementation"(libs.libtorrent4j.android.arm64)
+    "extendedImplementation"(libs.libtorrent4j.android.arm)
+    "extendedImplementation"(libs.libtorrent4j.android.x86)
+    "extendedImplementation"(libs.libtorrent4j.android.amd64)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)

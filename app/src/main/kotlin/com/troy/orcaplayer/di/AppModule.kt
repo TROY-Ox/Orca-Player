@@ -61,6 +61,11 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun backup(@ApplicationContext context: Context, db: OrcaDatabase, settings: SettingsRepository): com.troy.orcaplayer.backup.BackupManager =
+        com.troy.orcaplayer.backup.BackupManager(context, db, settings)
+
+    @Provides
+    @Singleton
     fun thumbnails(@ApplicationContext context: Context): Thumbnails = Thumbnails(context)
 
     @Provides

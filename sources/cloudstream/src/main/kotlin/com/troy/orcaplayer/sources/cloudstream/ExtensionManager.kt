@@ -76,11 +76,29 @@ class ExtensionManager(context: Context, private val userAgent: String) {
     }
 
     private fun get(url: String, maxBytes: Long = 4L * 1024 * 1024): ByteArray {
-        val c = URL(url).openConnection() as HttpURLConnection
-        c.connectTimeout = 15_000
-        c.readTimeout = 30_000
-        c.instanceFollowRedirects = true
-        c.setRequestProperty("User-Agent", userAgent)
+        // Redirects are followed by hand, because HttpURLConnection won't switch between http and
+        // https (GitHub release and CDN links do), and the body is asked for uncompressed.
+        var current = url
+        var c: HttpURLConnection
+        var hops = 0
+        while (true) {
+            c = URL(current).openConnection() as HttpURLConnection
+            c.connectTimeout = 15_000
+            c.readTimeout = 30_000
+            c.instanceFollowRedirects = false
+            c.setRequestProperty("User-Agent", userAgent)
+            c.setRequestProperty("Accept-Encoding", "identity")
+            val code = c.responseCode
+            if (code in 300..399 && hops < 8) {
+                val loc = c.getHeaderField("Location")
+                c.disconnect()
+                if (loc.isNullOrBlank()) error("HTTP $code")
+                current = URL(URL(current), loc).toString()
+                hops++
+                continue
+            }
+            break
+        }
         try {
             if (c.responseCode !in 200..299) error("HTTP ${c.responseCode}")
             val length = c.contentLengthLong
@@ -153,8 +171,10 @@ class ExtensionManager(context: Context, private val userAgent: String) {
         require(entry.compatible) { "Needs a newer version of the app" }
         withContext(Dispatchers.IO) {
             val bytes = get(entry.url, RepoFormat.MAX_FILE_BYTES)
-            entry.fileSize?.takeIf { it > 0 }?.let { require(bytes.size.toLong() == it) { "The file size doesn't match the repository" } }
-            entry.fileHash?.let { h -> require(RepoFormat.sha256(bytes).equals(h.removePrefix("sha256:"), true)) { "The file hash doesn't match the repository" } }
+            // plugins.json "fileSize" is often out of date (repositories rebuild files without
+            // updating it) and CloudStream itself ignores it, so it is not checked. A SHA-256 is
+            // checked when the repository gives a well-formed one.
+            RepoFormat.expectedSha256(entry.fileHash)?.let { h -> require(RepoFormat.sha256(bytes).equals(h, true)) { "The file hash doesn't match the repository" } }
             require(bytes.size > 4 && bytes[0] == 'P'.code.toByte() && bytes[1] == 'K'.code.toByte()) { "Not an extension file" }
             val name = RepoFormat.fileName(entry.internalName)
             val target = File(filesDir, name)

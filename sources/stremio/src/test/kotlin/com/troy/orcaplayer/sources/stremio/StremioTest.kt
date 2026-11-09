@@ -90,6 +90,27 @@ class UrlsTest {
     }
 }
 
+class LocalAddonUrlTest {
+    @Test fun stremioLinksToLanAddonsUseHttp() {
+        assertEquals("http://192.168.1.20:7000/manifest.json", StremioUrls.normalizeManifestUrl("stremio://192.168.1.20:7000/manifest.json"))
+        assertEquals("http://localhost:11470/manifest.json", StremioUrls.normalizeManifestUrl("stremio://localhost:11470/manifest.json"))
+        assertEquals("https://addon.example.com/manifest.json", StremioUrls.normalizeManifestUrl("stremio://addon.example.com/manifest.json"))
+        assertEquals("http://10.0.0.5/manifest.json", StremioUrls.normalizeManifestUrl("http://10.0.0.5/manifest.json"))
+        assertTrue(StremioUrls.isLocalHost("nas.local:8080"))
+        assertTrue(StremioUrls.isLocalHost("172.20.1.1"))
+        assertFalse(StremioUrls.isLocalHost("172.32.1.1"))
+        assertFalse(StremioUrls.isLocalHost("8.8.8.8"))
+    }
+
+    @Test fun torrentStreamsKeepFileAndTrackers() {
+        val text = """{"streams":[{"infoHash":"0123456789abcdef0123456789abcdef01234567","fileIdx":2,"sources":["tracker:udp://t.test:80/announce","dht:0123"]}]}"""
+        val s = StremioParse.streams(text, SourceRef(SourceKind.STREMIO_ADDON, "a", "A")).single()
+        assertEquals(StreamKind.TORRENT, s.kind)
+        assertEquals(2, s.fileIndex)
+        assertEquals(listOf("udp://t.test:80/announce"), s.trackers)
+    }
+}
+
 class ParseTest {
     private val src = SourceRef(SourceKind.STREMIO_ADDON, "a", "A")
 

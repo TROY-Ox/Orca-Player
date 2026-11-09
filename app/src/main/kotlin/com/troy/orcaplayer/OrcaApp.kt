@@ -43,9 +43,13 @@ class OrcaApp : Application() {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun onCreate() {
+        // First, so a crash anywhere in start-up is kept and shown on the next launch.
+        CrashReport.install(this, processName())
         super.onCreate()
         // The extended build's ":extensions" process only runs extension code (19.3).
         if (processName().endsWith(":extensions")) return
+        // Safe mode: a crash report is waiting, so skip the start-up work until it has been seen.
+        if (CrashReport.pending(this) != null) return
         com.troy.orcaplayer.flavor.Flavor.init(this, addons)
         JobsRepository.init(this)
         Downloads.bridge = planner
