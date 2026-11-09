@@ -1198,4 +1198,34 @@
     <string name="ext_all_repos">كل المستودعات</string>
     <string name="ext_expand">إظهار الامتدادات</string>
     <string name="ext_collapse">إخفاء الامتدادات</string>
+    <!-- Live TV -->
+    <string name="tab_live">البث المباشر</string>
+    <string name="live_add">إضافة قائمة</string>
+    <string name="live_add_title">إضافة قائمة قنوات</string>
+    <string name="live_add_message">الصق رابط قائمة M3U أو M3U8 من مزوّد IPTV، أو اختر ملف قائمة من هذا الجهاز.</string>
+    <string name="live_url_hint">https://example.com/playlist.m3u</string>
+    <string name="live_name_hint">الاسم (اختياري)</string>
+    <string name="live_ua_hint">User-Agent (اختياري)</string>
+    <string name="live_pick_file">اختيار ملف</string>
+    <string name="live_refresh">تحديث قوائم القنوات</string>
+    <string name="live_manage">قوائم القنوات</string>
+    <string name="live_remove">حذف القائمة</string>
+    <string name="live_done">تم</string>
+    <string name="live_problem">تعذّر التحميل: %1$s</string>
+    <string name="live_search_hint">ابحث في %1$s قناة</string>
+    <string name="live_all_lists">كل القوائم</string>
+    <string name="live_favorites">المفضلة</string>
+    <string name="live_recent">الأخيرة</string>
+    <string name="live_favorite">إضافة إلى المفضلة</string>
+    <string name="live_unfavorite">إزالة من المفضلة</string>
+    <string name="live_no_favorites">لا توجد قنوات مفضلة بعد. اضغط على النجمة بجانب القناة لإضافتها هنا.</string>
+    <string name="live_no_channels">لا توجد قنوات مطابقة.</string>
+    <string name="live_empty_title">شاهد البث المباشر</string>
+    <string name="live_empty_message">أضف قائمة M3U من خدمة IPTV لديك، أو ابدأ بإحدى القوائم العامة المجانية أدناه.</string>
+    <string name="live_suggestions">قوائم قنوات عامة مجانية</string>
+    <string name="live_suggestions_note">يجمعها مشروع iptv-org من قنوات يبثها أصحابها مجاناً.</string>
+    <string name="live_channel_count">%1$s قناة</string>
+    <string name="live_empty_tab_title">البث المباشر</string>
+    <string name="live_empty_tab_message">أضف قائمة IPTV لمشاهدة القنوات المباشرة.</string>
+    <string name="search_sources_count">%1$s مصادر</string>
 </resources>

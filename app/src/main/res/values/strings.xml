@@ -1152,4 +1152,34 @@
     <string name="ext_all_repos">All repositories</string>
     <string name="ext_expand">Show extensions</string>
     <string name="ext_collapse">Hide extensions</string>
+    <!-- Live TV -->
+    <string name="tab_live">Live TV</string>
+    <string name="live_add">Add playlist</string>
+    <string name="live_add_title">Add a channel list</string>
+    <string name="live_add_message">Paste an M3U or M3U8 playlist link from your IPTV provider, or pick a playlist file on this device.</string>
+    <string name="live_url_hint">https://example.com/playlist.m3u</string>
+    <string name="live_name_hint">Name (optional)</string>
+    <string name="live_ua_hint">User-Agent (optional)</string>
+    <string name="live_pick_file">Pick a file</string>
+    <string name="live_refresh">Refresh channel lists</string>
+    <string name="live_manage">Channel lists</string>
+    <string name="live_remove">Remove list</string>
+    <string name="live_done">Done</string>
+    <string name="live_problem">Couldn\'t load: %1$s</string>
+    <string name="live_search_hint">Search %1$s channels</string>
+    <string name="live_all_lists">All lists</string>
+    <string name="live_favorites">Favorites</string>
+    <string name="live_recent">Recent</string>
+    <string name="live_favorite">Add to favorites</string>
+    <string name="live_unfavorite">Remove from favorites</string>
+    <string name="live_no_favorites">No favorites yet. Tap the star next to a channel to keep it here.</string>
+    <string name="live_no_channels">No channels match.</string>
+    <string name="live_empty_title">Watch live TV</string>
+    <string name="live_empty_message">Add the M3U playlist from your IPTV service, or start with one of the free public lists below.</string>
+    <string name="live_suggestions">Free public channel lists</string>
+    <string name="live_suggestions_note">Collected by the iptv-org project from channels their broadcasters stream for free.</string>
+    <string name="live_channel_count">%1$s channels</string>
+    <string name="live_empty_tab_title">Live TV</string>
+    <string name="live_empty_tab_message">Add an IPTV playlist to watch live channels.</string>
+    <string name="search_sources_count">%1$s sources</string>
 </resources>

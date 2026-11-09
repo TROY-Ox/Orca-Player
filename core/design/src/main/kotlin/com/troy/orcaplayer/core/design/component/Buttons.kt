@@ -1,7 +1,6 @@
 package com.troy.orcaplayer.core.design.component
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
@@ -20,7 +19,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -29,7 +27,7 @@ import com.troy.orcaplayer.core.design.theme.TroyShapes
 
 enum class ButtonKind { PRIMARY, SECONDARY, GHOST }
 
-/** One solid primary button per screen. Labels are small and uppercase in English. */
+/** One solid primary button per screen. Labels are sentence case; ghost buttons are tinted text, as on iOS. */
 @Composable
 fun TroyButton(
     text: String,
@@ -54,12 +52,13 @@ fun TroyButton(
         ButtonKind.SECONDARY -> c.controlFill
         ButtonKind.GHOST -> androidx.compose.ui.graphics.Color.Transparent
     }
-    val fg = if (kind == ButtonKind.PRIMARY) c.onAccent else c.text
-    val glow = if (kind == ButtonKind.PRIMARY && enabled) {
-        Modifier.shadow(14.dp, shape, clip = false, ambientColor = c.accent.copy(alpha = 0.4f), spotColor = c.accent.copy(alpha = 0.4f))
-    } else {
-        Modifier
+    val fg = when (kind) {
+        ButtonKind.PRIMARY -> c.onAccent
+        ButtonKind.SECONDARY -> c.text
+        ButtonKind.GHOST -> c.accent
     }
+    // Minimalist: flat fills, no glow and no outline on filled buttons.
+    val glow = Modifier
     Row(
         modifier = modifier
             .defaultMinSize(minHeight = 48.dp)
@@ -68,7 +67,6 @@ fun TroyButton(
             .troyFocusRing()
             .clip(shape)
             .background(bg)
-            .then(if (kind == ButtonKind.GHOST) Modifier else Modifier.border(1.dp, if (kind == ButtonKind.PRIMARY) c.accent else c.hair, shape))
             .clickable(interactionSource = source, indication = null, enabled = enabled, role = Role.Button, onClick = onClick)
             .alpha(if (enabled) 1f else 0.45f)
             .padding(horizontal = 18.dp, vertical = 13.dp),

@@ -30,11 +30,16 @@ import com.troy.orcaplayer.core.design.theme.TroyShapes
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-/** Translucent panel, faint diagonal sheen, 1px hairline. Bigger surfaces get deeper shadows. */
+/**
+ * Translucent panel, faint diagonal sheen, 1px hairline. Bigger surfaces get deeper shadows; in
+ * day mode the shadow is soft and light, as on Apple's cards.
+ */
 fun Modifier.glass(shape: Shape = TroyShapes.Panel, elevation: Dp = 8.dp): Modifier = composed {
     val g = Troy.glass
+    val light = Troy.colors.isLight
+    val shadowColor = if (light) Color.Black.copy(alpha = 0.18f) else Color.Black
     this
-        .shadow(elevation, shape, clip = false, ambientColor = Color.Black, spotColor = Color.Black)
+        .shadow(if (light) elevation / 2 else elevation, shape, clip = false, ambientColor = shadowColor, spotColor = shadowColor)
         .clip(shape)
         .background(g.panel)
         .background(Brush.linearGradient(0f to g.sheen, 0.4f to Color.Transparent))

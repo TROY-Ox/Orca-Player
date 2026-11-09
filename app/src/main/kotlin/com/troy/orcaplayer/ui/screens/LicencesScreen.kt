@@ -52,6 +52,7 @@ private val standardLicences = listOf(
     LibraryLicence("Google Cast SDK (Google Play services)", "Android SDK License"),
     LibraryLicence("TMDB: This product uses the TMDB API but is not endorsed or certified by TMDB.", "Attribution"),
     LibraryLicence("Material icons", "Apache-2.0"),
+    LibraryLicence("Inter", "OFL-1.1", "licences/OFL-1.1.txt"),
     LibraryLicence("Roboto Mono", "OFL-1.1", "licences/OFL-1.1.txt"),
     LibraryLicence("Noto Sans Arabic", "OFL-1.1", "licences/OFL-1.1.txt"),
     LibraryLicence("TROY Enhanced Theme v1.0 (TROY Scripts)", "Design tokens"),

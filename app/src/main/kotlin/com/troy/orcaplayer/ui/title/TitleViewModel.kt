@@ -136,7 +136,9 @@ class TitleViewModel @Inject constructor(
             val videoId = episode?.id ?: id
             val t = _title.value
             val alt = if (episode == null) altStreamIds(t?.imdbId, null, null) else altStreamIds(t?.imdbId, episode.season, episode.number)
-            hub.streams(type, videoId, alt).collect { st ->
+            // A movie opened from a merged search card: ask every source with its own ID too.
+            val own = if (episode == null) hub.sourceIdsFor(type, id) else emptyMap()
+            hub.streams(type, videoId, alt, own).collect { st ->
                 _picker.update { it?.copy(state = st) }
                 if (st.pending == 0 && v[SourceSettings.AutoPick] == "auto") {
                     ranked().firstOrNull { it.playable }?.let { play(it) }

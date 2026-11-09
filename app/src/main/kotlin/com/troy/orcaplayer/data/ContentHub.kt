@@ -59,7 +59,12 @@ data class HomeRow(
 }
 
 /** One title as shown in search, with every source that has it (14.4). */
-data class MergedTitle(val title: Title, val sources: List<SourceRef>)
+data class MergedTitle(
+    val title: Title,
+    val sources: List<SourceRef>,
+    /** Each source's own entry for this title, in source order; its IDs are used to ask that source for streams. */
+    val members: List<Title> = listOf(title),
+)
 
 data class SearchResults(
     val items: List<MergedTitle> = emptyList(),
@@ -98,7 +103,13 @@ data class StreamTarget(
     val episode: EpisodeInfo?,
     /** Binge group of the chosen stream, so the next episode can keep to the same release. */
     val bingeGroup: String? = null,
-)
+    /** IMDb ID of the title when known: most subtitle sources answer only "tt…" IDs. */
+    val imdbId: String? = null,
+) {
+    /** IDs to ask subtitle sources with: the playing ID first, then its IMDb form. */
+    val subtitleIds: List<String>
+        get() = (listOf(videoId) + altStreamIds(imdbId, episode?.season, episode?.number)).distinct()
+}
 
 /**
  * Everything the browsing screens ask of sources: Home rows, Discover pages, unified search,
@@ -180,14 +191,30 @@ class ContentHub(
         }
     }.flowOn(Dispatchers.IO)
 
-    /** Merges results by IMDb ID, or by name, year and type; the user's source order decides which wins. */
+    /**
+     * Merges results into one card per title (see [TitleMerge]); the user's source order decides
+     * which source's data wins. Each card remembers every source's own ID, so opening it gathers
+     * streams from all of them.
+     */
     fun merge(perSource: Map<String, List<Title>>): List<MergedTitle> {
-        val out = LinkedHashMap<String, MutableList<Title>>()
-        perSource.entries.sortedBy { index(it.key) }.forEach { (_, titles) ->
-            titles.forEach { t -> out.getOrPut(mergeKey(t)) { mutableListOf() } += t }
+        val ordered = perSource.entries.sortedBy { index(it.key) }.map { it.value }
+        return TitleMerge.group(ordered).map { list ->
+            val merged = MergedTitle(list.reduce(::fill), list.map { it.source }.distinct(), list)
+            if (list.size > 1) rememberMembers(merged)
+            merged
         }
-        return out.values.map { list -> MergedTitle(list.reduce(::fill), list.map { it.source }.distinct()) }
     }
+
+    private val members = ConcurrentHashMap<String, List<Title>>()
+
+    private fun rememberMembers(m: MergedTitle) {
+        if (members.size > 2_000) members.clear()
+        m.members.forEach { t -> members["${t.type}/${t.id}"] = m.members }
+    }
+
+    /** For a title opened from a merged search card: source ID to that source's own ID for it. */
+    fun sourceIdsFor(type: TitleType, id: String): Map<String, String> =
+        members["$type/$id"].orEmpty().associate { it.source.sourceId to it.id }
 
     fun mergeKey(t: Title): String = t.imdbId?.let { "imdb:$it" }
         ?: "${t.type}|${t.name.lowercase(Locale.ROOT).filter { it.isLetterOrDigit() }}|${t.year ?: ""}"
@@ -226,12 +253,18 @@ class ContentHub(
 
     // Streams (14.6)
 
-    fun streams(type: TitleType, videoId: String, altIds: List<String> = emptyList()): Flow<StreamsState> = channelFlow {
+    fun streams(
+        type: TitleType,
+        videoId: String,
+        altIds: List<String> = emptyList(),
+        /** Source ID to its own ID for this title (merged search cards): tried first for that source. */
+        ownIds: Map<String, String> = emptyMap(),
+    ): Flow<StreamsState> = channelFlow {
         val ids = (listOf(videoId) + altIds).distinct()
-        // Each source is asked once, with the first ID it says it supports.
+        // Each source is asked once, with its own ID for the title if known, else the first ID it says it supports.
         val targets = active().filter { it.useStreams }.mapNotNull { a ->
             val c = addons.client(a)
-            ids.firstOrNull { c.supports("stream", type, it) }?.let { Triple(a, c, it) }
+            (listOfNotNull(ownIds[a.id]) + ids).firstOrNull { c.supports("stream", type, it) }?.let { Triple(a, c, it) }
         }
         val lock = Mutex()
         val all = mutableListOf<StreamEntry>()
@@ -261,9 +294,13 @@ class ContentHub(
 
     // Subtitles (9.6)
 
-    suspend fun subtitles(type: TitleType, videoId: String, hash: String?, size: Long?, filename: String?): List<SubtitleOption> = coroutineScope {
-        active().filter { it.useSubtitles }.map { addons.client(it) }.filter { it.supports("subtitles", type, videoId) }
-            .map { c -> async(Dispatchers.IO) { runCatching { c.subtitlesFor(type, videoId, hash, size, filename) }.getOrDefault(emptyList()) } }
+    suspend fun subtitles(type: TitleType, videoId: String, hash: String?, size: Long?, filename: String?): List<SubtitleOption> =
+        subtitles(type, listOf(videoId), hash, size, filename)
+
+    /** Every subtitle source, each asked with the first of [ids] it supports. */
+    suspend fun subtitles(type: TitleType, ids: List<String>, hash: String?, size: Long?, filename: String?): List<SubtitleOption> = coroutineScope {
+        active().filter { it.useSubtitles }.map { addons.client(it) }.mapNotNull { c -> ids.firstOrNull { c.supports("subtitles", type, it) }?.let { c to it } }
+            .map { (c, id) -> async(Dispatchers.IO) { runCatching { c.subtitlesFor(type, id, hash, size, filename) }.getOrDefault(emptyList()) } }
             .awaitAll().flatten().distinctBy { it.url }
     }
 
@@ -294,7 +331,7 @@ class ContentHub(
         val videoId = episode?.id ?: title.id
         val key = MediaKeys.forSource(RESUME_SOURCE, title.id, episode?.id)
         val epInfo = episode?.let { EpisodeInfo(title.id, it.id, it.season, it.number, it.name) }
-        targets[key.id] = StreamTarget(title.type, videoId, title.name, epInfo, chosen.option.bingeGroup)
+        targets[key.id] = StreamTarget(title.type, videoId, title.name, epInfo, chosen.option.bingeGroup, title.imdbId ?: title.id.takeIf { it.startsWith("tt") })
         val others = ranked.filter { it !== chosen && it.playable }
             .sortedBy { if (chosen.option.bingeGroup != null && it.option.bingeGroup == chosen.option.bingeGroup) 0 else 1 }
             .take(maxAlternates)

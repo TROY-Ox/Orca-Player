@@ -20,6 +20,25 @@ object TroyBase {
     val Sheen = Color(0x0DFFFFFF) // rgba(255,255,255,.05)
     val ControlFill = Color(0x0AFFFFFF) // rgba(255,255,255,.04)
 
+    /** Light (day) mode, after Apple's grouped system backgrounds: soft grey canvas, white cards, near-black text. */
+    object Light {
+        val Bg = Color(0xFFF5F5F7)
+        val Glass = Color(0xEBFFFFFF) // white at 92%
+        val GlassSolid = Color(0xFFFFFFFF)
+        val GlassHighContrast = Color(0xFFFFFFFF)
+        val Text = Color(0xFF1D1D1F)
+        val Text2 = Color(0xFF515154)
+        val Text3 = Color(0xFF6E6E73)
+        val Hair = Color(0x1F000000) // black at 12%
+        val HairHighContrast = Color(0x80000000)
+        val Sheen = Color(0x80FFFFFF)
+        val ControlFill = Color(0x0F000000) // black at 6%
+        val Ok = Color(0xFF1E9E5A)
+        val Danger = Color(0xFFD70015)
+        val Warn = Color(0xFFB25000)
+        val Info = Color(0xFF55606A)
+    }
+
     val Ok = Color(0xFF5BD6A0)
     val Danger = Color(0xFFF0625B)
     val Warn = Color(0xFFFFC048)
@@ -29,12 +48,12 @@ object TroyBase {
 @Immutable
 data class AccentColors(val accent: Color, val hover: Color, val pressed: Color, val onAccent: Color)
 
-/** The ten theme accents. Teal is this app's default (the theme's own default is red). */
+/** The ten theme accents. Blue is the default since the minimalist redesign. */
 enum class TroyAccent(val key: String, val colors: AccentColors) {
     TEAL("teal", AccentColors(Color(0xFF14B8A6), Color(0xFF2DD4BF), Color(0xFF0E8F81), Color(0xFF0D0D0C))),
     RED("red", AccentColors(Color(0xFFF03E3E), Color(0xFFFF6B6B), Color(0xFFC92A2A), Color(0xFFFFFFFF))),
     YELLOW("yellow", AccentColors(Color(0xFFFFD23F), Color(0xFFFFE070), Color(0xFFD9AE1F), Color(0xFF0D0D0C))),
-    BLUE("blue", AccentColors(Color(0xFF2F7BFF), Color(0xFF5B9BFF), Color(0xFF1F5FD1), Color(0xFFFFFFFF))),
+    BLUE("blue", AccentColors(Color(0xFF0A84FF), Color(0xFF409CFF), Color(0xFF0071E3), Color(0xFFFFFFFF))),
     CYAN("cyan", AccentColors(Color(0xFF22D3EE), Color(0xFF67E8F9), Color(0xFF0EA5C4), Color(0xFF0D0D0C))),
     SILVER("silver", AccentColors(Color(0xFFC9CED6), Color(0xFFE3E7EC), Color(0xFFA5ABB5), Color(0xFF0D0D0C))),
     GREEN("green", AccentColors(Color(0xFF2BFF88), Color(0xFF6BFFAD), Color(0xFF18D96A), Color(0xFF0D0D0C))),
@@ -44,7 +63,7 @@ enum class TroyAccent(val key: String, val colors: AccentColors) {
     ;
 
     companion object {
-        val Default = TEAL
+        val Default = BLUE
         fun fromKey(key: String?): TroyAccent? = entries.firstOrNull { it.key == key }
     }
 }
@@ -91,4 +110,6 @@ data class TroyColors(
     val info: Color = TroyBase.Info,
     /** Gradient scrim used over video, where glass can't blur. */
     val scrim: Color = Color(0xB3000000),
+    /** Day mode: dark text on light surfaces. Video surfaces stay dark either way. */
+    val isLight: Boolean = false,
 )

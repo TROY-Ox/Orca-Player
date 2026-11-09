@@ -90,19 +90,19 @@ fun TroyChip(text: String, selected: Boolean, onClick: () -> Unit, modifier: Mod
     val c = Troy.colors
     val t = Troy.type
     val source = remember { MutableInteractionSource() }
-    val bg by animateColorAsState(if (selected) c.accent.copy(alpha = 0.18f) else c.controlFill, Troy.motion.spec(), label = "chip")
+    // Capsule filter chips: the selected one is filled with the accent, the rest are a quiet fill.
+    val bg by animateColorAsState(if (selected) c.accent else c.controlFill, Troy.motion.spec(), label = "chip")
     Box(
         modifier
             .pressScale(source)
-            .troyFocusRing(8.dp)
-            .clip(TroyShapes.Chip)
+            .troyFocusRing(18.dp)
+            .clip(TroyShapes.Pill)
             .background(bg)
-            .border(1.dp, if (selected) c.accent else c.hair, TroyShapes.Chip)
             .selectable(selected, interactionSource = source, indication = null, role = Role.RadioButton, onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 10.dp),
+            .padding(horizontal = 16.dp, vertical = 9.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text, style = t.bodySmall, color = if (selected) c.text else c.text2)
+        Text(text, style = t.bodySmall.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Medium), color = if (selected) c.onAccent else c.text)
     }
 }
 
@@ -195,9 +195,9 @@ fun TroyTextField(
     )
 }
 
-/** Small, dim label. Uppercase with wide tracking in English, plain in Arabic. */
+/** Section heading: small, semibold, sentence case. */
 @Composable
-fun SectionLabel(text: String, modifier: Modifier = Modifier, color: Color = Troy.colors.text3) {
+fun SectionLabel(text: String, modifier: Modifier = Modifier, color: Color = Troy.colors.text2) {
     val t = Troy.type
     Text(if (t.uppercaseLabels) text.uppercase() else text, style = t.label, color = color, modifier = modifier)
 }

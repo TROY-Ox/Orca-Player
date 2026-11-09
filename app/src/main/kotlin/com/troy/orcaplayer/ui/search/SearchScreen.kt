@@ -45,6 +45,7 @@ import com.troy.orcaplayer.core.design.component.TroyChip
 import com.troy.orcaplayer.core.design.component.TroyTextField
 import com.troy.orcaplayer.core.design.component.troyFocusRing
 import com.troy.orcaplayer.core.design.theme.Troy
+import com.troy.orcaplayer.core.design.util.formatNumber
 import com.troy.orcaplayer.core.design.theme.TroyShapes
 import com.troy.orcaplayer.core.model.Title
 import com.troy.orcaplayer.core.model.TitleType
@@ -177,7 +178,11 @@ fun SearchScreen(
             items(shown.keyed { it.title.type.name + it.title.id + it.title.source.sourceId }, key = { it.first }) { (_, m) ->
                 Column {
                     TitleCard(m.title, RowStyle.POSTER, { onOpenTitle(m.title) }, Modifier.fillMaxWidth())
-                    if (m.sources.size > 1) Text(m.sources.joinToString(" · ") { it.sourceName }, style = Troy.type.label, color = c.text3, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    // One card per title: every source that has it is listed under it, and opening it gathers all their streams.
+                    if (m.sources.size > 1) {
+                        Text(stringResource(R.string.search_sources_count, formatNumber(m.sources.size)), style = Troy.type.label, color = c.accent, maxLines = 1)
+                        Text(m.sources.joinToString(" · ") { it.sourceName }, style = Troy.type.bodySmall, color = c.text3, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
                 }
             }
         }

@@ -111,6 +111,8 @@ class ThrottledDataSource(private val upstream: DataSource, private val limiter:
 /** HLS and DASH downloads with Media3's downloader, into the offline store the player reads (16.4). */
 @OptIn(UnstableApi::class)
 object StreamFetcher {
+    private const val SEGMENT_THREADS = 4
+
     fun kindOf(url: String, mime: String? = null): DownloadKind? {
         val m = mime?.lowercase()
         if (m != null) {
@@ -218,7 +220,16 @@ object StreamFetcher {
         val cacheFactory = CacheDataSource.Factory()
             .setCache(OfflineCache.get(context))
             .setUpstreamDataSourceFactory(upstream)
-        return DefaultDownloaderFactory(cacheFactory, Executor { it.run() }).createDownloader(request(item))
+        // Segments download in parallel on a small shared pool: HLS and DASH are made of many
+        // small files, so one at a time leaves most of the bandwidth idle.
+        return DefaultDownloaderFactory(cacheFactory, segmentPool).createDownloader(request(item))
+    }
+
+    private val segmentPool: Executor by lazy {
+        val n = java.util.concurrent.atomic.AtomicInteger()
+        java.util.concurrent.Executors.newFixedThreadPool(SEGMENT_THREADS) { r ->
+            Thread(r, "orca-dl-seg-" + n.incrementAndGet()).apply { isDaemon = true }
+        }
     }
 
     /** Downloads every chosen segment, skipping what is already stored. Blocking. */

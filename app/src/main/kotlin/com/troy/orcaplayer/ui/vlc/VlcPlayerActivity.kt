@@ -110,7 +110,7 @@ class VlcPlayerActivity : AppCompatActivity() {
             val values by appVm.settings.collectAsStateWithLifecycle()
             val signals by appVm.signals.collectAsStateWithLifecycle()
             val isArabic = LocalConfiguration.current.locales[0]?.language == "ar"
-            OrcaTheme(themeState(values ?: SettingsValues.Defaults, signals, isArabic)) {
+            OrcaTheme(themeState(values ?: SettingsValues.Defaults, signals, isArabic, videoSurface = true)) {
                 VlcScreen(mp, media, title, start, ::finish)
             }
         }

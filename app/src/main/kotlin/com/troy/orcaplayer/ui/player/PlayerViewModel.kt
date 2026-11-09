@@ -1040,8 +1040,13 @@ class PlayerViewModel @Inject constructor(
 
     // Online subtitles (9.6)
 
+    /** "Automatic" follows the app's language (Arabic when the app or device is in Arabic). */
     private fun preferredLanguage(v: SettingsValues): String? =
-        v[PlayerSettings.SubtitleLanguage].let { if (it == "off") null else if (it == "auto") Locale.getDefault().language else it }
+        v[PlayerSettings.SubtitleLanguage].let {
+            if (it == "off") null
+            else if (it == "auto") (androidx.appcompat.app.AppCompatDelegate.getApplicationLocales()[0] ?: Locale.getDefault()).language
+            else it
+        }
 
     /** When no subtitle in the preferred language is loaded, fetch the best match and say so. */
     private fun autoOnline(item: PlayItem, v: SettingsValues) {
@@ -1106,13 +1111,18 @@ class PlayerViewModel @Inject constructor(
         val key = item.key
         val target = (key as? MediaKey.SourceContent)?.let { hub.targetFor(it.id) }
         if (target != null) {
-            runCatching { hub.subtitles(target.type, target.videoId, null, null, null) }.getOrDefault(emptyList())
+            // Subtitle addons are asked with the IMDb form of the ID too: most answer only "tt…".
+            runCatching { hub.subtitles(target.type, target.subtitleIds, null, null, null) }.getOrDefault(emptyList())
                 .forEach { out += fromOption(it, 70) }
+            // The keyless OpenSubtitles service, so Arabic (and other) subtitles are there with no setup.
+            target.subtitleIds.firstOrNull { it.startsWith("tt") }?.let { tt ->
+                out += runCatching { online.searchFree(target.episode != null, tt, languages) }.getOrDefault(emptyList())
+            }
         }
         val apiKey = v[SourceSettings.OpenSubtitlesKey]
         if (apiKey.isNotBlank()) {
             val hash = if (item.source.kind == SourceKind.LOCAL) withContext(Dispatchers.IO) { pathOf(Uri.parse(item.uri))?.let { OnlineSubtitles.hashOf(File(it)) } } else null
-            val imdb = target?.videoId?.substringBefore(':')?.takeIf { it.startsWith("tt") }
+            val imdb = target?.subtitleIds?.firstOrNull { it.startsWith("tt") }?.substringBefore(':')
             val os = runCatching {
                 online.searchOpenSubtitles(
                     apiKey, languages.map { LanguageCodes.toTwoLetter(it) },

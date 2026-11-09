@@ -26,7 +26,7 @@ object DownloadSettings {
         "downloads.parallel", R.string.setting_dl_parallel, R.string.setting_dl_parallel_summary, "2",
         "1" to R.string.count_1, "2" to R.string.count_2, "3" to R.string.count_3, "4" to R.string.count_4, "5" to R.string.count_5,
     )
-    val MultiConnection = bool("downloads.multi", R.string.setting_dl_multi, R.string.setting_dl_multi_summary, false)
+    val MultiConnection = bool("downloads.multi", R.string.setting_dl_multi, R.string.setting_dl_multi_summary, true)
     val SpeedLimit = choice(
         "downloads.speed", R.string.setting_dl_speed, R.string.setting_dl_speed_summary, "0",
         "0" to R.string.dl_speed_off, "524288" to R.string.dl_speed_512k, "1048576" to R.string.dl_speed_1m, "2097152" to R.string.dl_speed_2m,

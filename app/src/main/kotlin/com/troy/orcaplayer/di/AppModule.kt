@@ -78,6 +78,10 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun liveTv(@ApplicationContext context: Context): com.troy.orcaplayer.data.LiveTvRepository = com.troy.orcaplayer.data.LiveTvRepository(context)
+
+    @Provides
+    @Singleton
     fun hub(addons: AddonRepository, profiles: ProfileRepository): ContentHub = ContentHub(addons, profiles)
 
     @Provides

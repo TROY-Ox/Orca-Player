@@ -98,6 +98,7 @@ private fun OrcaRoot(vm: AppViewModel) {
     val nav by vm.navLayout.collectAsStateWithLifecycle()
     val isArabic = LocalConfiguration.current.locales[0]?.language == "ar"
     val state = themeState(values ?: SettingsValues.Defaults, signals, isArabic)
+    SystemBarsFor(state.mode == ThemeMode.LIGHT)
     OrcaTheme(state) {
         com.troy.orcaplayer.ui.tv.TenFootHost(signals.isTv) {
             OrcaShell(navLayout = nav, isTv = signals.isTv)
@@ -105,14 +106,23 @@ private fun OrcaRoot(vm: AppViewModel) {
     }
 }
 
-internal fun themeState(v: SettingsValues, s: SystemSignals, isArabic: Boolean): ThemeState {
+/**
+ * [videoSurface]: the player and other screens drawn over video stay dark whatever the mode, so
+ * controls read over the picture.
+ */
+internal fun themeState(v: SettingsValues, s: SystemSignals, isArabic: Boolean, videoSurface: Boolean = false): ThemeState {
     val accentKey = v[Settings.Accent]
     val custom = if (accentKey == Settings.CUSTOM_ACCENT) v[Settings.CustomAccent]?.let { Color(it.toInt()) } else null
     val digits = v[Settings.Digits]
     return ThemeState(
         accent = TroyAccent.fromKey(accentKey) ?: TroyAccent.Default,
         customAccent = custom,
-        mode = if (v[Settings.ThemeMode] == "amoled") ThemeMode.AMOLED else ThemeMode.DARK,
+        mode = when (v[Settings.ThemeMode]) {
+            "amoled" -> ThemeMode.AMOLED
+            "light" -> if (videoSurface) ThemeMode.DARK else ThemeMode.LIGHT
+            "auto" -> if (videoSurface || s.systemDark) ThemeMode.DARK else ThemeMode.LIGHT
+            else -> ThemeMode.DARK
+        },
         frostedGlass = v[Settings.FrostedGlass],
         solidPanels = v[Settings.SolidPanels],
         highContrast = v[Settings.HighContrast] || s.highContrast,
@@ -121,4 +131,18 @@ internal fun themeState(v: SettingsValues, s: SystemSignals, isArabic: Boolean):
         arabicDigits = digits == "arabic" || (digits == "auto" && isArabic),
         mirrorTimeline = v[Settings.MirrorTimeline],
     )
+}
+
+/** Dark status and navigation bar icons in day mode, light ones otherwise. */
+@Composable
+private fun SystemBarsFor(light: Boolean) {
+    val activity = androidx.compose.ui.platform.LocalContext.current as? androidx.activity.ComponentActivity ?: return
+    androidx.compose.runtime.LaunchedEffect(light) {
+        val style = if (light) {
+            SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
+        } else {
+            SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+        }
+        activity.enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
+    }
 }

@@ -81,6 +81,13 @@ class DownloadLogicTest {
         assertEquals(1, Ranges.split(3L * 1024 * 1024, 4).size)
     }
 
+    @Test fun bigFilesGetMoreConnections() {
+        assertEquals(4, Ranges.connectionsFor(100L * 1024 * 1024))
+        assertEquals(8, Ranges.connectionsFor(2L * 1024 * 1024 * 1024))
+        assertEquals(8, Ranges.split(2L * 1024 * 1024 * 1024, 8).size)
+        assertEquals(8, Ranges.split(2L * 1024 * 1024 * 1024, 20).size)
+    }
+
     @Test fun retryGrows() {
         assertEquals(5_000L, Retry.delayMs(1))
         assertEquals(10_000L, Retry.delayMs(2))

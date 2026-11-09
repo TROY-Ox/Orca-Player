@@ -69,6 +69,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -664,8 +665,12 @@ fun PlayerScreen(vm: PlayerViewModel, host: PlayerHost, levels: SliderLevels, is
         if (isPip) return@Box
 
         // Buffering
-        if (ui.buffering) {
-            CircularProgressIndicator(color = c.accent, modifier = Modifier.align(Alignment.Center).size(56.dp))
+        // While the controls show, the play button itself turns into the spinner (see OverlayButton).
+        val playInCentre = layout.controls.any { it.visible && it.control == PlayerControl.PLAY_PAUSE && it.slot == ControlSlot.CENTER }
+        if (ui.buffering && !(controlsVisible && !locked && tabletop == null && playInCentre)) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = c.accent, strokeWidth = 3.dp, strokeCap = StrokeCap.Round, modifier = Modifier.size(48.dp))
+            }
         }
 
         // Skip feedback
@@ -1196,7 +1201,7 @@ private fun ControlsOverlay(
         }
         // Long press on the subtitle button opens quick delay and style options, MX Player style.
         val long: (() -> Unit)? = if (cfg.control == PlayerControl.SUBTITLES) ({ onPanel(PlayerPanel.SUBTITLES) }) else null
-        OverlayButton(spec.icon, spec.label, action, cfg.size, long)
+        OverlayButton(spec.icon, spec.label, action, cfg.size, long, loading = cfg.control == PlayerControl.PLAY_PAUSE && ui.buffering)
     }
 
     Box(Modifier.fillMaxSize()) {
@@ -1233,17 +1238,6 @@ private fun ControlsOverlay(
                 inSlot(ControlSlot.TOP_END).forEach { Control(it) }
             }
             Spacer(Modifier.weight(1f))
-            // Centre transport: never mirrored, as media controls aren't.
-            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterHorizontally),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    inSlot(ControlSlot.CENTER).forEach { Control(it) }
-                }
-            }
-            Spacer(Modifier.weight(1f))
             // Seek bar and bottom row
             val timelineDir = if (mirror) LocalLayoutDirection.current else LayoutDirection.Ltr
             CompositionLocalProvider(LocalLayoutDirection provides timelineDir) {
@@ -1266,6 +1260,17 @@ private fun ControlsOverlay(
                         inSlot(ControlSlot.BOTTOM_END).forEach { Control(it) }
                     }
                 }
+            }
+        }
+        // Centre transport, placed at the true centre of the screen so the play button and the
+        // buffering spinner line up exactly. Never mirrored, as media controls aren't.
+        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+            Row(
+                Modifier.align(Alignment.Center),
+                horizontalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                inSlot(ControlSlot.CENTER).forEach { Control(it) }
             }
         }
     }

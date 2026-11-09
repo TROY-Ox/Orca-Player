@@ -23,10 +23,12 @@
     <string name="setting_custom_accent_summary">اختر لونك الخاص، وتُحسب ألوان المرور والضغط والنص تلقائياً.</string>
 
     <string name="setting_mode">الخلفية</string>
-    <string name="setting_mode_summary">داكنة، أو سوداء تماماً لشاشات AMOLED</string>
-    <string name="setting_mode_keywords">داكن أسود amoled وضع سمة</string>
+    <string name="setting_mode_summary">داكنة، فاتحة (نهارية)، حسب النظام، أو سوداء تماماً لشاشات AMOLED</string>
+    <string name="setting_mode_keywords">داكن فاتح نهاري ليلي أبيض أسود amoled وضع سمة</string>
     <string name="mode_dark">داكنة</string>
     <string name="mode_amoled">أسود AMOLED</string>
+    <string name="mode_light">فاتحة (نهارية)</string>
+    <string name="mode_auto">حسب النظام</string>
 
     <string name="setting_frosted_glass">زجاج مصنفر</string>
     <string name="setting_frosted_glass_summary">تمويه خلف اللوحات الزجاجية على أندرويد 12 وأحدث</string>
@@ -404,7 +406,7 @@
     <string name="setting_dl_parallel">التنزيلات في وقت واحد</string>
     <string name="setting_dl_parallel_summary">تنتظر بقية التنزيلات في القائمة</string>
     <string name="setting_dl_multi">عدة اتصالات لكل ملف</string>
-    <string name="setting_dl_multi_summary">حتى 4 اتصالات للملفات الكبيرة إن سمح الخادم</string>
+    <string name="setting_dl_multi_summary">حتى 8 اتصالات للملفات الكبيرة إن سمح الخادم. أسرع بكثير على معظم الخوادم.</string>
     <string name="setting_dl_speed">حد سرعة التنزيل</string>
     <string name="setting_dl_speed_summary">يُقسم بين كل التنزيلات</string>
     <string name="dl_speed_off">بلا حد</string>

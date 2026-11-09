@@ -182,7 +182,7 @@ class PlayerActivity : AppCompatActivity(), PlayerHost {
             val inPip by pip.collectAsStateWithLifecycle()
             val fold by tabletop.collectAsStateWithLifecycle()
             val isArabic = LocalConfiguration.current.locales[0]?.language == "ar"
-            OrcaTheme(themeState(values ?: SettingsValues.Defaults, signals, isArabic)) {
+            OrcaTheme(themeState(values ?: SettingsValues.Defaults, signals, isArabic, videoSurface = true)) {
                 com.troy.orcaplayer.ui.tv.TenFootScale(signals.isTv) {
                     PlayerScreen(vm, this, levels, inPip, if (inPip) null else fold)
                 }

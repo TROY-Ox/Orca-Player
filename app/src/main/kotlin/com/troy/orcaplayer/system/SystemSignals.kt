@@ -14,6 +14,8 @@ data class SystemSignals(
     val highContrast: Boolean = false,
     val isTv: Boolean = false,
     val lowRam: Boolean = false,
+    /** The system is in dark (night) mode; "Match the system" follows it. */
+    val systemDark: Boolean = true,
 ) {
     companion object {
         fun read(context: Context): SystemSignals {
@@ -30,6 +32,7 @@ data class SystemSignals(
                 highContrast = contrast >= 0.5f,
                 isTv = isTv,
                 lowRam = am?.isLowRamDevice == true,
+                systemDark = (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) != Configuration.UI_MODE_NIGHT_NO,
             )
         }
     }

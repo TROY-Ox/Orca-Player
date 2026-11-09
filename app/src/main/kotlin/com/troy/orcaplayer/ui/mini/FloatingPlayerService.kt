@@ -136,7 +136,7 @@ class FloatingPlayerService : Service(), LifecycleOwner, SavedStateRegistryOwner
             setViewTreeSavedStateRegistryOwner(this@FloatingPlayerService)
             setContent {
                 val arabic = resources.configuration.locales[0]?.language == "ar"
-                OrcaTheme(themeState(values, signals, arabic)) { Window() }
+                OrcaTheme(themeState(values, signals, arabic, videoSurface = true)) { Window() }
             }
         }
         attachDrag(compose)

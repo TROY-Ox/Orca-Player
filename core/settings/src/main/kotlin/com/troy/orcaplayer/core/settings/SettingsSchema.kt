@@ -113,7 +113,7 @@ object Settings {
         titleRes = R.string.setting_accent,
         summaryRes = R.string.setting_accent_summary,
         keywordsRes = R.string.setting_accent_keywords,
-        default = "teal",
+        default = "blue",
         choices = listOf(
             Choice("teal", R.string.accent_teal),
             Choice("red", R.string.accent_red),
@@ -135,7 +135,7 @@ object Settings {
         titleRes = R.string.setting_custom_accent,
         summaryRes = R.string.setting_custom_accent_summary,
         keywordsRes = R.string.setting_accent_keywords,
-        default = 0xFF14B8A6,
+        default = 0xFF0A84FF,
     )
 
     val ThemeMode = ChoiceSetting(
@@ -145,7 +145,12 @@ object Settings {
         summaryRes = R.string.setting_mode_summary,
         keywordsRes = R.string.setting_mode_keywords,
         default = "dark",
-        choices = listOf(Choice("dark", R.string.mode_dark), Choice("amoled", R.string.mode_amoled)),
+        choices = listOf(
+            Choice("dark", R.string.mode_dark),
+            Choice("light", R.string.mode_light),
+            Choice("auto", R.string.mode_auto),
+            Choice("amoled", R.string.mode_amoled),
+        ),
     )
 
     val FrostedGlass = BoolSetting(

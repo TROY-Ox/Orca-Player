@@ -123,7 +123,7 @@ private fun MainShell(navLayout: NavLayout, isTv: Boolean, appVm: AppViewModel) 
     // Tabs can be hidden or reordered by the layout model; Home stays reachable as the start.
     // Kids profiles never see Addons or Tools (18).
     val tabs = navLayout.tabs.filter { it.visible }
-        .filter { !kids || (it.tab != MainTab.ADDONS && it.tab != MainTab.TOOLS) }
+        .filter { !kids || (it.tab != MainTab.ADDONS && it.tab != MainTab.TOOLS && it.tab != MainTab.LIVE) }
         .ifEmpty { listOf(com.troy.orcaplayer.core.model.NavTabConfig(MainTab.HOME)) }
         .map { it.tab.spec().copy(customLabel = it.customLabel) }
     val onTabRoute = tabs.any { it.route == route }
@@ -146,7 +146,7 @@ private fun MainShell(navLayout: NavLayout, isTv: Boolean, appVm: AppViewModel) 
     }
     // A tab the new profile can't see: go back to Home.
     LaunchedEffect(kids, route) {
-        if (kids && (route == MainTab.ADDONS.spec().route || route == MainTab.TOOLS.spec().route)) nav.navigateToTab(tabs.first().route)
+        if (kids && (route == MainTab.ADDONS.spec().route || route == MainTab.TOOLS.spec().route || route == MainTab.LIVE.spec().route)) nav.navigateToTab(tabs.first().route)
     }
 
     val spec = values?.let { CardSpec.from(it, Troy.motion.reduceMotion) } ?: CardSpec()
@@ -305,6 +305,7 @@ private fun OrcaNavHost(nav: NavHostController, start: String) {
                             null
                         },
                     )
+                    MainTab.LIVE -> com.troy.orcaplayer.ui.live.LiveTvScreen(openSettings, openProfiles)
                     MainTab.SEARCH -> SearchScreen(
                         openSettings, openProfiles, openTitle,
                         onOpenAddons = if (guard.active) null else ({ nav.navigateToTab(MainTab.ADDONS.spec().route) }),

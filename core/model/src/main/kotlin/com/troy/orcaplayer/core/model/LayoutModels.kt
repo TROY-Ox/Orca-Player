@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 
 /** The five main tabs. Order and visibility come from [NavLayout]. */
 @Serializable
-enum class MainTab { HOME, LOCAL, ADDONS, SEARCH, TOOLS }
+enum class MainTab { HOME, LIVE, SEARCH, LOCAL, ADDONS, TOOLS }
 
 @Serializable
 data class NavTabConfig(val tab: MainTab, val visible: Boolean = true, val customLabel: String? = null)
@@ -12,6 +12,23 @@ data class NavTabConfig(val tab: MainTab, val visible: Boolean = true, val custo
 @Serializable
 data class NavLayout(val tabs: List<NavTabConfig>) {
     val visibleTabs: List<MainTab> get() = tabs.filter { it.visible }.map { it.tab }
+
+    /**
+     * Adds tabs this layout was saved without (a layout from an older version): each goes right
+     * after the tab before it in the default order, visible, so new sections are easy to find.
+     */
+    fun withNewTabs(): NavLayout {
+        if (MainTab.entries.all { t -> tabs.any { it.tab == t } }) return this
+        val out = tabs.toMutableList()
+        MainTab.entries.forEachIndexed { i, t ->
+            if (out.none { it.tab == t }) {
+                val prev = MainTab.entries.take(i).lastOrNull { p -> out.any { it.tab == p } }
+                val at = prev?.let { p -> out.indexOfFirst { it.tab == p } + 1 } ?: 0
+                out.add(at, NavTabConfig(t))
+            }
+        }
+        return NavLayout(out)
+    }
 
     companion object {
         val Default = NavLayout(MainTab.entries.map { NavTabConfig(it) })

@@ -27,6 +27,9 @@ class SettingsValues internal constructor(private val raw: Map<String, String>) 
     operator fun <T> get(def: SettingDef<T>): T = def.decode(raw[def.key])
     fun isDefault(def: SettingDef<*>): Boolean = raw[def.key] == null
 
+    /** A copy with one stored (encoded) value replaced; for previews and tests. */
+    fun with(def: SettingDef<*>, encoded: String): SettingsValues = SettingsValues(raw + (def.key to encoded))
+
     companion object {
         val Defaults = SettingsValues(emptyMap())
     }
@@ -124,7 +127,8 @@ class SettingsRepository(context: Context) {
 
     // Layout models. The UI is built from these from day one, so the Phase 11 editors need no rewrite.
 
-    fun navLayout(profileId: String): Flow<NavLayout> = layout(profileId, "layout.nav", NavLayout.serializer(), NavLayout.Default)
+    fun navLayout(profileId: String): Flow<NavLayout> =
+        layout(profileId, "layout.nav", NavLayout.serializer(), NavLayout.Default).map { it.withNewTabs() }
     fun homeLayout(profileId: String): Flow<HomeLayout> = layout(profileId, "layout.home", HomeLayout.serializer(), HomeLayout.Default)
     fun playerLayout(profileId: String): Flow<PlayerLayout> = layout(profileId, "layout.player", PlayerLayout.serializer(), PlayerLayout.Default)
     fun gestureMap(profileId: String): Flow<GestureMap> = layout(profileId, "layout.gestures", GestureMap.serializer(), GestureMap.Default)
