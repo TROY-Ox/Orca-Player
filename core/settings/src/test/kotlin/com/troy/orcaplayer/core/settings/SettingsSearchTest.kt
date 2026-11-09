@@ -35,7 +35,7 @@ class SettingsSearchTest {
 
     @Test
     fun choiceDecodeFallsBackToDefault() {
-        assertEquals("teal", Settings.Accent.decode("not-a-colour"))
+        assertEquals("blue", Settings.Accent.decode("not-a-colour"))
         assertEquals(0xFF112233, Settings.CustomAccent.decode(Settings.CustomAccent.encode(0xFF112233)))
     }
 

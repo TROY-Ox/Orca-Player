@@ -23,10 +23,12 @@
     <string name="setting_custom_accent_summary">Pick your own colour. Hover, pressed and text colours are worked out for you.</string>
 
     <string name="setting_mode">Background</string>
-    <string name="setting_mode_summary">Dark, or pure black for AMOLED screens</string>
-    <string name="setting_mode_keywords">dark black amoled oled theme mode</string>
+    <string name="setting_mode_summary">Dark, light (day), match the system, or pure black for AMOLED screens</string>
+    <string name="setting_mode_keywords">dark light day night white black amoled oled theme mode</string>
     <string name="mode_dark">Dark</string>
     <string name="mode_amoled">AMOLED black</string>
+    <string name="mode_light">Light (day)</string>
+    <string name="mode_auto">Match the system</string>
 
     <string name="setting_frosted_glass">Frosted glass</string>
     <string name="setting_frosted_glass_summary">Blur behind glass panels on Android 12 and newer</string>
@@ -404,7 +406,7 @@
     <string name="setting_dl_parallel">Downloads at the same time</string>
     <string name="setting_dl_parallel_summary">Other downloads wait in the queue</string>
     <string name="setting_dl_multi">Several connections per file</string>
-    <string name="setting_dl_multi_summary">Up to 4 connections for large files, when the server allows it</string>
+    <string name="setting_dl_multi_summary">Up to 8 connections for large files, when the server allows it. Much faster on most servers.</string>
     <string name="setting_dl_speed">Download speed limit</string>
     <string name="setting_dl_speed_summary">Shared by all downloads</string>
     <string name="dl_speed_off">No limit</string>

@@ -6,3 +6,7 @@
 -keep class kotlin.** { *; }
 -keep class kotlinx.coroutines.** { *; }
 -dontwarn com.lagradost.**
+
+# Torrent streaming: libtorrent4j's JNI (SWIG) classes are called from native code.
+-keep class org.libtorrent4j.** { *; }
+-dontwarn org.libtorrent4j.**

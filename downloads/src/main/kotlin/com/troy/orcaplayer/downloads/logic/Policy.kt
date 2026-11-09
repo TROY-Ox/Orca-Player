@@ -37,10 +37,19 @@ object Ranges {
 
     const val MIN_PART = 4L * 1024 * 1024
 
-    /** Splits [total] bytes into up to [connections] parts of at least [MIN_PART] bytes. */
+    /** Most connections one file is split over. */
+    const val MAX_CONNECTIONS = 8
+
+    /**
+     * How many connections a file of [total] bytes gets: 4 for ordinary files, 8 for large ones
+     * (over 256 MB), where per-connection limits on CDNs cap the speed most.
+     */
+    fun connectionsFor(total: Long): Int = if (total > 256L * 1024 * 1024) MAX_CONNECTIONS else 4
+
+    /** Splits [total] bytes into up to [connections] (at most [MAX_CONNECTIONS]) parts of at least [MIN_PART] bytes. */
     fun split(total: Long, connections: Int, minPart: Long = MIN_PART): List<Segment> {
         if (total <= 0) return emptyList()
-        val n = connections.coerceIn(1, 4).coerceAtMost(((total + minPart - 1) / minPart).toInt().coerceAtLeast(1))
+        val n = connections.coerceIn(1, MAX_CONNECTIONS).coerceAtMost(((total + minPart - 1) / minPart).toInt().coerceAtLeast(1))
         val size = total / n
         return (0 until n).map { i ->
             val start = i * size

@@ -61,6 +61,11 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun backup(@ApplicationContext context: Context, db: OrcaDatabase, settings: SettingsRepository): com.troy.orcaplayer.backup.BackupManager =
+        com.troy.orcaplayer.backup.BackupManager(context, db, settings)
+
+    @Provides
+    @Singleton
     fun thumbnails(@ApplicationContext context: Context): Thumbnails = Thumbnails(context)
 
     @Provides
@@ -70,6 +75,10 @@ object AppModule {
     @Provides
     @Singleton
     fun links(@ApplicationContext context: Context): LinksRepository = LinksRepository(context)
+
+    @Provides
+    @Singleton
+    fun liveTv(@ApplicationContext context: Context): com.troy.orcaplayer.data.LiveTvRepository = com.troy.orcaplayer.data.LiveTvRepository(context)
 
     @Provides
     @Singleton

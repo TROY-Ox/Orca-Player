@@ -32,6 +32,13 @@ class MainActivity : AppCompatActivity() {
     private val vm: AppViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // The last run crashed: show what happened first (plain screen, nothing else loads).
+        if (CrashReport.pending(this) != null) {
+            super.onCreate(savedInstanceState)
+            startActivity(android.content.Intent(this, CrashActivity::class.java))
+            finish()
+            return
+        }
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
@@ -64,6 +71,8 @@ class MainActivity : AppCompatActivity() {
     private fun takeInstallLink(intent: android.content.Intent?) {
         val link = intent?.getStringExtra(EXTRA_INSTALL_ADDON) ?: intent?.dataString?.takeIf { it.startsWith("stremio:", ignoreCase = true) }
         if (link != null) vm.pendingInstall.value = link
+        intent?.dataString?.takeIf { it.startsWith("magnet:", ignoreCase = true) && com.troy.orcaplayer.data.TorrentBridge.resolver != null }
+            ?.let { vm.pendingMagnet.value = it }
         intent?.getStringExtra(EXTRA_SHARED_LINK)?.let { vm.pendingShare.value = it }
         intent?.getStringExtra(com.troy.orcaplayer.data.NewEpisodeAlerts.EXTRA_OPEN_TITLE)?.let { vm.pendingTitle.value = it }
         if (intent?.getBooleanExtra(com.troy.orcaplayer.downloads.DownloadNotifications.EXTRA_OPEN_DOWNLOADS, false) == true) vm.pendingDownloads.value = true
@@ -89,19 +98,31 @@ private fun OrcaRoot(vm: AppViewModel) {
     val nav by vm.navLayout.collectAsStateWithLifecycle()
     val isArabic = LocalConfiguration.current.locales[0]?.language == "ar"
     val state = themeState(values ?: SettingsValues.Defaults, signals, isArabic)
+    SystemBarsFor(state.mode == ThemeMode.LIGHT)
     OrcaTheme(state) {
-        OrcaShell(navLayout = nav, isTv = signals.isTv)
+        com.troy.orcaplayer.ui.tv.TenFootHost(signals.isTv) {
+            OrcaShell(navLayout = nav, isTv = signals.isTv)
+        }
     }
 }
 
-internal fun themeState(v: SettingsValues, s: SystemSignals, isArabic: Boolean): ThemeState {
+/**
+ * [videoSurface]: the player and other screens drawn over video stay dark whatever the mode, so
+ * controls read over the picture.
+ */
+internal fun themeState(v: SettingsValues, s: SystemSignals, isArabic: Boolean, videoSurface: Boolean = false): ThemeState {
     val accentKey = v[Settings.Accent]
     val custom = if (accentKey == Settings.CUSTOM_ACCENT) v[Settings.CustomAccent]?.let { Color(it.toInt()) } else null
     val digits = v[Settings.Digits]
     return ThemeState(
         accent = TroyAccent.fromKey(accentKey) ?: TroyAccent.Default,
         customAccent = custom,
-        mode = if (v[Settings.ThemeMode] == "amoled") ThemeMode.AMOLED else ThemeMode.DARK,
+        mode = when (v[Settings.ThemeMode]) {
+            "amoled" -> ThemeMode.AMOLED
+            "light" -> if (videoSurface) ThemeMode.DARK else ThemeMode.LIGHT
+            "auto" -> if (videoSurface || s.systemDark) ThemeMode.DARK else ThemeMode.LIGHT
+            else -> ThemeMode.DARK
+        },
         frostedGlass = v[Settings.FrostedGlass],
         solidPanels = v[Settings.SolidPanels],
         highContrast = v[Settings.HighContrast] || s.highContrast,
@@ -110,4 +131,18 @@ internal fun themeState(v: SettingsValues, s: SystemSignals, isArabic: Boolean):
         arabicDigits = digits == "arabic" || (digits == "auto" && isArabic),
         mirrorTimeline = v[Settings.MirrorTimeline],
     )
+}
+
+/** Dark status and navigation bar icons in day mode, light ones otherwise. */
+@Composable
+private fun SystemBarsFor(light: Boolean) {
+    val activity = androidx.compose.ui.platform.LocalContext.current as? androidx.activity.ComponentActivity ?: return
+    androidx.compose.runtime.LaunchedEffect(light) {
+        val style = if (light) {
+            SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
+        } else {
+            SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+        }
+        activity.enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
+    }
 }

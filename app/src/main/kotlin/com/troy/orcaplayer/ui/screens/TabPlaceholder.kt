@@ -17,6 +17,7 @@ fun TabPlaceholder(tab: MainTab, onOpenSettings: () -> Unit, onOpenProfiles: () 
     val spec = tab.spec()
     val (title, message) = when (tab) {
         MainTab.HOME -> R.string.home_empty_title to R.string.home_empty_message
+        MainTab.LIVE -> R.string.live_empty_tab_title to R.string.live_empty_tab_message
         MainTab.LOCAL -> R.string.local_empty_title to R.string.local_empty_message
         MainTab.ADDONS -> R.string.addons_empty_title to R.string.addons_empty_message
         MainTab.SEARCH -> R.string.search_empty_title to R.string.search_empty_message

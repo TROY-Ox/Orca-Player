@@ -52,6 +52,7 @@ private val standardLicences = listOf(
     LibraryLicence("Google Cast SDK (Google Play services)", "Android SDK License"),
     LibraryLicence("TMDB: This product uses the TMDB API but is not endorsed or certified by TMDB.", "Attribution"),
     LibraryLicence("Material icons", "Apache-2.0"),
+    LibraryLicence("Inter", "OFL-1.1", "licences/OFL-1.1.txt"),
     LibraryLicence("Roboto Mono", "OFL-1.1", "licences/OFL-1.1.txt"),
     LibraryLicence("Noto Sans Arabic", "OFL-1.1", "licences/OFL-1.1.txt"),
     LibraryLicence("TROY Enhanced Theme v1.0 (TROY Scripts)", "Design tokens"),
@@ -64,6 +65,8 @@ private val extendedLicences = listOf(
     LibraryLicence("Jackson", "Apache-2.0"),
     LibraryLicence("Mozilla Rhino", "MPL-2.0"),
     LibraryLicence("NewPipe Extractor", "GPL-3.0"),
+    LibraryLicence("libtorrent4j (Alden Torres), torrent streaming", "MIT"),
+    LibraryLicence("libtorrent (Arvid Norberg), used by libtorrent4j", "BSD-3-Clause"),
 )
 
 @Composable

@@ -59,15 +59,41 @@ data class HomeRow(
 }
 
 /** One title as shown in search, with every source that has it (14.4). */
-data class MergedTitle(val title: Title, val sources: List<SourceRef>)
+data class MergedTitle(
+    val title: Title,
+    val sources: List<SourceRef>,
+    /** Each source's own entry for this title, in source order; its IDs are used to ask that source for streams. */
+    val members: List<Title> = listOf(title),
+)
 
-data class SearchResults(val items: List<MergedTitle> = emptyList(), val pending: Int = 0, val failed: List<String> = emptyList())
+data class SearchResults(
+    val items: List<MergedTitle> = emptyList(),
+    val pending: Int = 0,
+    val failed: List<String> = emptyList(),
+    /** How many sources were asked; 0 means none of the active sources can search. -1 before a search ran. */
+    val asked: Int = -1,
+)
 
 data class StreamEntry(val option: StreamOption, val info: StreamInfo, val sourceIndex: Int) {
     val playable: Boolean get() = option.kind == StreamKind.URL && UriSchemes.isAllowed(option.url)
+
+    /** A torrent stream the torrent streamer can play (extended build). */
+    val viaTorrent: Boolean get() = option.kind == StreamKind.TORRENT && TorrentBridge.resolver != null
 }
 
-data class StreamsState(val entries: List<StreamEntry> = emptyList(), val pending: Int = 0, val failed: List<String> = emptyList())
+data class StreamsState(val entries: List<StreamEntry> = emptyList(), val pending: Int = 0, val failed: List<String> = emptyList()) {
+    /** Torrent (infoHash) streams found; they don't play here, so they are hidden by default. */
+    val torrents: Int get() = entries.count { it.option.kind == StreamKind.TORRENT }
+}
+
+/**
+ * IMDb-style IDs to ask stream addons with as well, for titles whose own ID isn't an IMDb ID
+ * (TMDB or extension catalogs): most stream addons only answer "tt…" IDs.
+ */
+fun altStreamIds(imdbId: String?, season: Int?, episode: Int?): List<String> {
+    val tt = imdbId?.takeIf { it.startsWith("tt") } ?: return emptyList()
+    return if (season != null && episode != null) listOf("$tt:$season:$episode") else listOf(tt)
+}
 
 /** How the player can ask for a fresh link for a title it is playing (14.7 and resuming). */
 data class StreamTarget(
@@ -77,7 +103,13 @@ data class StreamTarget(
     val episode: EpisodeInfo?,
     /** Binge group of the chosen stream, so the next episode can keep to the same release. */
     val bingeGroup: String? = null,
-)
+    /** IMDb ID of the title when known: most subtitle sources answer only "tt…" IDs. */
+    val imdbId: String? = null,
+) {
+    /** IDs to ask subtitle sources with: the playing ID first, then its IMDb form. */
+    val subtitleIds: List<String>
+        get() = (listOf(videoId) + altStreamIds(imdbId, episode?.season, episode?.number)).distinct()
+}
 
 /**
  * Everything the browsing screens ask of sources: Home rows, Discover pages, unified search,
@@ -142,27 +174,47 @@ class ContentHub(
         val perSource = LinkedHashMap<String, List<Title>>()
         val failed = mutableListOf<String>()
         var pending = targets.size
-        send(SearchResults(pending = pending))
+        val asked = targets.size
+        send(SearchResults(pending = pending, asked = asked))
         targets.forEach { (a, client) ->
             launch {
                 val result = runCatching { client.search(query, type) }
                 lock.withLock {
                     pending--
-                    result.onSuccess { perSource[a.id] = it }.onFailure { failed += a.manifest.name }
-                    send(SearchResults(merge(perSource), pending, failed.toList()))
+                    result.onSuccess { perSource[a.id] = it }.onFailure { e ->
+                        val why = e.message?.takeIf { it.isNotBlank() }?.take(80)
+                        failed += if (why != null) "${a.manifest.name} ($why)" else a.manifest.name
+                    }
+                    send(SearchResults(merge(perSource), pending, failed.toList(), asked))
                 }
             }
         }
     }.flowOn(Dispatchers.IO)
 
-    /** Merges results by IMDb ID, or by name, year and type; the user's source order decides which wins. */
+    /**
+     * Merges results into one card per title (see [TitleMerge]); the user's source order decides
+     * which source's data wins. Each card remembers every source's own ID, so opening it gathers
+     * streams from all of them.
+     */
     fun merge(perSource: Map<String, List<Title>>): List<MergedTitle> {
-        val out = LinkedHashMap<String, MutableList<Title>>()
-        perSource.entries.sortedBy { index(it.key) }.forEach { (_, titles) ->
-            titles.forEach { t -> out.getOrPut(mergeKey(t)) { mutableListOf() } += t }
+        val ordered = perSource.entries.sortedBy { index(it.key) }.map { it.value }
+        return TitleMerge.group(ordered).map { list ->
+            val merged = MergedTitle(list.reduce(::fill), list.map { it.source }.distinct(), list)
+            if (list.size > 1) rememberMembers(merged)
+            merged
         }
-        return out.values.map { list -> MergedTitle(list.reduce(::fill), list.map { it.source }.distinct()) }
     }
+
+    private val members = ConcurrentHashMap<String, List<Title>>()
+
+    private fun rememberMembers(m: MergedTitle) {
+        if (members.size > 2_000) members.clear()
+        m.members.forEach { t -> members["${t.type}/${t.id}"] = m.members }
+    }
+
+    /** For a title opened from a merged search card: source ID to that source's own ID for it. */
+    fun sourceIdsFor(type: TitleType, id: String): Map<String, String> =
+        members["$type/$id"].orEmpty().associate { it.source.sourceId to it.id }
 
     fun mergeKey(t: Title): String = t.imdbId?.let { "imdb:$it" }
         ?: "${t.type}|${t.name.lowercase(Locale.ROOT).filter { it.isLetterOrDigit() }}|${t.year ?: ""}"
@@ -201,16 +253,27 @@ class ContentHub(
 
     // Streams (14.6)
 
-    fun streams(type: TitleType, videoId: String): Flow<StreamsState> = channelFlow {
-        val targets = active().filter { it.useStreams }.map { it to addons.client(it) }.filter { it.second.supports("stream", type, videoId) }
+    fun streams(
+        type: TitleType,
+        videoId: String,
+        altIds: List<String> = emptyList(),
+        /** Source ID to its own ID for this title (merged search cards): tried first for that source. */
+        ownIds: Map<String, String> = emptyMap(),
+    ): Flow<StreamsState> = channelFlow {
+        val ids = (listOf(videoId) + altIds).distinct()
+        // Each source is asked once, with its own ID for the title if known, else the first ID it says it supports.
+        val targets = active().filter { it.useStreams }.mapNotNull { a ->
+            val c = addons.client(a)
+            (listOfNotNull(ownIds[a.id]) + ids).firstOrNull { c.supports("stream", type, it) }?.let { Triple(a, c, it) }
+        }
         val lock = Mutex()
         val all = mutableListOf<StreamEntry>()
         val failed = mutableListOf<String>()
         var pending = targets.size
         send(StreamsState(pending = pending))
-        targets.forEach { (a, client) ->
+        targets.forEach { (a, client, id) ->
             launch {
-                val result = runCatching { client.streams(type, videoId) }
+                val result = runCatching { client.streams(type, id) }
                 lock.withLock {
                     pending--
                     result.onSuccess { list ->
@@ -231,9 +294,13 @@ class ContentHub(
 
     // Subtitles (9.6)
 
-    suspend fun subtitles(type: TitleType, videoId: String, hash: String?, size: Long?, filename: String?): List<SubtitleOption> = coroutineScope {
-        active().filter { it.useSubtitles }.map { addons.client(it) }.filter { it.supports("subtitles", type, videoId) }
-            .map { c -> async(Dispatchers.IO) { runCatching { c.subtitlesFor(type, videoId, hash, size, filename) }.getOrDefault(emptyList()) } }
+    suspend fun subtitles(type: TitleType, videoId: String, hash: String?, size: Long?, filename: String?): List<SubtitleOption> =
+        subtitles(type, listOf(videoId), hash, size, filename)
+
+    /** Every subtitle source, each asked with the first of [ids] it supports. */
+    suspend fun subtitles(type: TitleType, ids: List<String>, hash: String?, size: Long?, filename: String?): List<SubtitleOption> = coroutineScope {
+        active().filter { it.useSubtitles }.map { addons.client(it) }.mapNotNull { c -> ids.firstOrNull { c.supports("subtitles", type, it) }?.let { c to it } }
+            .map { (c, id) -> async(Dispatchers.IO) { runCatching { c.subtitlesFor(type, id, hash, size, filename) }.getOrDefault(emptyList()) } }
             .awaitAll().flatten().distinctBy { it.url }
     }
 
@@ -264,7 +331,7 @@ class ContentHub(
         val videoId = episode?.id ?: title.id
         val key = MediaKeys.forSource(RESUME_SOURCE, title.id, episode?.id)
         val epInfo = episode?.let { EpisodeInfo(title.id, it.id, it.season, it.number, it.name) }
-        targets[key.id] = StreamTarget(title.type, videoId, title.name, epInfo, chosen.option.bingeGroup)
+        targets[key.id] = StreamTarget(title.type, videoId, title.name, epInfo, chosen.option.bingeGroup, title.imdbId ?: title.id.takeIf { it.startsWith("tt") })
         val others = ranked.filter { it !== chosen && it.playable }
             .sortedBy { if (chosen.option.bingeGroup != null && it.option.bingeGroup == chosen.option.bingeGroup) 0 else 1 }
             .take(maxAlternates)

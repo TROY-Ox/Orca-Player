@@ -78,7 +78,7 @@ fun timecode(ms: Long): String =
 
 /** A round control on the video overlay. Big play button for LARGE. */
 @Composable
-fun OverlayButton(icon: ImageVector, label: String, onClick: () -> Unit, size: ControlSize = ControlSize.MEDIUM, onLongClick: (() -> Unit)? = null) {
+fun OverlayButton(icon: ImageVector, label: String, onClick: () -> Unit, size: ControlSize = ControlSize.MEDIUM, onLongClick: (() -> Unit)? = null, loading: Boolean = false) {
     val c = Troy.colors
     val source = remember { MutableInteractionSource() }
     val box: Dp = when (size) {
@@ -116,7 +116,16 @@ fun OverlayButton(icon: ImageVector, label: String, onClick: () -> Unit, size: C
             ),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(iconSize))
+        if (loading) {
+            androidx.compose.material3.CircularProgressIndicator(
+                color = tint,
+                strokeWidth = 3.dp,
+                strokeCap = androidx.compose.ui.graphics.StrokeCap.Round,
+                modifier = Modifier.size(iconSize),
+            )
+        } else {
+            Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(iconSize))
+        }
     }
 }
 

@@ -122,9 +122,10 @@ private fun MainShell(navLayout: NavLayout, isTv: Boolean, appVm: AppViewModel) 
     val kids = profile?.isKids == true
     // Tabs can be hidden or reordered by the layout model; Home stays reachable as the start.
     // Kids profiles never see Addons or Tools (18).
-    val tabs = navLayout.visibleTabs
-        .filter { !kids || (it != MainTab.ADDONS && it != MainTab.TOOLS) }
-        .ifEmpty { listOf(MainTab.HOME) }.map { it.spec() }
+    val tabs = navLayout.tabs.filter { it.visible }
+        .filter { !kids || (it.tab != MainTab.ADDONS && it.tab != MainTab.TOOLS && it.tab != MainTab.LIVE) }
+        .ifEmpty { listOf(com.troy.orcaplayer.core.model.NavTabConfig(MainTab.HOME)) }
+        .map { it.tab.spec().copy(customLabel = it.customLabel) }
     val onTabRoute = tabs.any { it.route == route }
     val style = navStyle(isTv)
     val onSelect: (TabSpec) -> Unit = { spec -> nav.navigateToTab(spec.route) }
@@ -145,7 +146,7 @@ private fun MainShell(navLayout: NavLayout, isTv: Boolean, appVm: AppViewModel) 
     }
     // A tab the new profile can't see: go back to Home.
     LaunchedEffect(kids, route) {
-        if (kids && (route == MainTab.ADDONS.spec().route || route == MainTab.TOOLS.spec().route)) nav.navigateToTab(tabs.first().route)
+        if (kids && (route == MainTab.ADDONS.spec().route || route == MainTab.TOOLS.spec().route || route == MainTab.LIVE.spec().route)) nav.navigateToTab(tabs.first().route)
     }
 
     val spec = values?.let { CardSpec.from(it, Troy.motion.reduceMotion) } ?: CardSpec()
@@ -170,7 +171,7 @@ private fun MainShell(navLayout: NavLayout, isTv: Boolean, appVm: AppViewModel) 
                     }
                 }
                 ClipboardOffer(
-                    enabled = !kids && (values?.get(com.troy.orcaplayer.core.settings.SourceSettings.ClipboardDetect) ?: false),
+                    enabled = !kids && !isTv && (values?.get(com.troy.orcaplayer.core.settings.SourceSettings.ClipboardDetect) ?: false),
                     onPlay = { link -> appVm.playLink(link)?.let { com.troy.orcaplayer.ui.player.PlayerLaunch.play(context, it) } },
                     onInstall = { link -> appVm.pendingInstall.value = link },
                 )
@@ -255,6 +256,13 @@ private fun OrcaNavHost(nav: NavHostController, start: String) {
         val id = t.substringAfter('/', "")
         if (id.isNotEmpty()) nav.navigate(Routes.title(type, id))
     }
+    // A magnet link opened from another app: the URL player plays it (extended build).
+    val pendingMagnet by appVm.pendingMagnet.collectAsStateWithLifecycle()
+    androidx.compose.runtime.LaunchedEffect(pendingMagnet) {
+        val m = pendingMagnet ?: return@LaunchedEffect
+        appVm.pendingMagnet.value = null
+        if (!guard.active) nav.navigate(Routes.urlPlayer(m)) { launchSingleTop = true }
+    }
     val pendingInstall by appVm.pendingInstall.collectAsStateWithLifecycle()
     androidx.compose.runtime.LaunchedEffect(pendingInstall, guard.active) {
         if (pendingInstall != null && guard.active) {
@@ -283,6 +291,7 @@ private fun OrcaNavHost(nav: NavHostController, start: String) {
                         onOpenDownloads = { openDownloads("COMPLETED") },
                         onOpenDetails = openDetails,
                         onOpenMyList = openMyList,
+                        onOpenSearch = { nav.navigateToTab(MainTab.SEARCH.spec().route) },
                     )
                     MainTab.ADDONS -> AddonsScreen(
                         openSettings, openProfiles,
@@ -296,7 +305,11 @@ private fun OrcaNavHost(nav: NavHostController, start: String) {
                             null
                         },
                     )
-                    MainTab.SEARCH -> SearchScreen(openSettings, openProfiles, openTitle)
+                    MainTab.LIVE -> com.troy.orcaplayer.ui.live.LiveTvScreen(openSettings, openProfiles)
+                    MainTab.SEARCH -> SearchScreen(
+                        openSettings, openProfiles, openTitle,
+                        onOpenAddons = if (guard.active) null else ({ nav.navigateToTab(MainTab.ADDONS.spec().route) }),
+                    )
                     MainTab.LOCAL -> LocalScreen(
                         openSettings, openProfiles, openUrlPlayer,
                         onOpenDownloads = { openDownloads("COMPLETED") },
@@ -327,6 +340,10 @@ private fun OrcaNavHost(nav: NavHostController, start: String) {
                 onOpenHomeRows = { nav.navigate(Routes.HOME_ROWS) { launchSingleTop = true } },
                 onOpenProfiles = { nav.navigate(Routes.PROFILES) { launchSingleTop = true } },
                 onOpenTrakt = { nav.navigate(Routes.TRAKT) { launchSingleTop = true } },
+                onOpenTabs = { nav.navigate(Routes.TABS_EDITOR) { launchSingleTop = true } },
+                onOpenPlayerLayout = { nav.navigate(Routes.PLAYER_LAYOUT_EDITOR) { launchSingleTop = true } },
+                onOpenGestures = { nav.navigate(Routes.GESTURE_EDITOR) { launchSingleTop = true } },
+                onOpenBackup = { nav.navigate(Routes.BACKUP) { launchSingleTop = true } },
             )
         }
         composable(Routes.MY_LIST) { MyListScreen(onBack = back, onOpenDetails = openDetails) }
@@ -363,7 +380,7 @@ private fun OrcaNavHost(nav: NavHostController, start: String) {
         composable(Routes.LICENCES) { LicencesScreen(onBack = back) }
         composable(Routes.PRIVATE_FOLDER) { com.troy.orcaplayer.ui.local.PrivateFolderScreen(onBack = back) }
         composable(Routes.LIBRARY) {
-            com.troy.orcaplayer.ui.library.LibraryScreen(
+            com.troy.orcaplayer.ui.library.LibraryPanes(
                 onBack = back,
                 onOpenMovie = { nav.navigate(Routes.libraryItem(it)) },
                 onOpenShow = { nav.navigate(Routes.libraryShow(it)) },
@@ -379,6 +396,10 @@ private fun OrcaNavHost(nav: NavHostController, start: String) {
                 onOpenItem = { nav.navigate(Routes.libraryItem(it)) },
             )
         }
+        composable(Routes.TABS_EDITOR) { com.troy.orcaplayer.ui.customize.TabsEditorScreen(onBack = back) }
+        composable(Routes.PLAYER_LAYOUT_EDITOR) { com.troy.orcaplayer.ui.customize.PlayerLayoutEditorScreen(onBack = back) }
+        composable(Routes.GESTURE_EDITOR) { com.troy.orcaplayer.ui.customize.GestureMapScreen(onBack = back) }
+        composable(Routes.BACKUP) { com.troy.orcaplayer.ui.backup.BackupScreen(onBack = back) }
         composable(Routes.TRAKT) { com.troy.orcaplayer.trakt.TraktScreen(onBack = back) }
         composable(Routes.NETWORK_SHARES) {
             com.troy.orcaplayer.ui.network.NetworkSharesScreen(onBack = back, onOpen = { nav.navigate(Routes.share(it)) })

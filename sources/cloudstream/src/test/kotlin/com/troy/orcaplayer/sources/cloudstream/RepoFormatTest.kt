@@ -8,6 +8,18 @@ import org.junit.Test
 
 class RepoFormatTest {
     @Test
+    fun onlyWellFormedHashesAreChecked() {
+        val hex = "a".repeat(64)
+        assertEquals(hex, RepoFormat.expectedSha256("sha256:$hex"))
+        assertEquals(hex, RepoFormat.expectedSha256(hex))
+        // The format recloudstream's builds use.
+        assertEquals(hex, RepoFormat.expectedSha256("sha256-$hex"))
+        assertNull(RepoFormat.expectedSha256(null))
+        assertNull(RepoFormat.expectedSha256("md5:d41d8cd98f00b204e9800998ecf8427e"))
+        assertNull(RepoFormat.expectedSha256(""))
+    }
+
+    @Test
     fun parsesRepoAndPlugins() {
         val repo = RepoFormat.parseRepo(
             """{"name":"Test repo","description":"Open films","manifestVersion":1,"pluginLists":["plugins.json"],"extra":true}""",

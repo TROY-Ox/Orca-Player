@@ -17,6 +17,8 @@ import com.troy.orcaplayer.core.settings.SourceSettings
 import com.troy.orcaplayer.data.ContentHub
 import com.troy.orcaplayer.data.StreamEntry
 import com.troy.orcaplayer.data.StreamsState
+import com.troy.orcaplayer.data.TorrentBridge
+import com.troy.orcaplayer.data.altStreamIds
 import com.troy.orcaplayer.sources.api.StreamSort
 import com.troy.orcaplayer.ui.common.TitleMemory
 import com.troy.orcaplayer.ui.player.SoundController
@@ -41,11 +43,16 @@ data class StreamPicker(
     val sort: StreamSort = StreamSort.QUALITY,
     val audioLanguage: String? = null,
     val subtitleLanguage: String? = null,
+    /** A torrent stream being prepared (connecting to peers and buffering). */
+    val preparing: StreamEntry? = null,
 )
 
 sealed interface TitleEvent {
     data class Play(val request: PlayRequest) : TitleEvent
     data class Open(val url: String, val youtube: Boolean) : TitleEvent
+    /** The one-time notice before the first torrent stream plays. */
+    data class TorrentNotice(val entry: StreamEntry) : TitleEvent
+    data class Failed(val message: String) : TitleEvent
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -127,7 +134,11 @@ class TitleViewModel @Inject constructor(
             val prefs = settingsRepo.mediaPrefs(profiles.currentProfileId.value).first().perFolder[titleFolder]
             _picker.update { it?.copy(audioLanguage = prefs?.audioLanguage, subtitleLanguage = prefs?.subtitleLanguage) }
             val videoId = episode?.id ?: id
-            hub.streams(type, videoId).collect { st ->
+            val t = _title.value
+            val alt = if (episode == null) altStreamIds(t?.imdbId, null, null) else altStreamIds(t?.imdbId, episode.season, episode.number)
+            // A movie opened from a merged search card: ask every source with its own ID too.
+            val own = if (episode == null) hub.sourceIdsFor(type, id) else emptyMap()
+            hub.streams(type, videoId, alt, own).collect { st ->
                 _picker.update { it?.copy(state = st) }
                 if (st.pending == 0 && v[SourceSettings.AutoPick] == "auto") {
                     ranked().firstOrNull { it.playable }?.let { play(it) }
@@ -137,6 +148,7 @@ class TitleViewModel @Inject constructor(
     }
 
     fun closeStreams() {
+        if (_picker.value?.preparing != null) cancelTorrent()
         streamJob?.cancel()
         _picker.value = null
     }
@@ -160,9 +172,9 @@ class TitleViewModel @Inject constructor(
         val showUnsupported = v[SourceSettings.ShowUnsupported]
         val quality = v[SourceSettings.PreferredQuality].toIntOrNull()
         val lang = p.audioLanguage
-        val entries = p.state.entries.filter { it.playable || showUnsupported || it.option.kind != StreamKind.TORRENT && it.option.kind != StreamKind.UNSUPPORTED }
+        val entries = p.state.entries.filter { it.playable || it.viaTorrent || showUnsupported || it.option.kind != StreamKind.TORRENT && it.option.kind != StreamKind.UNSUPPORTED }
         val (good, bad) = hub.rank(entries, p.sort, quality, lang).partition {
-            it.playable || it.option.kind == StreamKind.EXTERNAL || it.option.kind == StreamKind.YOUTUBE
+            it.playable || it.viaTorrent || it.option.kind == StreamKind.EXTERNAL || it.option.kind == StreamKind.YOUTUBE
         }
         return good + bad
     }
@@ -185,9 +197,54 @@ class TitleViewModel @Inject constructor(
             }
             StreamKind.EXTERNAL -> _events.value = TitleEvent.Open(entry.option.url, youtube = false)
             StreamKind.YOUTUBE -> _events.value = TitleEvent.Open(entry.option.url, youtube = true)
+            StreamKind.TORRENT -> playTorrent(entry)
             else -> Unit
         }
     }
+
+    private var torrentJob: Job? = null
+
+    /** Torrent streams: after the one-time notice, the streamer prepares the file and it plays from a local address. */
+    private fun playTorrent(entry: StreamEntry) {
+        val resolver = TorrentBridge.resolver ?: return
+        if (resolver.needsNotice()) {
+            _events.value = TitleEvent.TorrentNotice(entry)
+            return
+        }
+        torrentJob?.cancel()
+        _picker.update { it?.copy(preparing = entry) }
+        torrentJob = viewModelScope.launch {
+            val url = try {
+                resolver.resolve(entry.option)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                _picker.update { it?.copy(preparing = null) }
+                _events.value = TitleEvent.Failed(e.message ?: e.javaClass.simpleName)
+                return@launch
+            }
+            if (_picker.value?.preparing !== entry) return@launch
+            _picker.update { it?.copy(preparing = null) }
+            val local = entry.copy(option = entry.option.copy(url = url, kind = StreamKind.URL, downloadable = false, mimeType = null))
+            play(local)
+        }
+    }
+
+    fun acceptTorrentNotice(entry: StreamEntry) {
+        TorrentBridge.resolver?.acceptNotice()
+        playTorrent(entry)
+    }
+
+    /** Stops preparing a torrent stream. */
+    fun cancelTorrent() {
+        torrentJob?.cancel()
+        torrentJob = null
+        _picker.update { it?.copy(preparing = null) }
+        TorrentBridge.resolver?.stop()
+    }
+
+    val torrentProgress: StateFlow<com.troy.orcaplayer.data.TorrentProgress?> =
+        TorrentBridge.resolver?.progress ?: MutableStateFlow<com.troy.orcaplayer.data.TorrentProgress?>(null).asStateFlow()
 
     fun consumeEvent() {
         _events.value = null

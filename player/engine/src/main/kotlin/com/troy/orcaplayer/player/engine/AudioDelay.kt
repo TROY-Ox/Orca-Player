@@ -99,9 +99,14 @@ class AudioDelayController internal constructor(context: Context) {
         else -> 0
     }
 
-    private val wirelessTypes = setOf(AudioDeviceInfo.TYPE_BLUETOOTH_A2DP, 23, 26, 27, 30)
-
     companion object {
+        /**
+         * Kept in the companion: as an instance property it was set only after [current] had
+         * already run from the first property, so it was null then and the app crashed at start
+         * whenever headphones, Bluetooth, USB audio or HDMI was connected.
+         */
+        private val wirelessTypes = setOf(AudioDeviceInfo.TYPE_BLUETOOTH_A2DP, 23, 26, 27, 30)
+
         const val MIN_MS = -1000
         const val MAX_MS = 1000
     }

@@ -15,6 +15,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -49,6 +51,7 @@ fun HomeScreen(
     onOpenDownloads: () -> Unit = {},
     onOpenDetails: (type: String, id: String, play: String?) -> Unit = { _, _, _ -> },
     onOpenMyList: () -> Unit = {},
+    onOpenSearch: () -> Unit = {},
     vm: HomeViewModel = hiltViewModel(),
     browse: BrowseViewModel = hiltViewModel(),
 ) {
@@ -74,6 +77,19 @@ fun HomeScreen(
             if (rows.isNotEmpty()) TroyIconButton(Icons.Outlined.Refresh, stringResource(R.string.refresh), vm::refresh)
         }
         LazyColumn(Modifier.fillMaxSize(), state = list) {
+            // Search from Home: opens the Search screen, which covers files and every source.
+            item(key = "search") {
+                Row(
+                    Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth().glass(TroyShapes.Control).troyFocusRing()
+                        .clickable(role = Role.Button, onClickLabel = stringResource(R.string.tab_search), onClick = onOpenSearch)
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Icon(Icons.Outlined.Search, contentDescription = null, tint = c.text3, modifier = Modifier.size(22.dp))
+                    Text(stringResource(R.string.search_hint), style = Troy.type.body, color = c.text3, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                }
+            }
             val heroItems = hero?.let { states[it.key]?.items }.orEmpty()
             if (hero != null && v[com.troy.orcaplayer.core.settings.BrowsingSettings.Hero] != "off") {
                 item(key = "hero") {

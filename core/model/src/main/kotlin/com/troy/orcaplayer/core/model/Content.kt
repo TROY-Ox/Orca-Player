@@ -68,6 +68,10 @@ data class StreamOption(
     val videoHash: String? = null,
     /** Set when the source says what the stream is (HLS or DASH) and the URL doesn't show it. */
     val mimeType: String? = null,
+    /** [StreamKind.TORRENT]: which file of the torrent to play, when the source says. */
+    val fileIndex: Int? = null,
+    /** [StreamKind.TORRENT]: tracker URLs the source gives. */
+    val trackers: List<String> = emptyList(),
 )
 
 @Serializable

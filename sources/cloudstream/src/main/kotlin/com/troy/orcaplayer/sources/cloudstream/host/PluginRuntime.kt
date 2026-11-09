@@ -41,6 +41,12 @@ class PluginRuntime(private val context: Context) {
     private val providers = LinkedHashMap<String, MainAPI>()
     private val loaded = HashMap<String, String>() // internalName -> path
 
+    init {
+        // Extensions read their settings and show toasts through CloudStream's app classes,
+        // which this host provides (see com.lagradost.cloudstream3.CloudStreamApp).
+        com.lagradost.cloudstream3.CloudStreamApp.attachHostContext(context)
+    }
+
     @Synchronized
     fun load(files: List<ExtensionFile>): LoadResult {
         val failures = LinkedHashMap<String, String>()
@@ -70,10 +76,20 @@ class PluginRuntime(private val context: Context) {
         val className = obj["pluginClassName"]?.jsonPrimitive?.content ?: error("No pluginClassName in the manifest")
         val loader = PathClassLoader(file.absolutePath, javaClass.classLoader)
         val instance = loader.loadClass(className).getDeclaredConstructor().newInstance()
-        val plugin = instance as? Plugin ?: error("$className is not a CloudStream plugin")
-        plugin.filename = file.absolutePath
         val before = APIHolder.allProviders.toList().toSet()
-        plugin.load(context)
+        // Older extensions extend the Android Plugin; newer ones, built against the cross-platform
+        // library, extend BasePlugin directly and have no load(Context).
+        when (instance) {
+            is Plugin -> {
+                instance.filename = file.absolutePath
+                instance.load(context)
+            }
+            is com.lagradost.cloudstream3.plugins.BasePlugin -> {
+                instance.filename = file.absolutePath
+                instance.load()
+            }
+            else -> error("$className is not a CloudStream plugin")
+        }
         val added = APIHolder.allProviders.toList().filter { it !in before }
         loaded[f.internalName] = f.path
         return added.map { api ->
@@ -154,9 +170,29 @@ class PluginRuntime(private val context: Context) {
     )
 
     companion object {
-        fun describe(e: Throwable): String = when (e) {
-            is LinkageError -> "Incompatible with this app (${e.javaClass.simpleName}: ${e.message?.take(160)})"
-            else -> (e.message ?: e.javaClass.simpleName).take(240)
+        private val descriptor = Regex("""L([\w/$]+);?""")
+
+        /** The class an extension needed and didn't find, as a dotted name, from a linkage error. */
+        fun missingClass(e: Throwable): String? {
+            var t: Throwable? = e
+            while (t != null) {
+                if (t is LinkageError || t is ClassNotFoundException) {
+                    val m = t.message.orEmpty()
+                    descriptor.find(m)?.let { return it.groupValues[1].replace('/', '.') }
+                    m.trim().takeIf { it.isNotEmpty() && ' ' !in it }?.let { return it.replace('/', '.') }
+                }
+                t = t.cause
+            }
+            return null
+        }
+
+        fun describe(e: Throwable): String {
+            val missing = missingClass(e)
+            return when {
+                missing != null -> "Incompatible with this app: it needs $missing, which this version of Orca doesn't provide"
+                e is LinkageError -> "Incompatible with this app (${e.javaClass.simpleName}: ${e.message?.take(400)})"
+                else -> (e.message ?: e.javaClass.simpleName).take(400)
+            }
         }
     }
 }

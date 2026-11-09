@@ -31,8 +31,39 @@ object Flavor {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    private lateinit var app: Application
+
+    /**
+     * Torrent streaming (extended build): torrent streams play from a local address. Created on
+     * first use, so nothing torrent-related (the native library included) runs at start-up.
+     */
+    val torrents: TorrentStreamer by lazy { TorrentStreamer(app, torrentProgress) }
+
+    private val torrentProgress = kotlinx.coroutines.flow.MutableStateFlow<com.troy.orcaplayer.data.TorrentProgress?>(null)
+
+    /** Hands calls to the streamer, creating it only when a torrent is really played. */
+    private val lazyResolver = object : com.troy.orcaplayer.data.TorrentResolver {
+        override val progress: kotlinx.coroutines.flow.StateFlow<com.troy.orcaplayer.data.TorrentProgress?> = torrentProgress
+        @Volatile private var started = false
+        override suspend fun resolve(option: com.troy.orcaplayer.core.model.StreamOption): String {
+            started = true
+            return torrents.resolve(option)
+        }
+        override fun stop() {
+            if (started) runCatching { torrents.stop() }
+        }
+        override fun needsNotice(): Boolean = !TorrentSettings(app).noticeAccepted
+        override fun acceptNotice() {
+            TorrentSettings(app).noticeAccepted = true
+        }
+    }
+
     fun init(app: Application, addons: AddonRepository) {
         this.addons = addons
+        this.app = app
+        com.troy.orcaplayer.data.TorrentBridge.resolver = lazyResolver
+        // Torrent files of an earlier run are not kept (plain file work, off the main thread).
+        scope.launch { runCatching { java.io.File(app.cacheDir, "torrents").deleteRecursively() } }
         manager = ExtensionManager(app, "ORCA Player/${BuildConfig.VERSION_NAME}")
         addons.extensionBridge = object : ExtensionBridge {
             override fun client(a: InstalledAddon, timeoutMs: Int, onRequest: (RequestResult) -> Unit): AddonClient =
@@ -60,8 +91,10 @@ object Flavor {
     }
 
     private fun sync(providers: List<ProviderInfo>, installed: Map<String, com.troy.orcaplayer.sources.cloudstream.InstalledExtension>) {
+        val repoNames = manager.state.value.repos.associate { it.url to it.name }
         providers.forEach { p ->
-            val m = ProviderManifest.build(p, installed[p.internalName]?.entry)
+            val ext = installed[p.internalName]
+            val m = ProviderManifest.build(p, ext?.entry, ext?.repoUrl?.let { repoNames[it] })
             val url = ProviderManifest.manifestUrl(p)
             val existing = addons.list.value.addons.firstOrNull { it.manifestUrl == url }
             if (existing == null || existing.manifest != m) addons.install(url, m)

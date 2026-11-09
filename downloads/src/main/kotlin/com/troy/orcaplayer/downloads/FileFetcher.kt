@@ -43,7 +43,7 @@ data class Probe(
 
 /**
  * Plain file downloads over HTTP (16.3): resumes with range requests, restarts from zero when the
- * server can't, and optionally splits large files over up to four connections.
+ * server can't, and splits large files over up to eight connections.
  */
 class FileFetcher(private val limiter: SpeedLimiter, private val userAgent: String) {
     private val maxRedirects = 8
@@ -181,13 +181,13 @@ class FileFetcher(private val limiter: SpeedLimiter, private val userAgent: Stri
             // Big files on a server with ranges can use several connections from the start.
             if (multiConnection && start == 0L && probe.acceptsRanges && probe.total > 2 * Ranges.MIN_PART) {
                 c.disconnect()
-                val parts = Ranges.split(probe.total, 4)
+                val parts = Ranges.split(probe.total, Ranges.connectionsFor(probe.total))
                 return runSegments(url, headers, out, parts, stop, onProgress)
             }
             val total = probe.total
             var done = start
             var lastReport = 0L
-            val buf = ByteArray(64 * 1024)
+            val buf = ByteArray(256 * 1024)
             c.inputStream.use { input ->
                 while (true) {
                     if (stop()) throw Stopped()
@@ -251,7 +251,7 @@ class FileFetcher(private val limiter: SpeedLimiter, private val userAgent: Stri
                         check(code)
                         val range = Ranges.parseContentRange(c.getHeaderField("Content-Range"))
                         if (code != 206 || range == null || range.start != from) throw FetchFailure(DownloadError.HTTP, code, retryable = true, message = "range refused")
-                        val buf = ByteArray(64 * 1024)
+                        val buf = ByteArray(256 * 1024)
                         c.inputStream.use { input ->
                             while (done.get(i) < seg.length) {
                                 if (abort.get() || stop()) throw Stopped()

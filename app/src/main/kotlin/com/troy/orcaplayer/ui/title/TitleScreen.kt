@@ -1,5 +1,6 @@
 package com.troy.orcaplayer.ui.title
 
+import com.troy.orcaplayer.ui.common.keyed
 import android.content.Intent
 import android.net.Uri
 import android.text.format.Formatter
@@ -58,6 +59,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
@@ -100,6 +102,8 @@ fun TitleScreen(onBack: () -> Unit, vm: TitleViewModel = hiltViewModel()) {
     val event by vm.events.collectAsStateWithLifecycle()
     val progress by vm.progress.collectAsStateWithLifecycle()
     var confirmOpen by remember { mutableStateOf<TitleEvent.Open?>(null) }
+    var torrentNotice by remember { mutableStateOf<StreamEntry?>(null) }
+    val torrentProgress by vm.torrentProgress.collectAsStateWithLifecycle()
     val dl: DownloadsViewModel = hiltViewModel()
     val browse: com.troy.orcaplayer.ui.home.BrowseViewModel = hiltViewModel()
     val myKeys by browse.myKeys.collectAsStateWithLifecycle()
@@ -122,6 +126,8 @@ fun TitleScreen(onBack: () -> Unit, vm: TitleViewModel = hiltViewModel()) {
         when (val e = event) {
             is TitleEvent.Play -> PlayerLaunch.play(context, e.request)
             is TitleEvent.Open -> confirmOpen = e
+            is TitleEvent.TorrentNotice -> torrentNotice = e.entry
+            is TitleEvent.Failed -> Toast.makeText(context, context.getString(R.string.torrent_failed, e.message), Toast.LENGTH_LONG).show()
             null -> Unit
         }
         if (event != null) vm.consumeEvent()
@@ -202,7 +208,7 @@ fun TitleScreen(onBack: () -> Unit, vm: TitleViewModel = hiltViewModel()) {
                     }
                 }
                 val eps = t.episodes.filter { (it.season ?: 0) == season }
-                items(eps, key = { "ep" + it.id }) { e ->
+                items(eps.keyed { "ep" + it.id }, key = { it.first }) { (_, e) ->
                     EpisodeRow(
                         e, progress[vm.progressKey(e)], downloaded = vm.progressKey(e) in downloaded,
                         onDownload = { guard(t.source, drm = false, downloadable = true) { dl.downloadBest(t, listOf(e), preferredHeight, ::queued) } },
@@ -248,9 +254,30 @@ fun TitleScreen(onBack: () -> Unit, vm: TitleViewModel = hiltViewModel()) {
                         if (p.state.pending > 0) Text(stringResource(R.string.streams_pending, p.state.pending), style = Troy.type.bodySmall, color = c.text2)
                         if (p.state.failed.isNotEmpty()) Text(stringResource(R.string.search_failed, p.state.failed.joinToString(", ")), style = Troy.type.bodySmall, color = c.text3)
                         if (ranked.isEmpty() && p.state.pending == 0) Text(stringResource(R.string.streams_none), style = Troy.type.body, color = c.text2)
+                        if (p.state.pending == 0 && p.state.torrents > 0 && ranked.none { it.playable || it.viaTorrent }) {
+                            Text(pluralStringResource(R.plurals.streams_torrents_hidden, p.state.torrents, p.state.torrents), style = Troy.type.bodySmall, color = c.text2)
+                        }
+                        p.preparing?.let { prep ->
+                            // A torrent stream is being prepared: peers, then the first part of the video.
+                            val tp = torrentProgress
+                            Row(
+                                Modifier.fillMaxWidth().clip(TroyShapes.Control).background(c.controlFill).padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text((prep.option.name ?: prep.option.source.sourceName).replace('\n', ' '), style = Troy.type.body, color = c.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(
+                                        if (tp == null) stringResource(R.string.torrent_connecting, 0) else torrentStatus(tp),
+                                        style = Troy.type.bodySmall, color = c.text2,
+                                    )
+                                }
+                                TroyButton(stringResource(R.string.dialog_cancel), vm::cancelTorrent, kind = ButtonKind.GHOST)
+                            }
+                        }
                         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             if (ranked.isEmpty() && p.state.pending > 0) items(4) { ShimmerBlock(Modifier.fillMaxWidth().height(64.dp).clip(TroyShapes.Control)) }
-                            items(ranked, key = { it.option.source.sourceId + it.option.url + (it.option.name ?: "") }) { s ->
+                            items(ranked.keyed { it.option.source.sourceId + it.option.url + (it.option.fileIndex ?: "") + (it.option.name ?: "") }, key = { it.first }) { (_, s) ->
                                 StreamRow(s, onDownload = { guard(s.option.source, s.option.drmProtected, s.option.downloadable) { streamDownload = s } }) { vm.play(s) }
                             }
                         }
@@ -290,6 +317,22 @@ fun TitleScreen(onBack: () -> Unit, vm: TitleViewModel = hiltViewModel()) {
             dl.downloadStream(t, pk?.episode, sd, choice.subtitles, choice.tracks, choice.startNow, choice.kind)
             queued(1)
         }
+    }
+
+    torrentNotice?.let { entry ->
+        AlertDialog(
+            onDismissRequest = { torrentNotice = null },
+            title = { Text(stringResource(R.string.torrent_notice_title), style = Troy.type.title, color = c.text) },
+            text = { Text(stringResource(R.string.torrent_notice_message), style = Troy.type.body, color = c.text2) },
+            confirmButton = {
+                TextButton(onClick = {
+                    torrentNotice = null
+                    vm.acceptTorrentNotice(entry)
+                }) { Text(stringResource(R.string.torrent_notice_ok), color = c.accent) }
+            },
+            dismissButton = { TextButton(onClick = { torrentNotice = null }) { Text(stringResource(R.string.dialog_cancel), color = c.text2) } },
+            containerColor = Troy.glass.panel.copy(alpha = 1f),
+        )
     }
 
     confirmOpen?.let { o ->
@@ -358,7 +401,7 @@ private fun StreamRow(s: StreamEntry, onDownload: () -> Unit, onClick: () -> Uni
     val c = Troy.colors
     val context = LocalContext.current
     val i = s.info
-    val enabled = s.playable || s.option.kind == StreamKind.EXTERNAL || s.option.kind == StreamKind.YOUTUBE
+    val enabled = s.playable || s.viaTorrent || s.option.kind == StreamKind.EXTERNAL || s.option.kind == StreamKind.YOUTUBE
     Column(
         Modifier.fillMaxWidth().clip(TroyShapes.Control).background(c.controlFill).troyFocusRing()
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick).padding(12.dp),
@@ -389,7 +432,8 @@ private fun StreamRow(s: StreamEntry, onDownload: () -> Unit, onClick: () -> Uni
             when (s.option.kind) {
                 StreamKind.EXTERNAL -> Badge(stringResource(R.string.badge_external), tint = c.info)
                 StreamKind.YOUTUBE -> Badge("YouTube", tint = c.info)
-                StreamKind.TORRENT, StreamKind.UNSUPPORTED -> Badge(stringResource(R.string.badge_unsupported), tint = c.text3)
+                StreamKind.TORRENT -> if (s.viaTorrent) Badge(stringResource(R.string.badge_torrent), tint = c.info) else Badge(stringResource(R.string.badge_unsupported), tint = c.text3)
+                StreamKind.UNSUPPORTED -> Badge(stringResource(R.string.badge_unsupported), tint = c.text3)
                 StreamKind.URL -> Unit
             }
         }

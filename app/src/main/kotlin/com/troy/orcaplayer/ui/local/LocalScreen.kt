@@ -316,7 +316,7 @@ private fun Thumb(media: LocalMedia?, thumbnails: Thumbnails, progress: Progress
                 Text(
                     timecode(media.durationMs),
                     style = Troy.type.label,
-                    color = c.text,
+                    color = androidx.compose.ui.graphics.Color.White,
                     modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp).background(c.scrim, TroyShapes.Pill).padding(horizontal = 6.dp, vertical = 1.dp),
                 )
             }
@@ -324,7 +324,7 @@ private fun Thumb(media: LocalMedia?, thumbnails: Thumbnails, progress: Progress
                 Text(
                     it,
                     style = Troy.type.label,
-                    color = c.text,
+                    color = androidx.compose.ui.graphics.Color.White,
                     modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).background(c.scrim, TroyShapes.Pill).padding(horizontal = 6.dp, vertical = 1.dp),
                 )
             }

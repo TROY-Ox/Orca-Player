@@ -263,7 +263,7 @@ fun TitleRow(
                 horizontalArrangement = Arrangement.spacedBy(spec.spacing),
                 flingBehavior = rememberSnapFlingBehavior(list, SnapPosition.Start),
             ) {
-                itemsIndexed(state.items, key = { _, t -> t.type.name + t.id }) { i, t ->
+                itemsIndexed(state.items.keyed { it.type.name + it.id }, key = { _, p -> p.first }) { i, (_, t) ->
                     TitleCard(t, style, { onOpen(t) }, Modifier.width(width).parallax(list, i, spec.parallax), rank = i + 1)
                 }
                 if (state.loading) item { ShimmerBlock(Modifier.width(width).aspectRatio(spec.ratio(style)).clip(spec.shape)) }

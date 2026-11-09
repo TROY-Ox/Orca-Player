@@ -90,6 +90,58 @@ class OnlineSubtitles(private val cacheDir: File) {
         }
     }
 
+    private val freeRef = SourceRef(SourceKind.STREMIO_ADDON, "org.stremio.opensubtitlesv3", "OpenSubtitles v3")
+
+    /**
+     * Stremio's public OpenSubtitles v3 service: no account or key, answers IMDb IDs ("tt…" or
+     * "tt…:season:episode") and returns files already converted to UTF-8. This is what makes
+     * Arabic subtitles available even when the user has set nothing up.
+     */
+    suspend fun searchFree(series: Boolean, imdbVideoId: String, languages: List<String>): List<OnlineSubtitle> = withContext(Dispatchers.IO) {
+        if (!imdbVideoId.startsWith("tt")) return@withContext emptyList()
+        val type = if (series) "series" else "movie"
+        val url = "https://opensubtitles-v3.strem.io/subtitles/$type/" + URLEncoder.encode(imdbVideoId, "UTF-8") + ".json"
+        val text = runCatching { getText(url) }.getOrNull() ?: return@withContext emptyList()
+        val root = runCatching { StoreJson.parseToJsonElement(text).jsonObject }.getOrNull() ?: return@withContext emptyList()
+        (root["subtitles"] as? JsonArray).orEmpty().mapNotNull { el ->
+            val o = el as? JsonObject ?: return@mapNotNull null
+            val link = (o["url"] as? JsonPrimitive)?.contentOrNull ?: return@mapNotNull null
+            val lang = (o["lang"] as? JsonPrimitive)?.contentOrNull
+            if (languages.isNotEmpty() && languages.none { l -> sameLanguage(lang, l) }) return@mapNotNull null
+            OnlineSubtitle(
+                id = link,
+                language = lang,
+                label = "OpenSubtitles " + (lang ?: "").uppercase(),
+                source = freeRef,
+                url = link,
+                match = 55,
+            )
+        }
+    }
+
+    private fun sameLanguage(code: String?, preferred: String): Boolean {
+        val a = code?.lowercase()?.substringBefore('-') ?: return false
+        val b = preferred.lowercase().substringBefore('-')
+        if (a == b) return true
+        val three = mapOf("ar" to "ara", "en" to "eng", "fr" to "fre", "es" to "spa", "de" to "ger", "tr" to "tur", "pt" to "por",
+            "it" to "ita", "ru" to "rus", "hi" to "hin", "ja" to "jpn", "ko" to "kor", "zh" to "chi", "fa" to "per", "ur" to "urd", "id" to "ind")
+        return three[b] == a || three[a] == b || (b == "fr" && a == "fra") || (b == "de" && a == "deu") || (b == "zh" && a == "zho") || (b == "fa" && a == "fas")
+    }
+
+    private fun getText(url: String): String {
+        val conn = URL(url).openConnection() as HttpURLConnection
+        try {
+            conn.connectTimeout = 12_000
+            conn.readTimeout = 15_000
+            conn.setRequestProperty("User-Agent", ua)
+            conn.setRequestProperty("Accept", "application/json")
+            if (conn.responseCode !in 200..299) throw IOException("HTTP ${conn.responseCode}")
+            return conn.inputStream.use { String(it.readNBytesCompat(4 * 1024 * 1024), Charsets.UTF_8) }
+        } finally {
+            conn.disconnect()
+        }
+    }
+
     /** Fetches the subtitle file to the cache and returns it. */
     suspend fun download(sub: OnlineSubtitle, apiKey: String): File = withContext(Dispatchers.IO) {
         val link = sub.url ?: run {

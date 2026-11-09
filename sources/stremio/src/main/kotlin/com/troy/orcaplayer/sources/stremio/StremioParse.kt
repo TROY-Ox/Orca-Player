@@ -129,6 +129,9 @@ object StremioParse {
             filename = hints.str("filename"),
             videoSize = hints.long("videoSize"),
             videoHash = hints.str("videoHash"),
+            // Torrent streams: the file to play and the trackers ("tracker:udp://…" in "sources").
+            fileIndex = if (kind == StreamKind.TORRENT) s.int("fileIdx") ?: s.str("fileIdx")?.toIntOrNull() else null,
+            trackers = if (kind == StreamKind.TORRENT) s.strings("sources").filter { it.startsWith("tracker:") }.map { it.removePrefix("tracker:") } else emptyList(),
         )
     }
 

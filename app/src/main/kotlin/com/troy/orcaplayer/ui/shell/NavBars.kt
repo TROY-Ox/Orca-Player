@@ -36,6 +36,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import com.troy.orcaplayer.core.design.component.pressScale
 import com.troy.orcaplayer.core.design.component.troyFocusRing
 import com.troy.orcaplayer.core.design.theme.Troy
@@ -55,7 +57,7 @@ private fun NavItem(
     val source = remember { MutableInteractionSource() }
     val tint by animateColorAsState(if (selected) c.accent else c.text2, Troy.motion.spec(), label = "navTint")
     val bg by animateColorAsState(if (selected) c.accent.copy(alpha = 0.14f) else Color.Transparent, Troy.motion.spec(), label = "navBg")
-    val label = stringResource(spec.label)
+    val label = spec.customLabel?.takeIf { it.isNotBlank() } ?: stringResource(spec.label)
     val itemModifier = modifier
         .pressScale(source)
         .troyFocusRing(12.dp)
@@ -74,12 +76,19 @@ private fun NavItem(
             itemModifier.padding(vertical = 6.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Box(Modifier.background(bg, TroyShapes.Pill).padding(horizontal = 18.dp, vertical = 4.dp)) {
+            // Apple-style tab bar item: the icon and label simply take the accent when selected.
+            Box(Modifier.padding(horizontal = 12.dp, vertical = 2.dp)) {
                 Icon(if (selected) spec.selectedIcon else spec.icon, contentDescription = if (showLabel) null else label, tint = tint)
             }
             if (showLabel) {
-                Spacer(Modifier.height(4.dp))
-                Text(label, style = t.label.copy(letterSpacing = t.body.letterSpacing), color = if (selected) c.text else c.text2, maxLines = 1)
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    label,
+                    style = t.label.copy(fontSize = 11.sp, fontWeight = FontWeight.Medium),
+                    color = tint,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
     }
@@ -89,6 +98,7 @@ private fun NavItem(
 @Composable
 fun OrcaBottomBar(tabs: List<TabSpec>, selectedRoute: String?, onSelect: (TabSpec) -> Unit) {
     val g = Troy.glass
+    Box(Modifier.fillMaxWidth().height(1.dp).background(g.border))
     Row(
         Modifier
             .fillMaxWidth()

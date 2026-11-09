@@ -17,6 +17,7 @@ import com.troy.orcaplayer.core.model.PlayerLayout
 import com.troy.orcaplayer.core.model.MediaPrefsStore
 import com.troy.orcaplayer.core.model.ToolsLayout
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
@@ -25,6 +26,9 @@ import kotlinx.serialization.json.Json
 class SettingsValues internal constructor(private val raw: Map<String, String>) {
     operator fun <T> get(def: SettingDef<T>): T = def.decode(raw[def.key])
     fun isDefault(def: SettingDef<*>): Boolean = raw[def.key] == null
+
+    /** A copy with one stored (encoded) value replaced; for previews and tests. */
+    fun with(def: SettingDef<*>, encoded: String): SettingsValues = SettingsValues(raw + (def.key to encoded))
 
     companion object {
         val Defaults = SettingsValues(emptyMap())
@@ -102,9 +106,29 @@ class SettingsRepository(context: Context) {
         store.edit { prefs -> Settings.all.forEach { prefs.remove(storageKey(profileId, it)) } }
     }
 
+    // Backup (22): every stored text value with its storage key, for all profiles.
+
+    suspend fun exportAll(includeSecrets: Boolean): Map<String, String> =
+        store.data.first().asMap().mapNotNull { (k, v) ->
+            val value = v as? String ?: return@mapNotNull null
+            if (!includeSecrets && isSecretKey(k.name)) null else k.name to value
+        }.toMap()
+
+    /** Writes backed-up values over the current ones. Keys this version doesn't know are kept for later. */
+    suspend fun importAll(values: Map<String, String>) {
+        store.edit { prefs -> values.forEach { (k, v) -> prefs[stringPreferencesKey(k)] = v } }
+    }
+
+    companion object {
+        /** Passwords, keys and tokens, left out of backups that have no password. */
+        fun isSecretKey(name: String): Boolean =
+            Settings.all.any { it is TextSetting && it.secret && (name == "global/${it.key}" || name.endsWith("/${it.key}")) }
+    }
+
     // Layout models. The UI is built from these from day one, so the Phase 11 editors need no rewrite.
 
-    fun navLayout(profileId: String): Flow<NavLayout> = layout(profileId, "layout.nav", NavLayout.serializer(), NavLayout.Default)
+    fun navLayout(profileId: String): Flow<NavLayout> =
+        layout(profileId, "layout.nav", NavLayout.serializer(), NavLayout.Default).map { it.withNewTabs() }
     fun homeLayout(profileId: String): Flow<HomeLayout> = layout(profileId, "layout.home", HomeLayout.serializer(), HomeLayout.Default)
     fun playerLayout(profileId: String): Flow<PlayerLayout> = layout(profileId, "layout.player", PlayerLayout.serializer(), PlayerLayout.Default)
     fun gestureMap(profileId: String): Flow<GestureMap> = layout(profileId, "layout.gestures", GestureMap.serializer(), GestureMap.Default)

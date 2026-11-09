@@ -145,7 +145,10 @@ class CastController private constructor(private val context: Context) {
             return false
         }
         val server = CastServer.get(context)
-        val direct = (item.uri.startsWith("https://") || item.uri.startsWith("http://")) && item.headers.isEmpty()
+        // A link to this phone itself (the torrent streamer's local server) can't be reached by the
+        // Cast device, so it goes through the cast server, which is on the LAN address.
+        val loopback = item.uri.startsWith("http://127.0.0.1", true) || item.uri.startsWith("http://localhost", true)
+        val direct = (item.uri.startsWith("https://") || item.uri.startsWith("http://")) && item.headers.isEmpty() && !loopback
         val url = if (direct) item.uri else server.serve(item.uri, mime, item.headers)
         if (url == null) {
             _problem.value = CastProblem.NO_NETWORK
